@@ -128,9 +128,10 @@ extension PostReminderDispatching {
         activeReminderKinds(postServerId: postServerId).contains(ReminderRecord.Kind.time.rawValue)
     }
 
-    /// Whether a live (still-`scheduled`) activity reminder exists on the
-    /// whole post `postServerId` under the current account — drives the
-    /// "When there are new comments" action's checkmark. Sibling of
+    /// Whether a live activity reminder (`scheduled` **or** `fired` - a fired
+    /// follow keeps polling, see `activeReminderKindsSync`) exists on the
+    /// whole post `postServerId` under the current account — drives the "When
+    /// there are new comments" action's checkmark. Sibling of
     /// `hasActiveTimeReminder`; the two kinds are independent so each reads
     /// (and checkmarks) its own state.
     private func hasActiveActivityReminder(postServerId: Int64) -> Bool {

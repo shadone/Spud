@@ -39,12 +39,23 @@ public extension AppDatabase {
         }
     }
 
-    /// Kinds that still have a `scheduled` reminder on this target - drives the
-    /// "Remind Me…" menu's "Cancel reminder" affordance (Phase 1 doesn't track
-    /// which preset was chosen, so a live `time` reminder surfaces a single
-    /// cancel action rather than per-preset checkmarks). A `fired`/`dismissed`/
-    /// `failed` reminder is not "active" - there's nothing left to cancel - so
-    /// it's excluded.
+    /// Kinds still "active" on this target - drives the "Remind Me…" menu's
+    /// checkmarks and "Cancel reminder" affordance. "Active" is
+    /// **kind-specific**, not a single `status` filter, because `time` and
+    /// `activity` diverge on what "still live" means:
+    /// - `time`: active only while `.scheduled` - a one-shot reminder that has
+    ///   fired is done, so it drops out (mirrors
+    ///   `reconcileOverdueTimeReminders`'s scope). Phase 1 doesn't track which
+    ///   preset was chosen, so a live `time` reminder surfaces a single cancel
+    ///   action rather than per-preset checkmarks.
+    /// - `activity`: active while `.scheduled` OR `.fired` - a fired-then-
+    ///   re-armed follow keeps polling (mirrors `dueActivityRemindersSync`'s
+    ///   scope), so it must stay "active" or the "When there are new comments"
+    ///   checkmark would go stale (showing OFF while the user is still being
+    ///   notified) and toggling it would re-baseline instead of removing it.
+    ///
+    /// `.dismissed`/`.failed` are never active for either kind - there's
+    /// nothing left to cancel/toggle.
     func activeReminderKindsSync(
         accountId: Int64,
         postServerId: Int64,
@@ -53,14 +64,18 @@ public extension AppDatabase {
         do {
             let kinds = try writer.read { db in
                 try String.fetchAll(db, sql: """
-                        SELECT kind FROM reminder
+                        SELECT DISTINCT kind FROM reminder
                         WHERE accountId = ?
                           AND postServerId = ?
                           AND rootCommentServerId = ?
-                          AND status = ?
+                          AND (
+                                (kind = ? AND status = ?)
+                             OR (kind = ? AND status IN (?, ?))
+                          )
                     """, arguments: [
                     accountId, postServerId, rootCommentServerId,
-                    ReminderRecord.Status.scheduled.rawValue,
+                    ReminderRecord.Kind.time.rawValue, ReminderRecord.Status.scheduled.rawValue,
+                    ReminderRecord.Kind.activity.rawValue, ReminderRecord.Status.scheduled.rawValue, ReminderRecord.Status.fired.rawValue,
                 ])
             }
             return Set(kinds)

@@ -248,8 +248,14 @@ struct ReminderWritesTests {
         #expect(db.unseenReminderCountSync(accountId: 2) == 0)
     }
 
+    /// "Active" is kind-specific, not a single `status` filter: a fired `time`
+    /// reminder is done (one-shot) and drops out, but a fired `activity`
+    /// reminder is a recurring follow that keeps polling, so it must stay
+    /// "active" - regression coverage for the bug where firing an activity
+    /// follow made the "When there are new comments" checkmark go stale (OFF
+    /// while still notifying) with no way to remove it from the menu.
     @Test
-    func activeReminderKindsSyncReturnsOnlyScheduledKinds() async throws {
+    func activeReminderKindsSyncIsKindSpecific() async throws {
         let db = try AppDatabase.inMemory()
 
         _ = try await db.upsertReminder(Self.makeRecord(postServerId: 1, kind: .time, status: .scheduled))
@@ -258,12 +264,27 @@ struct ReminderWritesTests {
         let live = db.activeReminderKindsSync(accountId: 1, postServerId: 1, rootCommentServerId: 0)
         #expect(live == ["time", "activity"])
 
-        // Firing the time reminder removes it from the "active" set.
+        // Firing the time reminder removes it from the "active" set - a
+        // one-shot time reminder that has fired has nothing left to cancel.
         let timeReminder = try #require(db.reminderSync(accountId: 1, postServerId: 1, rootCommentServerId: 0, kind: "time"))
         try await db.markReminderFired(id: #require(timeReminder.id), firedAt: Date())
 
-        let liveAfterFiring = db.activeReminderKindsSync(accountId: 1, postServerId: 1, rootCommentServerId: 0)
-        #expect(liveAfterFiring == ["activity"])
+        let liveAfterTimeFires = db.activeReminderKindsSync(accountId: 1, postServerId: 1, rootCommentServerId: 0)
+        #expect(liveAfterTimeFires == ["activity"])
+
+        // Firing (and re-arming, as the poll does) the activity reminder must
+        // NOT remove it from the "active" set - it's still live and polling.
+        let activityReminder = try #require(db.reminderSync(accountId: 1, postServerId: 1, rootCommentServerId: 0, kind: "activity"))
+        try await db.rearmActivityReminder(
+            id: #require(activityReminder.id),
+            baselineCount: 5,
+            baselineAt: Date(),
+            nextCheckAt: Date().addingTimeInterval(300),
+            firedAt: Date()
+        )
+
+        let liveAfterActivityFires = db.activeReminderKindsSync(accountId: 1, postServerId: 1, rootCommentServerId: 0)
+        #expect(liveAfterActivityFires == ["activity"])
     }
 
     // MARK: - Observations
