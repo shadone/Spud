@@ -38,6 +38,16 @@ final class LoginViewModel {
     let row: SiteListRow
     let instanceName: String
 
+    /// When set, the login screen re-authenticates an EXISTING account rather
+    /// than creating a new one. Carries the account's keychain id so a successful
+    /// submit routes to `reauthenticate` (which reuses the keychain id) instead
+    /// of `login` (which would duplicate the account).
+    struct ReauthTarget: Equatable {
+        let keychainId: String
+    }
+
+    let reauthTarget: ReauthTarget?
+
     var icon: UIImage
     var username: String = "" {
         didSet { loginError = nil }
@@ -80,11 +90,15 @@ final class LoginViewModel {
 
     init(
         row: SiteListRow,
+        initialUsername: String = "",
+        reauthTarget: ReauthTarget? = nil,
         dependencies: Dependencies
     ) {
         self.row = row
+        self.reauthTarget = reauthTarget
         self.dependencies = (own: dependencies, nested: dependencies)
         instanceName = row.hostname
+        username = initialUsername
 
         let placeholder = UIImage(systemName: "questionmark")!
         icon = placeholder
@@ -115,12 +129,21 @@ final class LoginViewModel {
         loginError = nil
         needsTwoFactorCode = false
         do {
-            try await accountService.login(
-                atInstance: row.instance,
-                username: username,
-                password: password,
-                totp2faToken: totp2faToken
-            )
+            if let reauthTarget {
+                try await accountService.reauthenticate(
+                    keychainId: reauthTarget.keychainId,
+                    username: username,
+                    password: password,
+                    totp2faToken: totp2faToken
+                )
+            } else {
+                try await accountService.login(
+                    atInstance: row.instance,
+                    username: username,
+                    password: password,
+                    totp2faToken: totp2faToken
+                )
+            }
             loggedIn = true
         } catch let error as PlatformUnsupportedError {
             blockedPlatform = error

@@ -327,6 +327,11 @@ private final class FakeAccountService: AccountServiceType {
     func seedSignedInDefaultAccount(atInstance _: InstanceActorId) { }
     #endif
     func login(atInstance _: InstanceActorId, username _: String, password _: String, totp2faToken _: String?) async throws { }
+    func reauthenticate(keychainId _: String, username _: String, password _: String, totp2faToken _: String?) async throws { }
+    func username(forAccountKeychainId _: String) -> String? {
+        nil
+    }
+
     func register(atInstance _: InstanceActorId, username _: String, email _: String?, password _: String, passwordVerify _: String, showNsfw _: Bool, captchaUuid _: String?, captchaAnswer _: String?, answer _: String?) async throws -> AccountServiceRegisterResult {
         fatalError()
     }

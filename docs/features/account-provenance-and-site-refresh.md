@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped — pending release (on `feat/ephemeral-browse-accounts`)
-- **Related:** [Instance browsing](instance-browsing.md), [Signed-out browsing](signed-out-browsing.md), [Background unread refresh](background-unread-refresh.md), [Diagnostics logging](diagnostics-logging.md), [docs/superpowers/specs/2026-07-05-ephemeral-browse-accounts-scheduler-giveup-design.md](../superpowers/specs/2026-07-05-ephemeral-browse-accounts-scheduler-giveup-design.md)
+- **Related:** [Instance browsing](instance-browsing.md), [Signed-out browsing](signed-out-browsing.md), [Background unread refresh](background-unread-refresh.md), [Diagnostics logging](diagnostics-logging.md), [Session re-login hint](session-reauth.md), [docs/superpowers/specs/2026-07-05-ephemeral-browse-accounts-scheduler-giveup-design.md](../superpowers/specs/2026-07-05-ephemeral-browse-accounts-scheduler-giveup-design.md)
 
 ## What it does
 
@@ -117,9 +117,11 @@ a successful fetch lands — either from the scheduler, or from a user opening t
 ## Not supported / out of scope
 
 - **No change to the signed-in daily-refresh path.** A signed-in account's `getSite`
-  failures are out of scope here (they may indicate expired sessions, which is an
-  auth-sensitive concern). The give-up and persisted back-off apply only to the two
-  site-info sweeps (signed-out-awaiting and ownerless).
+  failures are out of scope here — give-up and persisted back-off apply only to the two
+  signed-out/ownerless site-info sweeps. A signed-in account's authenticated refresh
+  rejecting the stored session (an expired/revoked token, as opposed to any of the
+  failures tracked here) is a separate, since-implemented concern — see
+  [Session re-login hint](session-reauth.md).
 - **No visible UI indicator.** There is no in-app indicator showing that an instance is
   ephemeral or that the scheduler has given up on it. About → Logs is the only diagnostic
   surface.

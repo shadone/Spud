@@ -31,6 +31,10 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
     public var blurNsfw: Bool?
     public var showReadPosts: Bool?
     public var showScores: Bool?
+    /// The account's stored JWT was rejected as expired/revoked; the UI shows a
+    /// quiet re-login hint. Cleared by any successful authed result. Always
+    /// `false` for signed-out / service / ephemeral accounts.
+    public var sessionNeedsReauth: Bool
     public var createdAt: Date
     public var updatedAt: Date
 
@@ -55,6 +59,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         blurNsfw: Bool? = nil,
         showReadPosts: Bool? = nil,
         showScores: Bool? = nil,
+        sessionNeedsReauth: Bool = false,
         createdAt: Date = Date(),
         updatedAt: Date = Date()
     ) {
@@ -78,6 +83,7 @@ public struct AccountRecord: Codable, Sendable, Equatable, Identifiable {
         self.blurNsfw = blurNsfw
         self.showReadPosts = showReadPosts
         self.showScores = showScores
+        self.sessionNeedsReauth = sessionNeedsReauth
         self.createdAt = createdAt
         self.updatedAt = updatedAt
     }

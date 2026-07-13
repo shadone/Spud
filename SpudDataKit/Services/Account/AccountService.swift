@@ -49,6 +49,21 @@ public protocol AccountServiceType: AnyObject {
         totp2faToken: String?
     ) async throws
 
+    /// Re-authenticates an EXISTING account in place: logs in on the account's
+    /// own instance and writes the new token to the account's existing keychain
+    /// id -- no duplicate account, no identity change. Clears sessionNeedsReauth
+    /// on success. 2FA behaves exactly as `login`.
+    func reauthenticate(
+        keychainId: String,
+        username: String,
+        password: String,
+        totp2faToken: String?
+    ) async throws
+
+    /// The account's own username (person.name), for pre-filling the re-login
+    /// form. `nil` for signed-out accounts or before the person row resolves.
+    func username(forAccountKeychainId keychainId: String) -> String?
+
     /// Register a new account on `instance`. On a JWT-bearing response the
     /// credential is stored and the account marked default (mirroring
     /// `login`), returning `.loggedIn`. When the instance returns a pending
@@ -702,6 +717,76 @@ public class AccountService: AccountServiceType {
         // only lands on the next periodic `SchedulerService` tick — up to five
         // minutes away — leaving the Account screen spinning until then.
         fetchInitialSiteInfo(forAccountKeychainId: keychainId)
+    }
+
+    public func reauthenticate(
+        keychainId: String,
+        username: String,
+        password: String,
+        totp2faToken: String?
+    ) async throws {
+        guard let instance = instanceActorId(forAccountKeychainId: keychainId),
+              let url = instance.url
+        else {
+            throw AccountServiceLoginError.missingJwt
+        }
+
+        try await preflightHomeConnection(host: instance.host)
+
+        // Same unauthenticated v3 login call as `login` (version isn't known until
+        // getSite runs; login predates that).
+        let api = makeApi(url, nil, .v3)
+
+        let response: Lemmy.LoginResponse
+        do {
+            response = try await api.login(
+                usernameOrEmail: username,
+                password: password,
+                totp2faToken: totp2faToken
+            )
+        } catch {
+            let error = AccountServiceLoginError(from: error)
+            // Both are normal, expected outcomes of the login form, not failures
+            // worth logging: a wrong password, and a 2FA-protected account that
+            // needs a code (the view model catches .totp2faRequired to prompt).
+            switch error {
+            case .invalidLogin, .totp2faRequired:
+                throw error
+            default:
+                break
+            }
+            logger.error("""
+                Re-auth failed. instance=\(instance.actorId, privacy: .public). \
+                username=\(username, privacy: .sensitive(mask: .hash))
+                \(String(describing: error), privacy: .public)
+                """)
+            throw error
+        }
+
+        guard let jwt = response.jwt else {
+            throw AccountServiceLoginError.missingJwt
+        }
+
+        // Reuse the EXISTING keychain id -- no ensureAccount, no new UUID, no
+        // setDefaultAccount. This is what makes re-login in place, not a duplicate.
+        writeCredential(LemmyCredential(jwt: jwt), forKeychainId: keychainId)
+        // Drop the cached service (and its tracked apiVersion + child outbox) so the
+        // stale-JWT authenticated api isn't reused -- the next lemmyService(...)
+        // rebuilds against the fresh credential. Re-auth keeps the same api version,
+        // so without this the cache HIT would return the old-JWT service and the
+        // getSite refresh below would re-trip the flag (v4 401 / v3 my_user==nil),
+        // leaving the "session expired" hint stuck after a SUCCESSFUL re-login.
+        // Mirrors logout/removeAccount. Keep reminderServices -- the account
+        // persists across re-auth; only the stale api must go.
+        lemmyServices[keychainId] = nil
+        lemmyServiceApiVersions[keychainId] = nil
+        try? await appDatabase.setAccountSessionNeedsReauth(keychainId: keychainId, false)
+        // Refresh site / my-user now (also clears the flag via the passive path).
+        fetchInitialSiteInfo(forAccountKeychainId: keychainId)
+    }
+
+    public func username(forAccountKeychainId keychainId: String) -> String? {
+        appDatabase.accountPersonNameSync(forKeychainId: keychainId)
     }
 
     public func register(

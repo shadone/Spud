@@ -105,6 +105,7 @@ final class AccountListViewController: UIViewController {
             accent: Color(ThemeManager.currentAccentColor),
             onSelect: { [weak self] keychainId in self?.selectAccount(keychainId: keychainId) },
             onRemove: { [weak self] keychainId in self?.removeAccount(keychainId: keychainId) },
+            onReauth: { [weak self] keychainId in self?.reauth(keychainId: keychainId) },
             onAddAccount: { [weak self] in self?.addAccount() },
             onBrowseAnonymously: { [weak self] in self?.browseAnonymously() }
         )
@@ -143,6 +144,19 @@ final class AccountListViewController: UIViewController {
     /// left without one. The observation then re-emits and the row drops out.
     private func removeAccount(keychainId: String) {
         accountService.removeAccount(forAccountKeychainId: keychainId)
+    }
+
+    /// Launches the in-place re-auth flow for the row's "Re-login" affordance,
+    /// presented over the sheet itself (not dismissing it first, so the switcher
+    /// is still there underneath if the user cancels).
+    private func reauth(keychainId: String) {
+        Haptics.tap()
+        AccountReauthLauncher.present(
+            forAccountKeychainId: keychainId,
+            from: self,
+            accountService: accountService,
+            dependencies: dependencies.nested
+        )
     }
 
     /// Opens the add-account flow: the server picker, then log in / sign up.

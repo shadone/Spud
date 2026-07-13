@@ -31,6 +31,9 @@ public struct AccountListRow: Sendable, Equatable, Identifiable {
     /// signed-out (anonymous) accounts, which have no person row — the UI falls
     /// back to a deterministic hue tile in that case.
     public let avatarUrl: URL?
+    /// The account's stored session was rejected as expired/revoked; the UI
+    /// shows a quiet re-login hint. Always `false` for signed-out accounts.
+    public let sessionNeedsReauth: Bool
 
     public init(
         id: Int64,
@@ -41,7 +44,8 @@ public struct AccountListRow: Sendable, Equatable, Identifiable {
         nickname: String?,
         name: String?,
         email: String?,
-        avatarUrl: URL?
+        avatarUrl: URL?,
+        sessionNeedsReauth: Bool
     ) {
         self.id = id
         self.accountKeychainId = accountKeychainId
@@ -52,6 +56,7 @@ public struct AccountListRow: Sendable, Equatable, Identifiable {
         self.name = name
         self.email = email
         self.avatarUrl = avatarUrl
+        self.sessionNeedsReauth = sessionNeedsReauth
     }
 }
 
@@ -68,6 +73,7 @@ public extension AppDatabase {
                             account.isDefault       AS isDefault,
                             account.isSignedOutAccountType AS isSignedOutAccountType,
                             account.email           AS email,
+                            account.sessionNeedsReauth AS sessionNeedsReauth,
                             instance.actorId        AS instanceActorId,
                             person.name             AS personName,
                             person.displayName      AS personDisplayName,
@@ -101,7 +107,8 @@ public extension AppDatabase {
                         nickname: nickname,
                         name: name,
                         email: row["email"],
-                        avatarUrl: avatarUrl
+                        avatarUrl: avatarUrl,
+                        sessionNeedsReauth: row["sessionNeedsReauth"]
                     )
                 }
             }

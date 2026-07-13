@@ -17,6 +17,7 @@ struct AccountView: View {
     let accent: Color
 
     let onEditProfile: () -> Void
+    let onReauth: () -> Void
     let onSwitchAccount: () -> Void
     let onOpenSaved: () -> Void
     let onOpenActivity: () -> Void
@@ -27,6 +28,34 @@ struct AccountView: View {
 
     var body: some View {
         List {
+            if viewModel.sessionNeedsReauth {
+                Section {
+                    Button(action: onReauth) {
+                        HStack(spacing: 12) {
+                            Image(systemName: "exclamationmark.triangle.fill")
+                                .foregroundStyle(.orange)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(NSLocalizedString("Session expired", comment: "Account re-login row title"))
+                                    .font(.headline)
+                                    .foregroundStyle(Color(.label))
+                                Text(NSLocalizedString("Tap to log back in", comment: "Account re-login row subtitle"))
+                                    .font(.subheadline)
+                                    .foregroundStyle(Color(.secondaryLabel))
+                            }
+                            Spacer(minLength: 8)
+                            Image(systemName: "chevron.right")
+                                .font(.footnote.weight(.semibold))
+                                .foregroundStyle(Color(.tertiaryLabel))
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel(Text(NSLocalizedString("Session expired, log back in", comment: "Account re-login row accessibility label")))
+                    .accessibilityAddTraits(.isButton)
+                }
+            }
+
             Section {
                 profileHeader
                     // Remove default list-row insets so the banner bleeds

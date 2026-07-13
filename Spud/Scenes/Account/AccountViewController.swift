@@ -171,6 +171,15 @@ class AccountViewController: UIViewController {
             viewModel: viewModel,
             accent: accent,
             onEditProfile: { [weak self] in self?.openEditProfile(keychainId: keychainId) },
+            onReauth: { [weak self] in
+                guard let self else { return }
+                AccountReauthLauncher.present(
+                    forAccountKeychainId: keychainId,
+                    from: self,
+                    accountService: accountService,
+                    dependencies: dependencies.nested
+                )
+            },
             onSwitchAccount: { [weak self] in self?.accountsTapped() },
             onOpenSaved: { [weak self] in self?.openSaved(keychainId: keychainId) },
             onOpenActivity: { [weak self] in self?.openActivity(keychainId: keychainId) },

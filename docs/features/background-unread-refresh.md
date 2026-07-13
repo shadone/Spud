@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Private messages](private-messages.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Inbox](inbox.md), [Mark inbox items read](inbox-mark-read.md), [Private messages](private-messages.md), [Session re-login hint](session-reauth.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -124,6 +124,6 @@ The back-off deadline (`siteInfoNextAttemptAt`) and the permanent-failure count 
 ## Not supported / out of scope (scheduler)
 
 - No UI indicator surfaces the back-off state or give-up state for a specific instance. About → Logs is the only diagnostic surface.
-- The scheduler does not distinguish between a transient network error and a permanent authentication/authorization failure (e.g. expired session vs. CDN block) for the signed-in daily-refresh path. A "session needs re-login" hint is a separate, deferred feature.
+- The give-up/back-off bookkeeping on this page does not itself distinguish a permanent authentication failure (expired/revoked session) from a CDN/WAF block. That distinction — and the "session needs re-login" hint it drives (Account-tab badge, Account-screen row, switcher affordance, blocked-action toast) — is implemented separately; see [Session re-login hint](session-reauth.md).
 - The ownerless-sites sweep (instances not yet associated with any account) is subject to the same persisted back-off and give-up rules as the signed-out-awaiting sweep.
 - The persisted back-off and give-up apply to the **site-info sweeps only** (signed-out-awaiting and ownerless). The signed-in daily-refresh path uses in-memory back-off that clears on cold launch; a unified persisted back-off path for all scheduler work is deferred.

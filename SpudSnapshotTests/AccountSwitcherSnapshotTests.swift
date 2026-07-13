@@ -44,6 +44,7 @@ final class AccountSwitcherSnapshotTests: XCTestCase {
                 accent: teal,
                 onSelect: { _ in },
                 onRemove: { _ in },
+                onReauth: { _ in },
                 onAddAccount: { },
                 onBrowseAnonymously: { }
             )
