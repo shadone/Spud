@@ -50,10 +50,48 @@ private actor ActivityPollLemmyService: LemmyServiceType {
     private(set) var fetchPostInfoCalls: [Int64] = []
     private(set) var fetchCommentsCalls: [Int64] = []
 
+    /// When true, `fetchPostInfo` signals `fetchPostInfoStartedStream` (so a
+    /// test knows the sweep is now suspended inside the fake network call)
+    /// then blocks on `fetchPostInfoGateStream` until the test opens the gate
+    /// via `openFetchPostInfoGate()`. Used only by the overlapping-sweep
+    /// guard test (`SchedulerService.isReminderSweepInFlight`) to force a
+    /// second sweep to start while the first is still mid-fetch.
+    private let gateFetchPostInfo: Bool
+    private let fetchPostInfoStartedStream: AsyncStream<Void>
+    private let fetchPostInfoStartedContinuation: AsyncStream<Void>.Continuation
+    private let fetchPostInfoGateStream: AsyncStream<Void>
+    private let fetchPostInfoGateContinuation: AsyncStream<Void>.Continuation
+
+    init(gateFetchPostInfo: Bool = false) {
+        self.gateFetchPostInfo = gateFetchPostInfo
+        (fetchPostInfoStartedStream, fetchPostInfoStartedContinuation) = AsyncStream<Void>.makeStream()
+        (fetchPostInfoGateStream, fetchPostInfoGateContinuation) = AsyncStream<Void>.makeStream()
+    }
+
+    /// Awaits until `fetchPostInfo` has been entered at least once. Lets a
+    /// test know the sweep that called it is now suspended inside the (fake)
+    /// network call, before it drives a second, overlapping sweep.
+    func waitForFetchPostInfoStarted() async {
+        var iterator = fetchPostInfoStartedStream.makeAsyncIterator()
+        _ = await iterator.next()
+    }
+
+    /// Releases every `fetchPostInfo` call currently blocked on the gate
+    /// (`finish()` makes every outstanding and future `next()` call on the
+    /// gate stream return immediately).
+    func openFetchPostInfoGate() {
+        fetchPostInfoGateContinuation.finish()
+    }
+
     func fetchSiteInfo() async throws { }
 
     func fetchPostInfo(serverPostId: Lemmy.PostID) async throws {
         fetchPostInfoCalls.append(Int64(serverPostId))
+        if gateFetchPostInfo {
+            fetchPostInfoStartedContinuation.yield(())
+            var iterator = fetchPostInfoGateStream.makeAsyncIterator()
+            _ = await iterator.next()
+        }
     }
 
     // MARK: - Unused protocol requirements (trap if reached)
@@ -730,5 +768,84 @@ struct SchedulerActivityPollTests {
         #expect(stored?.status == ReminderRecord.Status.fired.rawValue)
         #expect(stored?.unseen == true)
         #expect(stored?.baselineCount == 9)
+    }
+
+    /// Guards `SchedulerService.isReminderSweepInFlight`: `tick()` (foreground)
+    /// and `runReminderPoll()` (Phase-4 `BGAppRefreshTask`) both drive
+    /// `pollActivityRemindersSweep()`, and since `SchedulerService` is
+    /// `@MainActor` but the sweep suspends across `await` network fetches, a
+    /// naive implementation lets a second sweep interleave with the first
+    /// while it's suspended - double-fetching the same due reminder. This
+    /// forces exactly that overlap: start `runReminderPoll()` unawaited, wait
+    /// until its fetcher has actually entered the (fake) network call and is
+    /// suspended there, THEN drive `tick()` - which must skip its own sweep
+    /// rather than also fetching - before releasing the first sweep to finish.
+    @Test
+    func overlappingSweepsPollTheFetcherOnlyOnce() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let keychainId = "kc-activity-poll-overlap"
+
+        let accountId = try await seedGraph(appDatabase, keychainId: keychainId, postCommentCount: 16)
+
+        let clock = ActivityPollClockBox(Date(timeIntervalSince1970: 1_800_000_000))
+        let reminderRecord = ReminderRecord(
+            accountId: accountId,
+            postServerId: Self.postServerId,
+            apId: "https://activity-poll-test.example.com/post/100",
+            kind: ReminderRecord.Kind.activity.rawValue,
+            nextCheckAt: clock.date.addingTimeInterval(-60), // due
+            baselineCount: 10,
+            baselineAt: clock.date.addingTimeInterval(-3600),
+            status: ReminderRecord.Status.scheduled.rawValue,
+            titleSnapshot: "A great thread",
+            communityName: "news",
+            instanceHost: "activity-poll-test.example.com"
+        )
+        _ = try await appDatabase.upsertReminder(reminderRecord)
+
+        let notificationScheduler = ReminderServiceTests.FakeReminderNotificationScheduler()
+        let reminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: notificationScheduler
+        )
+        let lemmyService = ActivityPollLemmyService(gateFetchPostInfo: true)
+        let accountService = ActivityPollAccountService(lemmyService: lemmyService, reminderService: reminderService)
+        let diagnostics = DiagnosticLogSpy()
+
+        let scheduler = SchedulerService(
+            appDatabase: appDatabase,
+            accountService: accountService,
+            alertService: NullAlertService(),
+            diagnostics: diagnostics,
+            now: { clock.date },
+            reachabilityMonitor: StaticReachabilityMonitor(isOnline: true)
+        )
+
+        // Start the "background" sweep without awaiting it - it enters
+        // `fetchPostInfo` and suspends there on the gate.
+        let backgroundTask = Task { await scheduler.runReminderPoll() }
+        await lemmyService.waitForFetchPostInfoStarted()
+
+        // While the first sweep is still suspended inside its network call,
+        // drive the "foreground" tick - the in-flight guard must make its
+        // sweep a no-op rather than a second overlapping fetch.
+        await scheduler.tick()
+
+        // Release the first sweep and let it finish.
+        await lemmyService.openFetchPostInfoGate()
+        await backgroundTask.value
+
+        // The due reminder's fetcher was invoked exactly once, not twice.
+        let fetchCalls = await lemmyService.fetchPostInfoCalls
+        #expect(fetchCalls == [Self.postServerId])
+
+        // The overlapping tick's sweep was skipped, not run - diagnosed as such.
+        #expect(diagnostics.events(matching: "poll.sweep.skipped").count == 1)
+
+        // The background sweep's own sweep ran normally end-to-end: it fired
+        // the due reminder exactly once.
+        let postNowCalls = await notificationScheduler.postNowCalls
+        #expect(postNowCalls.count == 1)
     }
 }
