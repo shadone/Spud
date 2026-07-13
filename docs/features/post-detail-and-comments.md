@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -11,8 +11,8 @@ threaded comment tree scrolling below it. Comments nest with colored depth rails
 thread stays scannable, and any comment can be collapsed — by tapping it or by a swipe —
 to fold its replies away behind a "+N hidden" badge. A floating button jumps you to the
 next top-level comment, and every comment and the post itself carry a context menu of
-actions (vote, save, reply, share, report) plus moderator and admin actions when the
-account has them.
+actions (vote, save, reply, share, remind me, report) plus moderator and admin actions
+when the account has them.
 
 ## Behavior and rules
 
@@ -35,7 +35,7 @@ account has them.
 - **A failed comment load shows a truthful offline state, not the empty state.** When the comment fetch *fails* and there are no comments to show, the comments region shows a designed inline failure row — classified **offline** ("You're offline" / "Spud will retry automatically when you're back online."), **unreachable** ("Couldn't reach the server" / "The server may be down or your connection is unstable."), or **malformed** ("Something went wrong") — with a **Try again** button, instead of the misleading "No comments yet" empty state. The genuine empty state shows *only* after a fetch succeeds with zero comments; the failed state takes precedence whenever the last load errored with nothing on screen. The copy and classification mirror the feed's first-load error states — see [Feed loading and pagination](feed-loading.md). Tapping **Try again** re-fetches the thread, and — like the feed — an **offline** failure also re-fetches automatically the moment connectivity returns (so the "Spud will retry automatically when you're back online" promise is true, not just a manual Retry). (A pull-to-refresh failure when comments are *already* on screen keeps the list and surfaces a toast instead — it never drops into this failed state.)
 - **Pull to refresh.** Pulling down refetches the comment thread for the current sort.
 - **Comment sort follows the default-sort preference.** The thread is sorted by the account's default comment sort (Hot, Top, New, Old, or Controversial). It is read once when the post opens; there is no in-screen control to change the sort for a single post.
-- **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, and Share. On other people's comments it then offers Report; on your own comment it instead offers **Edit** (pencil) and **Delete** (destructive, with a confirmation) — or just **Restore** when the comment is already deleted (editing a deleted comment isn't offered). Edit opens the composer prefilled with the comment's current body and updates it optimistically + durably through the content outbox (see [Replying](replying.md)). Delete / Restore flips the comment's deleted state instantly (optimistically) and is delivered durably through the idempotent mutation outbox — the same vote / save / hide pipeline that retries transient failures in the background and rolls the optimistic change back (with a "Couldn't update comment" toast) on a permanent failure. After the menu, a Moderation submenu appears when the account can moderate.
+- **Per-comment context menu.** Long-pressing a comment offers Upvote, Downvote, Reply, Save / Unsave, Share, and a "Remind Me…" submenu scoped to that comment's thread (omitted if the comment isn't fully loaded — e.g. a "load more" placeholder; see [Reminders](reminders.md)). On other people's comments it then offers Report; on your own comment it instead offers **Edit** (pencil) and **Delete** (destructive, with a confirmation) — or just **Restore** when the comment is already deleted (editing a deleted comment isn't offered). Edit opens the composer prefilled with the comment's current body and updates it optimistically + durably through the content outbox (see [Replying](replying.md)). Delete / Restore flips the comment's deleted state instantly (optimistically) and is delivered durably through the idempotent mutation outbox — the same vote / save / hide pipeline that retries transient failures in the background and rolls the optimistic change back (with a "Couldn't update comment" toast) on a permanent failure. After the menu, a Moderation submenu appears when the account can moderate.
 - **Per-post context menu.** Long-pressing the post header offers Share, then Report (only when it is not your own post), then — on your own post — **Edit** (pencil), **Delete** (destructive, with a confirmation), or **Restore** when it's already deleted, then the same Moderation submenu when applicable. The post is saved from the toolbar / header action bar, not from this menu.
 - **Edit / delete / restore your own post.** The post overflow ("•••") menu and the header long-press offer these on your own post. **Edit** opens the new-post composer prefilled with the post's current title / body / URL / NSFW (the community is fixed, not changeable); saving updates the post optimistically (the header reflects the change immediately) and durably through the content outbox (`editPost`) — on success the server's version reconciles, and a permanent failure parks the edit as failed (keeping your text) for retry, just like a comment edit. **Delete / Restore** flips the post's deleted state instantly through the idempotent mutation outbox (the same vote / save / hide / comment-delete pipeline that retries transient failures and rolls back a permanent one); while deleted, the post's title is dimmed and a red "Deleted" marker shows in its attribution.
 - **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
@@ -112,7 +112,8 @@ account has them.
 
 - **Given** another person's comment
 - **When** I long-press it
-- **Then** I get Upvote, Downvote, Reply, Save, Share, and Report
+- **Then** I get Upvote, Downvote, Reply, Save, Share, "Remind Me…" (scoped to this
+  comment's thread — see [Reminders](reminders.md)), and Report
 - **And** Report is omitted on my own comments
 
 ### Edit, delete, and restore my own comment
