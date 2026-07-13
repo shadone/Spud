@@ -954,6 +954,16 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v37_sessionNeedsReauth") { db in
+            // Per-account flag: the stored JWT was rejected as expired/revoked and
+            // the account needs re-login. Only ever set for real signed-in
+            // accounts (see AccountReauthWrites' WHERE guard). Self-heals: any
+            // successful authed result clears it.
+            try db.alter(table: "account") { t in
+                t.add(column: "sessionNeedsReauth", .boolean).notNull().defaults(to: false)
+            }
+        }
+
         return migrator
     }
 }

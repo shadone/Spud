@@ -21,6 +21,7 @@ public extension AppDatabase {
                         account.isDefault       AS isDefault,
                         account.isSignedOutAccountType AS isSignedOutAccountType,
                         account.email           AS email,
+                        account.sessionNeedsReauth AS sessionNeedsReauth,
                         instance.actorId        AS instanceActorId,
                         person.name             AS personName,
                         person.displayName      AS personDisplayName,
@@ -51,7 +52,8 @@ public extension AppDatabase {
                     nickname: nickname,
                     name: name,
                     email: row["email"],
-                    avatarUrl: avatarUrl
+                    avatarUrl: avatarUrl,
+                    sessionNeedsReauth: row["sessionNeedsReauth"]
                 )
             }
         }) ?? []
