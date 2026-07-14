@@ -440,6 +440,9 @@ struct DiscoverCommunityRow: View {
                     if row.isNsfw {
                         NsfwBadge()
                     }
+                    if row.isMetaCommunity {
+                        MetaCommunityBadge()
+                    }
                 }
                 Text(handle)
                     .font(.caption)
