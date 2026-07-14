@@ -131,6 +131,11 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private(set) var collapsedElementIds: Set<Int64> = []
 
+    /// Element ids of "load more" rows with a fetch in flight. Reconciled against the live tree in
+    /// `updateOrderedComments` (a successful splice removes the placeholder element, so its id
+    /// disappears and the flag auto-clears); a failure is cleared explicitly by the view controller.
+    private(set) var loadingMoreElementIds: Set<Int64> = []
+
     /// The `lastOpenedAt` from before this visit, used to flag comments
     /// published since. nil on a first-ever visit (nothing is "new"). Set by
     /// ``recordVisit(keychainId:serverPostId:postRowId:)`` during observation
@@ -168,6 +173,13 @@ final class PostDetailViewModel {
 
     @ObservationIgnored
     private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType) async throws -> Void
+
+    /// The seam through which ``loadMoreReplies(elementId:parentServerId:)`` reaches
+    /// `LemmyService.fetchMoreComments`. In production it wraps `accountScope`'s live
+    /// `LemmyService`, resolved at call time (matching ``fetchCommentsOperation``'s
+    /// contract). SpudTests inject a recording/throwing closure directly.
+    @ObservationIgnored
+    private let fetchMoreCommentsOperation: @MainActor (Int64, Lemmy.CommentSortType) async throws -> Void
 
     @ObservationIgnored
     private var fetchTask: Task<Void, Never>?
@@ -217,7 +229,8 @@ final class PostDetailViewModel {
         appDatabase: AppDatabase,
         dependencies: Dependencies,
         lemmy: (any PostDetailLemmyServicing)? = nil,
-        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil,
+        fetchMoreCommentsOperation: (@MainActor (Int64, Lemmy.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
         self.appDatabase = appDatabase
@@ -228,6 +241,13 @@ final class PostDetailViewModel {
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
             try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: sortType)
+        }
+        self.fetchMoreCommentsOperation = fetchMoreCommentsOperation ?? { parentServerId, sortType in
+            try await accountScope.lemmyService.fetchMoreComments(
+                serverPostId: serverPostId,
+                parentServerId: parentServerId,
+                sortType: sortType
+            )
         }
     }
 
@@ -405,6 +425,7 @@ final class PostDetailViewModel {
         commentRowsByElementId = Dictionary(uniqueKeysWithValues: rows.map { ($0.id, $0) })
         let existingIds = Set(rows.map(\.id))
         collapsedElementIds.formIntersection(existingIds)
+        loadingMoreElementIds.formIntersection(existingIds)
         newCommentState = NewCommentState.compute(
             orderedComments: rows,
             previousVisitAt: previousVisitAt,
@@ -427,6 +448,28 @@ final class PostDetailViewModel {
 
     func isCollapsed(elementId: Int64) -> Bool {
         collapsedElementIds.contains(elementId)
+    }
+
+    // MARK: - Load more replies
+
+    func isLoadingMore(elementId: Int64) -> Bool {
+        loadingMoreElementIds.contains(elementId)
+    }
+
+    func markLoadingMore(elementId: Int64) {
+        loadingMoreElementIds.insert(elementId)
+    }
+
+    func clearLoadingMore(elementId: Int64) {
+        loadingMoreElementIds.remove(elementId)
+    }
+
+    /// Fetches and splices the missing replies under `parentServerId`. The caller (the view
+    /// controller) marks the row loading and reconfigures the cell before calling this, and on a
+    /// thrown error clears the flag + reconfigures + shows a toast. On success the comment
+    /// observation emits the spliced tree and the row is replaced.
+    func loadMoreReplies(elementId: Int64, parentServerId: Int64) async throws {
+        try await fetchMoreCommentsOperation(parentServerId, commentSortType)
     }
 
     // MARK: - New-comment delta (view-layer)
