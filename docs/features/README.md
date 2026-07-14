@@ -120,7 +120,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Post author status](author-status.md) | `iphone`, `ipad` | shipped — full role/status pills (MOD/ADMIN/BOT/BANNED/SUSPENDED) on the post-detail byline (mirroring comment badges); low-noise single red banned-author marker in the feed (suspended / community-banned only); "[deleted]" author byline; VoiceOver announces status |
 | [Accessibility](accessibility.md) | `iphone`, `ipad` | shipped |
 | [Home Screen widget (top posts)](widget.md) | `widget` | shipped |
-| [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts |
+| [App Shortcuts, Siri & Spotlight](app-shortcuts-and-siri.md) | `iphone`, `ipad` | shipped — 7 App Intents (incl. Open Saved, Switch Account); Spotlight indexes communities + saved/history posts; NSFW posts excluded from Handoff/Spotlight/Siri |
 | [Open in Spud (Safari extension)](share-extension.md) | `share-extension`, `iphone`, `ipad` | shipped |
 
 <!-- Add new capability docs here as they are written. -->
@@ -141,7 +141,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Context-menu peek on posts
 - [x] Marking posts read / hiding read posts
 - [x] Grouping cross-posts in the feed — same-link duplicates already loaded into the feed collapse into one row with an "Also in c/name" / "Also in N communities" affordance and a context-menu "Also posted in" jump to each collapsed sibling; runs after the hide-read filter; preference-gated (Settings → Display → "Group Cross-posts", default on); client-side and same-page only, since the feed API carries no cross-post list (cross-posting.md)
-- [x] NSFW content visibility and blur — hidden by default; server-side filter + client-side discovery gating (Search, picker, Discover); age acknowledgment on first enable; blur overlay (thumbnails, post-detail header, community art) with tap-to-reveal on posts; privacy screen hides NSFW media from the app-switcher snapshot and screen capture; synced to server for signed-in accounts (nsfw-content.md)
+- [x] NSFW content visibility and blur — hidden by default; server-side filter + client-side discovery gating (Search, picker, Discover); age acknowledgment on first enable; blur overlay (thumbnails, post-detail header, community art) with tap-to-reveal on posts; privacy screen hides NSFW media from the app-switcher snapshot and screen capture; never advertised to Handoff, in-app or system Spotlight, or Siri suggestions (unconditional, independent of Show NSFW); synced to server for signed-in accounts (nsfw-content.md)
 - [x] Configurable swipe actions (posts)
 
 **Posts & comments**
@@ -225,5 +225,5 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Removed and unavailable posts — neutral feed badge (exclamationmark.octagon) + cause-specific placeholder screen when a cached post is no longer found on the server; moderators and the post's author bypass the placeholder and keep access to Restore; automatic recovery on a successful re-fetch (removed-unavailable-content.md)
 - [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
 - [x] Home Screen widget (top posts)
-- [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts
+- [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts; an NSFW post (own flag or its community's) is never advertised to Handoff, indexed into Spotlight, or suggested by Siri, unconditionally
 - [x] "Open in Spud" — Safari banner (Web Extension) + a toolbar popup (both known-instance) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs)
