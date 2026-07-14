@@ -1140,6 +1140,54 @@ extension SearchViewController: UserContextMenuHost {
     }
 }
 
+// MARK: - InstanceContextMenuHost
+
+/// Adopts the shared `InstanceContextMenuBuilder` for a search `.instance`
+/// result's long-press menu (plan Task 6). An instance result carries no
+/// per-viewer server state (it's a client-side Explorer directory row), so
+/// this is the smallest of the five menus: Open, Copy Link, Share, and Add
+/// Account Here.
+extension SearchViewController: InstanceContextMenuHost {
+    func instanceOpen(_ result: SearchInstanceResult) {
+        Haptics.tap()
+        openInstance(record: result.record)
+    }
+
+    func instanceCopyLink(_ result: SearchInstanceResult) {
+        UIPasteboard.general.url = URL(string: "https://\(result.baseurl)")
+        Haptics.tap()
+    }
+
+    func instanceShare(_ result: SearchInstanceResult) {
+        guard let url = URL(string: "https://\(result.baseurl)") else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    /// Presents the login flow for `result`'s instance, wrapped in its own
+    /// navigation controller and modally presented -- mirrors
+    /// `AccountReauthLauncher.present` (and `MainWindow`'s DEBUG login seam)
+    /// rather than pushing it onto Search's own nav stack (which would leave the
+    /// flow stranded behind Search on cancel). The login row is built with
+    /// `SiteListRow(explorerInstance:)` -- the same Explorer-record transform
+    /// `InstanceDetailViewController`'s own sign-in action uses -- so it carries
+    /// the directory icon/name, and the user lands on a login screen branded
+    /// with the instance they just long-pressed rather than a generic
+    /// placeholder (which `SiteListRow.forTypedInstance` would leave nil).
+    func instanceAddAccount(_ result: SearchInstanceResult) {
+        guard let row = SiteListRow(explorerInstance: result.record) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let loginViewController = LoginViewController(row: row, dependencies: dependencies.nested)
+        let navigationController = UINavigationController(rootViewController: loginViewController)
+        present(navigationController, animated: true)
+    }
+}
+
 // MARK: - UITableViewDelegate
 
 extension SearchViewController: UITableViewDelegate {
@@ -1172,10 +1220,11 @@ extension SearchViewController: UITableViewDelegate {
         }
     }
 
-    /// Attaches the shared post/community/comment long-press menus to `.post`,
-    /// `.community`, and `.comment` rows, reaching feed/Discover/PostDetail
-    /// parity (plan Tasks 2-4). The remaining result kinds return nil until
-    /// Tasks 5-6 fill them in.
+    /// Attaches each result kind's long-press menu: post/community/comment/user
+    /// reach feed/Discover/PostDetail/Person-header parity (plan Tasks 2-5),
+    /// and instance gets its own small Open/Copy Link/Share/Add Account menu
+    /// (plan Task 6). Only `.openURL` (the paste-a-link suggestion row) has no
+    /// menu.
     func tableView(
         _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
@@ -1222,7 +1271,12 @@ extension SearchViewController: UITableViewDelegate {
                 // shows the real state once opened.
                 return UserContextMenuBuilder.menu(for: result, isBlocked: false, host: self)
             }
-        case .instance, .openURL:
+        case let .instance(result):
+            return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                return InstanceContextMenuBuilder.menu(for: result, host: self)
+            }
+        case .openURL:
             return nil
         }
     }

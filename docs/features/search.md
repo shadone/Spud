@@ -23,7 +23,10 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Post rows carry the full feed long-press menu.** Long-pressing a post result opens the identical context menu the feed uses: Upvote / Downvote, Save, Reply, Share, Cross-post, Visit community, View author, Hide, Block author, Report, and Mute community (with a duration submenu), plus Remind Me when the post is loaded. Every action routes through the same per-account services as the feed (optimistic vote/save via the outbox, sign-in gates on mutating actions, the capability gate on Hide for instances that don't support it).
 - **Community rows carry Discover's community context menu.** Long-pressing a community result opens Open Community, Subscribe/Unsubscribe, Mute (with a duration submenu) or Unmute, Share, Copy Link, and Block Community (destructive) — the same menu Discover's Community Explorer shows.
 - **Comment rows carry the post detail's comment context menu.** Long-pressing a comment result opens Open Thread, Upvote/Downvote, Save/Unsave, Share, Copy Link, View author, and Report (destructive) — the same primary actions `PostDetailViewController`'s comment context menu offers, dispatched through the same per-account, outbox-backed `LemmyService` comment vote/save calls and the same report call. Own-comment Edit/Delete and moderation are not offered from search (a search result row carries no "is this my comment" or moderation-capability context).
-- **User rows carry the Person profile's header context menu.** Long-pressing a user result opens Open profile, Copy handle, Share, and Block user (destructive) — the same primary actions the [Person profile](person-profile.md)'s header context menu offers. Search always offers "Block user" rather than toggling to "Unblock": whether the viewer has already blocked that person can only be learned via a network round trip (the account's block list), which the menu can't afford at long-press time, so it shows the same one-directional action regardless of current state — opening the profile itself resolves and shows the real Block/Unblock state. Instance results do not yet have a context menu.
+- **User rows carry the Person profile's header long-press actions, plus two for menu-set parity.** Long-pressing a user result opens Open profile, Copy handle, Share, and Block user (destructive). Copy handle and Block/Unblock are the same actions the [Person profile](person-profile.md)'s own header long-press offers; Open profile and Share are added on top so every search result's menu reaches a comparable item set — the profile's own header long-press has neither (Open profile makes no sense when you're already on the profile, and Share lives in its overflow menu instead). Search always offers "Block user" rather than toggling to "Unblock": whether the viewer has already blocked that person can only be learned via a network round trip (the account's block list), which the menu can't afford at long-press time, so it shows the same one-directional action regardless of current state — opening the profile itself resolves and shows the real Block/Unblock state.
+- **Instance rows carry a small, directory-appropriate context menu.** Long-pressing an instance result opens Open, Copy Link, Share, and Add Account Here. There is no subscribe/vote/save/block action here — an instance result is a client-side Lemmy Explorer directory row, not a per-viewer server entity, so there is no such state to expose. Add Account Here jumps straight to the login flow for that instance (the same flow the instance screen's own "Log in" and the custom-instance-entry flow use), skipping a trip through the instance screen first.
+- **Mutating context-menu actions gate on sign-in; read-only ones don't.** Any action that writes something — vote, save, reply, cross-post, hide, subscribe, mute, block, report — checks sign-in first and shows a "Sign in to …" alert instead of dispatching when signed out, exactly like the equivalent screen's own action. Read-only actions — Open / Visit community / View author, Share, Copy Link / Copy handle — work identically whether signed in or out. The instance menu's Add Account Here has nothing to gate: it *is* a way to sign in.
+- **A context-menu mutation doesn't repaint the search row.** Search renders each row from the search response it fetched, not a live GRDB observation of that row (unlike the feed, Community screen, or Person profile). So voting, saving, subscribing, muting, or blocking from a result's long-press menu durably queues the change and updates every other surface watching that row through the database, but the search row itself keeps showing what the response returned until the query is re-run — it does not flip in place. (The community row's own inline Subscribe *button* is the one exception with a cell to update optimistically; the long-press "Subscribe"/"Unsubscribe" action reuses the same dispatch with no cell, so it doesn't repaint the row either.)
 - **NSFW posts follow the feed.** With "Show NSFW" **on**, an NSFW post result is kept and rendered blurred through the shared cell (respecting the blur preference and tap-to-reveal), exactly as the feed treats NSFW posts. With "Show NSFW" **off**, NSFW posts are dropped from results entirely — matching the feed (which the server filters) — so a user who opted out is never shown NSFW content, raw or blurred. NSFW *communities* are likewise withheld when "Show NSFW" is off. See [NSFW content visibility and blur](nsfw-content.md).
 - **Tapping a result navigates.** A post or comment result opens the post in Post detail; a community result opens the [Community screen](community-screen.md); a user result opens the [Person profile](person-profile.md). On a post row, tapping the thumbnail opens the post too (a blurred NSFW thumbnail reveals on the first tap instead).
 - **Paste a Lemmy URL to open it in Spud.** When the search field contains a Lemmy link — a post, comment, community, user, or a bare instance — an "Open in Spud" row appears above the results that opens it in-app on tap (resolving the object federally when needed) instead of a web browser. Both canonical URLs (`/post/<id>`, `/c/<name>`, `/u/<name>`, `/comment/<id>`) and the frontend post form some instances use (`/c/<community>/p/<id>/<slug>`) are recognized, including links to instances not in the local directory.
@@ -45,6 +48,14 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Then** the same context menu the feed shows opens — Upvote/Downvote, Save, Reply, Share, Cross-post, Visit community, View author, Hide, Block author, Report, Mute community, and Remind Me (when loaded)
 - **And** choosing "Visit c/…" or "View u/…" pushes the community or person screen, same as the feed
 
+### Long-press a community result for Discover's community context menu
+
+- **Given** a community result row
+- **When** I long-press it
+- **Then** a menu opens with Open Community, Subscribe (or Unsubscribe), Mute (with a duration submenu) or Unmute, Share, Copy Link, and Block Community (destructive) — the same menu Discover's Community Explorer shows
+- **And** choosing "Open Community" pushes the [Community screen](community-screen.md), the same screen a plain row tap opens
+- **And** choosing "Subscribe"/"Unsubscribe" from the menu durably queues the change the same way the row's own inline button does, but does not flip the row itself (see "A context-menu mutation doesn't update the search row" below)
+
 ### Long-press a comment result for post detail's comment context menu
 
 - **Given** a comment result row
@@ -52,13 +63,35 @@ Search the connected instance for posts, communities, users, or comments — or 
 - **Then** a menu opens with Open Thread, Upvote/Downvote, Save (or Unsave if already saved), Share, Copy Link, View author, and Report
 - **And** vote/save/report dispatch through the same per-account `LemmyService` comment calls `PostDetailViewController`'s comment context menu uses, and "Open Thread" opens the comment's parent post in Post detail
 
-### Long-press a user result for the Person profile's header context menu
+### Long-press a user result for its context menu
 
 - **Given** a user result row
 - **When** I long-press it
 - **Then** a menu opens with Open profile, Copy handle, Share, and Block user (destructive)
 - **And** choosing "Open profile" pushes the [Person profile](person-profile.md), the same screen a plain row tap opens
 - **And** the menu always offers "Block user", never "Unblock" — Search can't cheaply resolve whether the person is already blocked, so it shows the one-directional action and the profile screen itself reflects the real state
+
+### Long-press an instance result for its context menu
+
+- **Given** an instance result row
+- **When** I long-press it
+- **Then** a menu opens with Open, Copy Link, Share, and Add Account Here
+- **And** choosing "Open" pushes the same in-app instance screen a plain row tap opens
+- **And** choosing "Add Account Here" presents the login flow for that instance directly, without first opening the instance screen
+
+### A signed-out mutating context-menu action is gated
+
+- **Given** I am browsing search signed out
+- **When** I choose a mutating action from any result's long-press menu — for example Save on a comment result, or Block user on a user result
+- **Then** a "Sign in to …" alert is shown and no call is made
+- **And** read-only actions in the same menu — Open, Share, Copy Link / Copy handle — still work signed out
+
+### A context-menu mutation doesn't update the search row
+
+- **Given** a comment result row that is not yet saved
+- **When** I long-press it and choose Save
+- **Then** the save is durably queued the same way a Save from Post detail is, and any other open screen showing that comment updates once it lands
+- **And** the search row itself keeps showing its unsaved state until the query is re-run — Search renders the fetched response, not a live observation of the row
 
 ### An NSFW post result is blurred when Show NSFW is on
 
