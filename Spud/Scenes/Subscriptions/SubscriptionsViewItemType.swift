@@ -22,6 +22,9 @@ struct SubscriptionsCommunityRow: Equatable, Identifiable {
     /// Whether this community is favorited by the active account. Favorites are
     /// pinned to the top of the list and flagged with a star.
     var isFavorite: Bool = false
+    /// Whether this community is "meta" for its instance (announcements / site
+    /// community). Rendered with a small badge.
+    var isMeta: Bool = false
 
     /// The community's canonical web URL (`https://<instance>/c/<name>`), used
     /// for the share / copy-link context-menu actions.

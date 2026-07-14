@@ -35,6 +35,15 @@ final class SubscriptionsViewModel {
     /// pin to the top and show a star.
     var favoriteActorIds: Set<String> = []
 
+    /// The home instance's classified "meta" (about-the-instance) communities,
+    /// live from `AppDatabase.observeMetaCommunities`. Drives the always-visible
+    /// "About <instance>" section.
+    var metaCommunities: [MetaCommunityListItem] = []
+    /// Host of the home instance, shown as the "About <host>" section header.
+    /// `nil` when there's no account scope (signed-out preview) or the scope's
+    /// instance can't be resolved.
+    var metaInstanceName: String?
+
     /// Live filter text from the search bar.
     var searchText: String = ""
     /// Active ordering for the community list.
@@ -81,18 +90,31 @@ final class SubscriptionsViewModel {
     private let onFeedRequested: (SubscriptionsViewItemType) -> Void
     private let onExploreRequested: () -> Void
     @ObservationIgnored
+    private let appDatabase: AppDatabase
+    @ObservationIgnored
+    private let accountScope: AccountScope?
+    @ObservationIgnored
+    private let metaCommunityService: MetaCommunityServiceType?
+    @ObservationIgnored
     private var observationTask: Task<Void, Never>?
     @ObservationIgnored
     private var favoritesObservationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var metaObservationTask: Task<Void, Never>?
 
     init(
         accountRowId: Int64?,
         isSignedIn: Bool,
         appDatabase: AppDatabase,
+        accountScope: AccountScope?,
+        metaCommunityService: MetaCommunityServiceType?,
         onFeedRequested: @escaping (SubscriptionsViewItemType) -> Void,
         onExploreRequested: @escaping () -> Void
     ) {
         self.isSignedIn = isSignedIn
+        self.appDatabase = appDatabase
+        self.accountScope = accountScope
+        self.metaCommunityService = metaCommunityService
         self.onFeedRequested = onFeedRequested
         self.onExploreRequested = onExploreRequested
 
@@ -112,11 +134,31 @@ final class SubscriptionsViewModel {
                 await MainActor.run { self?.favoriteActorIds = actorIds }
             }
         }
+
+        if let scope = accountScope, let host = scope.instanceActorId?.hostWithPort {
+            metaInstanceName = scope.instanceActorId?.host
+
+            metaObservationTask = Task { [weak self] in
+                for await items in appDatabase.observeMetaCommunities(forAccountId: accountRowId, instanceHost: host) {
+                    if Task.isCancelled { break }
+                    await MainActor.run { self?.metaCommunities = items }
+                }
+            }
+
+            // Trigger a refresh exactly once per view-model lifetime. The
+            // service self-throttles against its freshness window, so this is
+            // NOT re-triggered on every screen appearance.
+            let keychainId = scope.accountKeychainId
+            Task { [metaCommunityService] in
+                await metaCommunityService?.refreshInstance(host: host, siteName: nil, forAccountKeychainId: keychainId)
+            }
+        }
     }
 
     deinit {
         observationTask?.cancel()
         favoritesObservationTask?.cancel()
+        metaObservationTask?.cancel()
     }
 
     func loadFeed(_ value: SubscriptionsViewItemType) {
@@ -128,7 +170,37 @@ final class SubscriptionsViewModel {
         onExploreRequested()
     }
 
-    private static func makeRow(from record: CommunityRecord) -> SubscriptionsCommunityRow? {
+    /// Toggles the server-side subscribe state for a meta community. Routed
+    /// through the account's `LemmyService`, which durably queues the mutation
+    /// in the outbox (`try?` here — the outbox owns retry/rollback, so the view
+    /// model doesn't need to surface a synchronous failure). The observation
+    /// re-emits once the optimistic mirror lands.
+    func toggleSubscribe(_ item: MetaCommunityListItem) {
+        guard let scope = accountScope else { return }
+        let subscribe = !item.subscribedState.isSubscribed
+        Task {
+            try? await scope.lemmyService.setSubscribed(
+                serverCommunityId: Lemmy.CommunityID(item.serverCommunityId), subscribed: subscribe
+            )
+        }
+    }
+
+    /// Toggles the local favourite flag for a meta community. Purely local
+    /// (the favourites table has no server counterpart); the observation
+    /// re-emits immediately since the write lands synchronously.
+    func toggleFavorite(_ item: MetaCommunityListItem) {
+        guard let keychainId = accountScope?.accountKeychainId else { return }
+        if item.isFavorite {
+            appDatabase.unfavoriteCommunitySync(forKeychainId: keychainId, communityActorId: item.communityActorId)
+        } else {
+            appDatabase.favoriteCommunitySync(forKeychainId: keychainId, communityActorId: item.communityActorId)
+        }
+    }
+
+    /// Builds a row from a persisted `CommunityRecord`, including the "meta"
+    /// classification. Internal (not `private`) so it can be exercised directly
+    /// from tests without going through the observation pipeline.
+    static func makeRow(from record: CommunityRecord) -> SubscriptionsCommunityRow? {
         guard
             let id = record.id,
             let name = record.name,
@@ -137,11 +209,19 @@ final class SubscriptionsViewModel {
             let instance = InstanceActorId(from: url)
         else { return nil }
 
+        let isMeta = MetaCommunityClassifier.classify(
+            name: name,
+            title: record.title,
+            instanceHost: instance.host,
+            siteName: nil
+        ).isMeta
+
         return SubscriptionsCommunityRow(
             id: id,
             name: name,
             instanceActorId: instance,
-            communityActorId: actorIdString
+            communityActorId: actorIdString,
+            isMeta: isMeta
         )
     }
 }

@@ -123,8 +123,13 @@ struct SubscriptionsCommunityView: View {
         HStack(spacing: 16) {
             SubscriptionsCommunityIconView(communityName: row.name)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.name)
-                    .foregroundStyle(Color(.label))
+                HStack(spacing: 6) {
+                    Text(row.name)
+                        .foregroundStyle(Color(.label))
+                    if row.isMeta {
+                        MetaCommunityBadge()
+                    }
+                }
                 // The instance handle stays quiet, like the feed cell.
                 Text("@\(row.instanceActorId.host)")
                     .foregroundStyle(Color(.tertiaryLabel))
@@ -136,6 +141,87 @@ struct SubscriptionsCommunityView: View {
                     .font(.footnote)
                     .foregroundStyle(.yellow)
                     .accessibilityLabel(Text("Favorite", comment: "Accessibility label for the favorited-community star"))
+            }
+        }
+        .contentShape(Rectangle())
+    }
+}
+
+/// A row in the always-visible "About <instance>" section: one of the home
+/// instance's classified meta communities (e.g. an announcements/general
+/// community), with one-tap Favourite and — when signed in — Subscribe.
+/// Layout mirrors `SubscriptionsCommunityView`.
+///
+/// Favourite is always available (purely local, no server call); Subscribe is
+/// gated by `showsSubscribe` because an anonymous/signed-out account has no
+/// server-side subscribe state to mutate (`setSubscribed` would throw) — see
+/// `SubscriptionsView`'s call site, which passes `viewModel.isSignedIn`. The
+/// Subscribe button's title/symbol come from the centralized
+/// `CommunitySubscribeButtonLabel` (also used by `CommunityHeaderView` /
+/// `SearchCommunityCell`) so this row can never show different copy for the
+/// same persisted `CommunitySubscribedState`.
+struct MetaCommunityAboutRow: View {
+    let item: MetaCommunityListItem
+    let showsSubscribe: Bool
+    let onSubscribe: () -> Void
+    let onFavorite: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            SubscriptionsCommunityIconView(communityName: item.name)
+            VStack(alignment: .leading, spacing: 1) {
+                HStack(spacing: 6) {
+                    Text(item.title ?? item.name)
+                        .lineLimit(1)
+                        .foregroundStyle(Color(.label))
+                    MetaCommunityBadge()
+                }
+                Text("c/\(item.name)")
+                    .font(.footnote)
+                    .lineLimit(1)
+                    .foregroundStyle(Color(.tertiaryLabel))
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            // The name truncates to one line (above) so these trailing
+            // controls always keep their natural size instead of being
+            // squeezed into a hyphenated wrap.
+            Button(action: onFavorite) {
+                Image(systemName: item.isFavorite ? "star.fill" : "star")
+                    .foregroundStyle(item.isFavorite ? .yellow : Color(.tertiaryLabel))
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(
+                item.isFavorite
+                    ? Text("Unfavorite", comment: "Accessibility label to remove a meta community from favourites")
+                    : Text("Favorite", comment: "Accessibility label to add a meta community to favourites")
+            )
+
+            if showsSubscribe {
+                // A manual capsule pill (padding + `.background(_:in: Capsule())`)
+                // rather than `.buttonStyle(.bordered) + .buttonBorderShape(.capsule)`
+                // — matches the pill pattern already used across Discover
+                // (`DiscoverView.SubscribeButton`, `InstanceCommunitiesView` chips)
+                // and sidesteps that button style's height ambiguity inside a
+                // `List` row.
+                Button(action: onSubscribe) {
+                    HStack(spacing: 4) {
+                        Image(systemName: CommunitySubscribeButtonLabel.symbol(for: item.subscribedState))
+                            .font(.system(size: 11, weight: .bold))
+                        Text(CommunitySubscribeButtonLabel.title(for: item.subscribedState))
+                            .font(.caption.weight(.semibold))
+                            .lineLimit(1)
+                    }
+                    .foregroundStyle(item.subscribedState.isSubscribed ? Color(.secondaryLabel) : Color.accentColor)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        item.subscribedState.isSubscribed ? Color(.tertiarySystemFill) : Color.accentColor.opacity(0.14),
+                        in: Capsule()
+                    )
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(CommunitySubscribeButtonLabel.title(for: item.subscribedState))
             }
         }
         .contentShape(Rectangle())
@@ -174,6 +260,39 @@ struct SubscriptionsView: View {
 
     var body: some View {
         List {
+            // Always-visible "About <instance>" section: the home instance's
+            // classified meta communities (announcements/general etc.), with
+            // one-tap Favourite/Subscribe. Shown even when signed out (a
+            // signed-out/anonymous account still has a keychain id and can
+            // browse + favourite; only Subscribe is gated below), and — like
+            // the standard feeds — steps aside while search-filtering.
+            if viewModel.searchText.isEmpty, !viewModel.metaCommunities.isEmpty {
+                Section(viewModel.metaInstanceName.map { "About \($0)" } ?? "About this instance") {
+                    ForEach(viewModel.metaCommunities.filter { $0.confidence == .high }) { item in
+                        MetaCommunityAboutRow(
+                            item: item,
+                            showsSubscribe: viewModel.isSignedIn,
+                            onSubscribe: { viewModel.toggleSubscribe(item) },
+                            onFavorite: { viewModel.toggleFavorite(item) }
+                        )
+                    }
+
+                    let lowConfidenceCommunities = viewModel.metaCommunities.filter { $0.confidence == .low }
+                    if !lowConfidenceCommunities.isEmpty {
+                        DisclosureGroup("More on this instance") {
+                            ForEach(lowConfidenceCommunities) { item in
+                                MetaCommunityAboutRow(
+                                    item: item,
+                                    showsSubscribe: viewModel.isSignedIn,
+                                    onSubscribe: { viewModel.toggleSubscribe(item) },
+                                    onFavorite: { viewModel.toggleFavorite(item) }
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             // The standard feeds are navigation, not search results, so they
             // step aside while the user is filtering communities.
             if viewModel.searchText.isEmpty {

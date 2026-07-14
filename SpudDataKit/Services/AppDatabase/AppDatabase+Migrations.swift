@@ -964,6 +964,28 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v38_instanceMetaCommunity") { db in
+            // Per-account cache of communities classified as "meta" (about the
+            // instance itself). Keyed by the community's federation actor id so a
+            // meta community matches regardless of which feed surfaced it. Scoped
+            // per (account, instanceHost) so the same account's view of two
+            // instances stays separate. Identity only — subscribe / favourite
+            // state is joined live from `community` / `favoritedCommunity`.
+            try db.create(table: "instanceMetaCommunity") { t in
+                t.autoIncrementedPrimaryKey("id")
+                t.column("accountId", .integer)
+                    .notNull()
+                    .indexed()
+                    .references("account", onDelete: .cascade)
+                t.column("instanceHost", .text).notNull()
+                t.column("communityActorId", .text).notNull()
+                t.column("confidence", .text).notNull()
+                t.column("reason", .text).notNull()
+                t.column("discoveredAt", .datetime).notNull()
+                t.uniqueKey(["accountId", "instanceHost", "communityActorId"])
+            }
+        }
+
         return migrator
     }
 }

@@ -440,6 +440,9 @@ struct DiscoverCommunityRow: View {
                     if row.isNsfw {
                         NsfwBadge()
                     }
+                    if row.isMetaCommunity {
+                        MetaCommunityBadge()
+                    }
                 }
                 Text(handle)
                     .font(.caption)
@@ -485,6 +488,7 @@ struct DiscoverCommunityRow: View {
     private var accessibilityLabel: String {
         var parts = [row.displayName, "c/\(row.name)@\(row.instanceHost)"]
         if row.isNsfw { parts.append("NSFW") }
+        if row.isMetaCommunity { parts.append("Instance community") }
         parts.append("\(CountFormatter.string(row.numberOfSubscribers)) subscribers")
         if subscriptionState == .subscribed { parts.append("Subscribed") }
         if row.alsoOnServerCount > 0 { parts.append("also on \(row.alsoOnServerCount) other servers") }

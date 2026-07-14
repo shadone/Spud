@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudUtilKit
 import UIKit
 
 // MARK: - Post result cell
@@ -99,6 +100,29 @@ final class SearchCommunityCell: UITableViewCell {
         return label
     }()
 
+    /// Marks a community that is "meta" for its own instance (e.g. an
+    /// announcements / site community) — same glyph as the SwiftUI
+    /// `MetaCommunityBadge` (Discover / Communities tab) for visual
+    /// consistency. Hidden by default; `configure(with:imageService:)` shows
+    /// it when `MetaCommunityClassifier` calls the result meta.
+    ///
+    /// This cell doesn't compose its own `accessibilityLabel` (default subview
+    /// aggregation applies), so the badge is made its own accessibility
+    /// element carrying the "Instance community" marker — VoiceOver announces
+    /// it alongside the name only when it's visible.
+    private let metaBadge: UIImageView = {
+        let view = UIImageView(image: UIImage(systemName: "building.2.fill"))
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.tintColor = .secondaryLabel
+        view.contentMode = .scaleAspectFit
+        view.isHidden = true
+        view.isAccessibilityElement = true
+        view.accessibilityLabel = NSLocalizedString(
+            "Instance community", comment: "Meta community badge"
+        )
+        return view
+    }()
+
     private lazy var subscribeButton: UIButton = {
         var config = UIButton.Configuration.bordered()
         config.cornerStyle = .capsule
@@ -119,7 +143,15 @@ final class SearchCommunityCell: UITableViewCell {
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
 
-        let textStack = UIStackView(arrangedSubviews: [nameLabel, detailLabel])
+        // Name + meta badge + a flexible trailing spacer, so the badge sits right
+        // after the name instead of being pushed to the row's far edge.
+        let nameRow = UIStackView(arrangedSubviews: [nameLabel, metaBadge, UIView()])
+        nameRow.translatesAutoresizingMaskIntoConstraints = false
+        nameRow.axis = .horizontal
+        nameRow.spacing = 6
+        nameRow.alignment = .center
+
+        let textStack = UIStackView(arrangedSubviews: [nameRow, detailLabel])
         textStack.translatesAutoresizingMaskIntoConstraints = false
         textStack.axis = .vertical
         textStack.spacing = 2
@@ -133,6 +165,9 @@ final class SearchCommunityCell: UITableViewCell {
             iconView.centerYAnchor.constraint(equalTo: contentView.centerYAnchor),
             iconView.widthAnchor.constraint(equalToConstant: 40),
             iconView.heightAnchor.constraint(equalToConstant: 40),
+
+            metaBadge.widthAnchor.constraint(equalToConstant: 16),
+            metaBadge.heightAnchor.constraint(equalToConstant: 16),
 
             textStack.leadingAnchor.constraint(equalTo: iconView.trailingAnchor, constant: 12),
             textStack.topAnchor.constraint(equalTo: contentView.layoutMarginsGuide.topAnchor),
@@ -166,6 +201,13 @@ final class SearchCommunityCell: UITableViewCell {
     func configure(with result: SearchCommunityResult, imageService: ImageServiceType) {
         nameLabel.text = result.qualifiedName
         detailLabel.text = "\(result.subscribersText) subscribers"
+
+        // Real fields on `SearchCommunityResult` (bare `name` + the home
+        // `InstanceActorId`), not a `qualifiedName` string split — the result
+        // already carries both separately.
+        metaBadge.isHidden = !MetaCommunityClassifier.classify(
+            name: result.name, title: nil, instanceHost: result.instance.hostWithPort, siteName: nil
+        ).isMeta
 
         iconLoadTask?.cancel()
         guard let iconUrl = result.iconUrl else { return }

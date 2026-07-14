@@ -165,6 +165,40 @@ final class CommunityHeaderView: UIView {
         return label
     }()
 
+    /// Pill shown in the title area when the community is classified "meta" for
+    /// its own home instance (e.g. an announcements / site community) via
+    /// `MetaCommunityClassifier`. Neutral-tinted (unlike the alarming NSFW red)
+    /// since this is informational, not a content warning.
+    private lazy var metaBadge: UILabel = {
+        let label = UILabel()
+        label.translatesAutoresizingMaskIntoConstraints = false
+        label.text = NSLocalizedString("META", comment: "Meta community badge on community header")
+        label.font = UIFont.systemFont(ofSize: 9, weight: .heavy)
+        label.textColor = .white
+        label.backgroundColor = .secondaryLabel
+        label.textAlignment = .center
+        label.layer.cornerRadius = 4
+        label.layer.masksToBounds = true
+        label.isHidden = true
+        label.accessibilityLabel = NSLocalizedString("Instance community", comment: "Meta community badge")
+        return label
+    }()
+
+    /// Hosts the NSFW + meta pills side by side after the title. Each pill is an
+    /// independently-hideable arranged subview: a `UIStackView` collapses a
+    /// hidden arranged subview's width AND its spacing entirely (unlike a plain
+    /// subview, which keeps reserving its constrained frame once hidden), so
+    /// every visibility combination — neither, either alone, or both — lays out
+    /// correctly without a fragile per-combination constraint chain.
+    private lazy var badgeStack: UIStackView = {
+        let stack = UIStackView(arrangedSubviews: [nsfwBadge, metaBadge])
+        stack.translatesAutoresizingMaskIntoConstraints = false
+        stack.axis = .horizontal
+        stack.spacing = 6
+        stack.alignment = .center
+        return stack
+    }()
+
     /// Blur overlay that obscures the banner image when Blur NSFW is on.
     private lazy var bannerBlurView: UIVisualEffectView = {
         let effect = UIBlurEffect(style: .systemThickMaterial)
@@ -210,7 +244,7 @@ final class CommunityHeaderView: UIView {
         addSubview(bannerBlurView)
         addSubview(iconImageView)
         addSubview(titleLabel)
-        addSubview(nsfwBadge)
+        addSubview(badgeStack)
         addSubview(handleLabel)
 
         handleLabel.isUserInteractionEnabled = true
@@ -252,14 +286,19 @@ final class CommunityHeaderView: UIView {
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
             titleLabel.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
 
-            // NSFW badge: vertically centered on the title label, leading edge
-            // just after the title, with a min-width and a trailing cap so the
-            // pill never overflows into the trailing margin on narrow screens.
-            nsfwBadge.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 6),
-            nsfwBadge.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            // Badge stack (NSFW + meta pills): vertically centered on the title
+            // label, leading edge just after the title, with a trailing cap so
+            // the stack never overflows into the trailing margin on narrow
+            // screens. Each pill keeps its own min-width/height so it still
+            // reads as a pill once the stack sizes it in.
+            badgeStack.leadingAnchor.constraint(equalTo: titleLabel.trailingAnchor, constant: 6),
+            badgeStack.centerYAnchor.constraint(equalTo: titleLabel.centerYAnchor),
+            badgeStack.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
+
             nsfwBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 36),
             nsfwBadge.heightAnchor.constraint(equalToConstant: 16),
-            nsfwBadge.trailingAnchor.constraint(lessThanOrEqualTo: trailingAnchor, constant: -margin),
+            metaBadge.widthAnchor.constraint(greaterThanOrEqualToConstant: 36),
+            metaBadge.heightAnchor.constraint(equalToConstant: 16),
 
             handleLabel.topAnchor.constraint(equalTo: titleLabel.bottomAnchor, constant: 2),
             handleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
@@ -292,6 +331,7 @@ final class CommunityHeaderView: UIView {
         descriptionMarkdown: String?,
         subscribed: CommunitySubscribedState,
         isNsfw: Bool,
+        isMeta: Bool,
         blurBanner: Bool
     ) {
         titleLabel.text = title
@@ -311,6 +351,7 @@ final class CommunityHeaderView: UIView {
         vitalityLabel.isHidden = vitalityText == nil
 
         nsfwBadge.isHidden = !isNsfw
+        metaBadge.isHidden = !isMeta
         bannerBlurView.isHidden = !blurBanner
 
         configureDescription(markdown: descriptionMarkdown)
