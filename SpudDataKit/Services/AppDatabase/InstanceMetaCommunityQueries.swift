@@ -100,6 +100,27 @@ public extension AppDatabase {
         }
     }
 
+    /// The home instance's human site name for the account identified by
+    /// `keychainId` — joins `account -> site` (via `account.siteId`) and reads
+    /// `SiteRecord.name`. Used by `MetaCommunityService.refreshInstance` to
+    /// resolve the account's own site name when the caller doesn't supply an
+    /// explicit `siteName`. Returns nil when the account/site can't be found,
+    /// or the site has no name yet (e.g. before the first `getSite` fetch).
+    func homeSiteNameSync(forKeychainId keychainId: String) -> String? {
+        do {
+            return try writer.read { db in
+                try String.fetchOne(db, sql: """
+                    SELECT site.name FROM account
+                    JOIN site ON site.id = account.siteId
+                    WHERE account.accountKeychainId = ?
+                    """, arguments: [keychainId])
+            }
+        } catch {
+            Logger.appDatabase.error("homeSiteNameSync failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
     /// The most recent `discoveredAt` among the cached meta communities for
     /// `(accountId, instanceHost)`, or nil if the cache is empty — used to
     /// decide whether a re-classification pass is due.

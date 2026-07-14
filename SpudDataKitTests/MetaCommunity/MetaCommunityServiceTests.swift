@@ -32,16 +32,23 @@ struct MetaCommunityServiceTests {
     /// `AccountRecord.siteId` is a NOT NULL foreign key to `site`, which in turn
     /// has a NOT NULL foreign key to `instance` — so seeding a bare account
     /// requires standing up an instance and a site first (mirrors the pattern in
-    /// `InstanceMetaCommunityRecordTests.makeAccount`).
-    private func seededAccount(_ db: AppDatabase) throws -> Int64 {
+    /// `InstanceMetaCommunityRecordTests.makeAccount`). `actorId`/`siteName`/
+    /// `keychainId` default to the original fixed values so existing call sites
+    /// are unaffected.
+    private func seededAccount(
+        _ db: AppDatabase,
+        actorId: String = "https://tchncs.de",
+        siteName: String? = nil,
+        keychainId: String = "kc-1"
+    ) throws -> Int64 {
         try db.writer.write { d in
-            var instance = InstanceRecord(actorId: "https://tchncs.de")
+            var instance = InstanceRecord(actorId: actorId)
             try instance.insert(d)
 
-            var site = try SiteRecord(instanceId: #require(instance.id))
+            var site = try SiteRecord(instanceId: #require(instance.id), name: siteName)
             try site.insert(d)
 
-            var a = try AccountRecord(siteId: #require(site.id), accountKeychainId: "kc-1")
+            var a = try AccountRecord(siteId: #require(site.id), accountKeychainId: keychainId)
             try a.insert(d)
             return try #require(a.id)
         }
@@ -89,6 +96,34 @@ struct MetaCommunityServiceTests {
         let secondCalls = await log.names.count
         #expect(firstCalls > 0)
         #expect(secondCalls == firstCalls) // second call skipped by freshness
+    }
+
+    @Test
+    func probesInstanceDomainLabelAndHomeSiteNameToken() async throws {
+        let db = try AppDatabase.inMemory()
+        _ = try seededAccount(
+            db, actorId: "https://discuss.tchncs.de", siteName: "Chonkers", keychainId: "kc-tchncs"
+        )
+        let log = CallLog()
+        // Empty table: nothing resolves, so this only exercises which names
+        // get PROBED (the resolver call log), not classification/caching.
+        let resolver = FakeResolver(table: [:], log: log)
+        let service = MetaCommunityService(
+            resolver: resolver, appDatabase: db, freshness: 3600, candidateNames: ["meta"]
+        )
+
+        await service.refreshInstance(host: "discuss.tchncs.de", siteName: nil, forAccountKeychainId: "kc-tchncs")
+
+        let names = await log.names
+        // Fix 1: the instance's primary domain label ("tchncs") is probed even
+        // though it's not in the fixed candidate list.
+        #expect(names.contains("tchncs"))
+        // Fix 2: with `siteName` nil, the service resolves the home site's
+        // name from the DB (SiteRecord.name = "Chonkers") and probes its
+        // collapsed token too.
+        #expect(names.contains("chonkers"))
+        // The original fixed candidate is still probed.
+        #expect(names.contains("meta"))
     }
 
     @Test

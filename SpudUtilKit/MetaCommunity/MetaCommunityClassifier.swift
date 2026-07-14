@@ -121,7 +121,10 @@ public enum MetaCommunityClassifier {
 
     /// The registrable-domain primary label: second-to-last dot component,
     /// normalized. Returns nil for single-label hosts (e.g. "localhost").
-    private static func primaryDomainLabel(_ host: String) -> String? {
+    /// `public` so `MetaCommunityService.refreshInstance` can probe this same
+    /// label as a candidate community name (the classifier only ever sees
+    /// candidates that were already probed).
+    public static func primaryDomainLabel(_ host: String) -> String? {
         let bare = host.split(separator: ":").first.map(String.init) ?? host
         let labels = bare.split(separator: ".").map(String.init)
         guard labels.count >= 2 else { return nil }

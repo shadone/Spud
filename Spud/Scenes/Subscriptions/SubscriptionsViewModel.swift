@@ -39,7 +39,7 @@ final class SubscriptionsViewModel {
     /// live from `AppDatabase.observeMetaCommunities`. Drives the always-visible
     /// "About <instance>" section.
     var metaCommunities: [MetaCommunityListItem] = []
-    /// Human name of the home instance for the "About <name>" section header.
+    /// Host of the home instance, shown as the "About <host>" section header.
     /// `nil` when there's no account scope (signed-out preview) or the scope's
     /// instance can't be resolved.
     var metaInstanceName: String?

@@ -134,4 +134,39 @@ struct MetaCommunityClassifierTests {
         #expect(c.confidence == .high)
         #expect(c.reason == .strongKeyword)
     }
+
+    @Test
+    func flagshipCommunityMatchesDomainLabelWithNoTitleOrSiteName() {
+        // The flagship community named after the instance (e.g. "tchncs" on
+        // discuss.tchncs.de) must classify as meta via the domain label alone
+        // — no title and no site name needed. This is what
+        // `MetaCommunityService.refreshInstance` relies on after probing the
+        // domain label as a candidate.
+        let c = MetaCommunityClassifier.classify(
+            name: "tchncs", title: nil, instanceHost: "discuss.tchncs.de", siteName: nil
+        )
+        #expect(c.isMeta)
+        #expect(c.confidence == .high)
+        #expect(c.reason == .nameMatchesInstance)
+    }
+
+    @Test
+    func lemmyworldIsNotMetaWithoutSiteNameButIsWithIt() {
+        // "lemmyworld" doesn't match the domain label of lemmy.world (which is
+        // just "lemmy"), so without a site name it's an ordinary community —
+        // this is precisely the gap the home-site-name lookup in
+        // `MetaCommunityService.refreshInstance` closes.
+        let withoutSiteName = MetaCommunityClassifier.classify(
+            name: "lemmyworld", title: nil, instanceHost: "lemmy.world", siteName: nil
+        )
+        #expect(!withoutSiteName.isMeta)
+        #expect(withoutSiteName.reason == .notMeta)
+
+        let withSiteName = MetaCommunityClassifier.classify(
+            name: "lemmyworld", title: nil, instanceHost: "lemmy.world", siteName: "Lemmy World"
+        )
+        #expect(withSiteName.isMeta)
+        #expect(withSiteName.confidence == .high)
+        #expect(withSiteName.reason == .nameMatchesInstance)
+    }
 }
