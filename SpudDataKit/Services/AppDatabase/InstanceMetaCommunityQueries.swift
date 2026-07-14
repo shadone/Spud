@@ -40,6 +40,30 @@ public struct MetaCommunityListItem: Sendable, Equatable, Identifiable {
     public let confidence: MetaConfidence
     public let subscribedState: CommunitySubscribedState
     public let isFavorite: Bool
+
+    /// A `public` struct only gets an `internal` synthesized memberwise
+    /// initializer, so callers outside `SpudDataKit` (e.g. view models and
+    /// their tests) need this explicit one to construct a value directly
+    /// rather than only ever reading one back from `observeMetaCommunities`.
+    public init(
+        id: Int64,
+        name: String,
+        title: String?,
+        communityActorId: String,
+        iconUrl: String?,
+        confidence: MetaConfidence,
+        subscribedState: CommunitySubscribedState,
+        isFavorite: Bool
+    ) {
+        self.id = id
+        self.name = name
+        self.title = title
+        self.communityActorId = communityActorId
+        self.iconUrl = iconUrl
+        self.confidence = confidence
+        self.subscribedState = subscribedState
+        self.isFavorite = isFavorite
+    }
 }
 
 public extension AppDatabase {

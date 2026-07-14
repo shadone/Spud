@@ -15,7 +15,8 @@ private let logger = Logger.app
 class SubscriptionsViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
-        HasAppDatabase
+        HasAppDatabase &
+        HasMetaCommunityService
     typealias NestedDependencies =
         PostListViewController.Dependencies &
         CommunityOrLoadingViewController.Dependencies &
@@ -30,6 +31,10 @@ class SubscriptionsViewController: UIViewController {
 
     var appDatabase: AppDatabase {
         dependencies.own.appDatabase
+    }
+
+    var metaCommunityService: MetaCommunityServiceType {
+        dependencies.own.metaCommunityService
     }
 
     // MARK: Private
@@ -53,10 +58,16 @@ class SubscriptionsViewController: UIViewController {
 
         let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId)
 
+        // `AccountScope` is a zero-cost facade (no I/O at construction), and the
+        // view model's own `guard let accountRowId` short-circuits before either
+        // is ever read when there's no persisted account row — so it's simplest
+        // to always pass them rather than gate on `accountRowId` here too.
         viewModel = SubscriptionsViewModel(
             accountRowId: accountRowId,
             isSignedIn: isSignedIn,
             appDatabase: appDatabase,
+            accountScope: accountService.scope(forAccountKeychainId: accountKeychainId),
+            metaCommunityService: metaCommunityService,
             onFeedRequested: { [weak self] item in
                 self?.handle(item: item)
             },
