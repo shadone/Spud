@@ -184,11 +184,29 @@ public extension AppDatabase {
             }
             let placeholderPosition = placeholder.position
 
-            // Thread the fetched subtree in flat display order, then drop the parent itself (it
-            // already has an element) — matched by server id, so this is correct whether or not the
-            // response echoes the parent.
-            let ordered = LemmyCommentImportHelper.sort(comments: comments)
-            let descendants = ordered.filter { Int64($0.comment.id) != parentServerId }
+            // Thread the fetched subtree in flat (pre-order) display order, rooted at the parent —
+            // NOT via LemmyCommentImportHelper.sort, which only threads a root-anchored full tree and
+            // would drop the whole subtree when `parentServerId` is a nested comment (its own
+            // ancestors aren't in the fetched set). Group children by parent id (preserving the
+            // server's within-parent order) and walk descendants of `parentServerId`. This skips the
+            // parent itself (it already has an element) and is robust to nested parents and to a
+            // child appearing before its parent in the response.
+            var childrenByParent: [Int64: [Lemmy.CommentView]] = [:]
+            for view in comments {
+                if let parentId = CommentPath(path: view.comment.path).parent {
+                    childrenByParent[Int64(parentId), default: []].append(view)
+                }
+            }
+            var descendants: [Lemmy.CommentView] = []
+            var visited: Set<Int64> = []
+            func appendSubtree(of parentId: Int64) {
+                guard visited.insert(parentId).inserted else { return }
+                for child in childrenByParent[parentId] ?? [] {
+                    descendants.append(child)
+                    appendSubtree(of: Int64(child.comment.id))
+                }
+            }
+            appendSubtree(of: parentServerId)
 
             let missingChildren: Set<Lemmy.CommentID> = Set(
                 LemmyCommentImportHelper
@@ -197,7 +215,7 @@ public extension AppDatabase {
             )
 
             // Refresh the parent's own row (childCount etc.) if it was echoed in the response.
-            if let parentView = ordered.first(where: { Int64($0.comment.id) == parentServerId }) {
+            if let parentView = comments.first(where: { Int64($0.comment.id) == parentServerId }) {
                 _ = try Self.upsertComment(
                     from: parentView, accountId: accountId, postRowId: postRowId, siteId: siteId,
                     respectsPendingOutbox: true, in: db
