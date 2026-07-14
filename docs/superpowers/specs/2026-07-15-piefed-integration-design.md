@@ -186,6 +186,51 @@ Rejected alternatives:
 - **`banned_from_community: null`** and similar null-into-non-optional — the adapter
   coalesces; audit for others.
 
+## Phase 1 build decisions (settled after LemmyKit + spec assessment)
+
+- **Hand-write PieFed read models + adapters; do NOT generate a target.** PieFed's
+  spec is live and complete (`piefed.social/api/alpha/swagger.json`, 327 KB, OpenAPI
+  3.1, "PieFed 1.7 Alpha API"), but generating a third SPM target means submodule
+  vendoring + generator-plugin validation friction, and full adapters are needed
+  regardless (PieFed field names differ). The read surface is ~8 small structs whose
+  exact JSON is captured. Hand-written Codable models that decode only-what's-needed are
+  lower-risk, self-contained, and tolerant of alpha drift (extra fields ignored).
+  Revisit generating in Phase 2 only if the write surface makes it worthwhile.
+- **`PiefedClient` reuses LemmyKit's injectable `ClientTransport`** (not a bare
+  URLSession), so tests use the same `StubTransport` pattern. It builds `/api/alpha/*`
+  `HTTPRequest`s, adds the JWT bearer directly, decodes the hand-written PieFed models.
+- **`ApiVersion` gains a `.piefed` case** (the ~38 neutral endpoints then must handle
+  it). Phase 1 implements the read endpoints for `.piefed`; write/auth endpoints throw
+  a clear `unsupportedByDialect`-style error until Phase 2 (no silent fallthrough).
+- **Adapters** `neutralX(fromPiefed:)` produce the EXACT neutral DTOs the v3 adapters
+  emit (`SiteInfo`, `PostView`, `Post`, `CommentView`, `Comment`, `CommunityView`,
+  `Community`, `Person`, `PersonView`, `Page<>`, `SearchResults`, `ResolvedObject`,
+  `PostDetail`). PieFed sends bare bools + `my_vote` score like v3, so reuse the
+  `v3ActionSentinel` "bare bool → sentinel date" trick for `PostActions`/
+  `CommentActions`/`CommunityActions`. Renames to handle: `post.user_id→creatorId`,
+  `post.title→name`, `sticky/instance_sticky→featuredCommunity/Local`,
+  `comment.body→content`, `comment.user_id→creatorId`, `person.user_name→name`,
+  `person.title→displayName`, `person.bot→botAccount`,
+  `community.restricted_to_mods→postingRestrictedToMods`; synthesize community
+  `visibility` (absent → `._public`, `hidden→.unlisted`); coalesce
+  `banned_from_community: null→false`. `subscribed:"NotSubscribed"` and `my_vote:0` map
+  through the existing `neutralFollowState`/`VoteDirection` helpers.
+- **Error mapping:** decode PieFed's `{code,message,status}` into the existing
+  `LemmyApiError.serverError(ErrorResponse)` by synthesizing
+  `ErrorResponse(error: code‑or‑status, message: message)` — consumers unchanged.
+- **Read endpoints in scope for Phase 1:** `getSiteNeutral`, `getPostsNeutral`,
+  `getPostNeutral`, `getCommentsNeutral` (post + parent), `getCommunityNeutral`,
+  `listCommunitiesNeutral`, `searchNeutral`, `resolveObjectNeutral`.
+
+### Captured live fixtures (PieFed 1.7.5, 2026-07-15)
+Session scratchpad `…/scratchpad/piefed-fixtures/`: `site.json`, `post_list_local.json`,
+`post_detail.json` (`{post_view, cross_posts, community_view, moderators}`),
+`comment_list.json` (`{comments, next_page}`), `community_list.json`, `search.json`
+(`{posts, comments, communities, users, type_}`). Phase 1 Task 1 copies these into
+`LemmyKit/Tests/LemmyKitTests/Fixtures/` as `piefed-*.json` for adapter/decoding tests
+(re-capture is fine — shapes are stable). NOTE `my_user` absent when signed-out — the
+signed-in `site` shape must be re-captured in Phase 2 with an account.
+
 ## Risks
 
 - **Alpha, fast-moving API.** PieFed 1.x drifts (1.2 → 1.7 in ~a year). Pin a spec
