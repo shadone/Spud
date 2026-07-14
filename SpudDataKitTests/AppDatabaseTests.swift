@@ -42,6 +42,7 @@ struct AppDatabaseTests {
                 "favoritedCommunity",
                 "feed",
                 "instance",
+                "instanceMetaCommunity",
                 "mutedCommunity",
                 "nodeInfo",
                 "nodeInfoCache",
