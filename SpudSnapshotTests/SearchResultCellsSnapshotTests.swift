@@ -249,7 +249,14 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
             postTitle: "A scenic mountain lake at golden hour",
             creatorName: "dorothea",
             score: 42,
-            published: Date(timeIntervalSinceNow: -2 * 3600)
+            published: Date(timeIntervalSinceNow: -2 * 3600),
+            creatorPersonId: 1,
+            creatorActorId: "https://lemmy.world/u/dorothea",
+            communityName: "photography",
+            communityActorId: "https://lemmy.world/c/photography",
+            originalCommentUrl: "https://lemmy.world/comment/1",
+            isSaved: false,
+            myVote: .none
         )
     }
 

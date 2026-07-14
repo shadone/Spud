@@ -181,7 +181,9 @@ struct SearchUserResult: Hashable, Identifiable {
 }
 
 /// A single comment result. Carries the parent post id so a tap can open the
-/// post containing the comment.
+/// post containing the comment, plus the enrichment the long-press context
+/// menu needs (creator/community identity, saved state, vote) mirroring
+/// `PostDetailViewController`'s comment context-menu actions.
 struct SearchCommentResult: Hashable, Identifiable {
     let serverCommentId: Lemmy.CommentID
     let serverPostId: Lemmy.PostID
@@ -190,6 +192,27 @@ struct SearchCommentResult: Hashable, Identifiable {
     let creatorName: String
     let score: Int64
     let published: Date
+    /// The comment creator's server person id, for the "View author" context-menu action.
+    let creatorPersonId: Lemmy.PersonID
+    /// The creator's federation actor id (e.g. `https://lemmy.world/u/alice`), resolved
+    /// into an `InstanceActorId` for `pushPerson`.
+    let creatorActorId: String?
+    /// The comment's parent community name. Not currently surfaced in the context menu
+    /// (no "Visit community" action in this first cut), kept for parity with the other
+    /// enriched search result kinds and future use.
+    let communityName: String
+    /// The parent community's federation actor id, kept alongside `communityName`.
+    let communityActorId: String?
+    /// The comment's own federated ActivityPub id (`comment.ap_id`). Used to build the
+    /// canonical Share / Copy Link URL exactly like
+    /// `PostDetailViewController.shareComment` does (`LinkURL.forComment`), falling back
+    /// to `<instance>/comment/<id>` when nil.
+    let originalCommentUrl: String?
+    /// Whether the signed-in viewer has saved the comment. Drives the Save/Unsave label
+    /// in the long-press context menu.
+    let isSaved: Bool
+    /// The signed-in viewer's vote on the comment, from the live per-viewer `CommentView`.
+    let myVote: VoteDirection
 
     var id: Lemmy.CommentID {
         serverCommentId
@@ -202,7 +225,14 @@ struct SearchCommentResult: Hashable, Identifiable {
         postTitle: String,
         creatorName: String,
         score: Int64,
-        published: Date
+        published: Date,
+        creatorPersonId: Lemmy.PersonID,
+        creatorActorId: String?,
+        communityName: String,
+        communityActorId: String?,
+        originalCommentUrl: String?,
+        isSaved: Bool,
+        myVote: VoteDirection
     ) {
         self.serverCommentId = serverCommentId
         self.serverPostId = serverPostId
@@ -211,6 +241,13 @@ struct SearchCommentResult: Hashable, Identifiable {
         self.creatorName = creatorName
         self.score = score
         self.published = published
+        self.creatorPersonId = creatorPersonId
+        self.creatorActorId = creatorActorId
+        self.communityName = communityName
+        self.communityActorId = communityActorId
+        self.originalCommentUrl = originalCommentUrl
+        self.isSaved = isSaved
+        self.myVote = myVote
     }
 
     init(view: Lemmy.CommentView) {
@@ -221,6 +258,13 @@ struct SearchCommentResult: Hashable, Identifiable {
         creatorName = view.creator.displayName ?? view.creator.name
         score = view.comment.score
         published = view.comment.publishedAt
+        creatorPersonId = Lemmy.PersonID(view.creator.id)
+        creatorActorId = view.creator.apId
+        communityName = view.community.name
+        communityActorId = view.community.apId
+        originalCommentUrl = view.comment.apId
+        isSaved = view.isSaved
+        myVote = view.myVote
     }
 }
 

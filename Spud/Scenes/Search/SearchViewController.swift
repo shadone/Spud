@@ -481,6 +481,15 @@ final class SearchViewController: UIViewController {
         navigationController?.pushViewController(vc, animated: true)
     }
 
+    /// Opens PostDetail for a search `.comment` result's parent post. Shared by
+    /// the row tap and the long-press menu's "Open Thread" action. Search has
+    /// no in-app "jump to comment" entry point, so this opens the whole post,
+    /// same as the plain row tap always has.
+    private func openComment(_ result: SearchCommentResult) {
+        guard let window = view.window as? MainWindow else { return }
+        window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
+    }
+
     // MARK: Actions
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
@@ -922,6 +931,123 @@ extension SearchViewController: CommunityContextMenuHost {
     }
 }
 
+// MARK: - CommentContextMenuHost
+
+/// Adopts the shared `CommentContextMenuBuilder` for a search `.comment`
+/// result's long-press menu (plan Task 4). Vote/save/report dispatch through
+/// the SAME `viewModel.accountScope.lemmyService` comment calls
+/// `PostDetailViewController`'s comment context menu uses
+/// (`voteOnComment`/`setSavedOnComment`/`PostDetailViewController+Report.swift`'s
+/// `reportComment`, `PostDetailViewController.swift:2177-2298`) — unlike posts,
+/// there is no shared comment-vote/save dispatch protocol (posts have
+/// `PostVoteDispatching`/`PostSaveDispatching`), so this calls the service
+/// directly, mirroring PostDetail's own dispatch shape one level down (without
+/// its `PostDetailViewModel`/`PostDetailLemmyServicing` indirection, which
+/// exists for reasons — pending-comment bookkeeping, offline toasts — that
+/// don't apply to a search result row).
+extension SearchViewController: CommentContextMenuHost {
+    func commentOpenThread(_ result: SearchCommentResult) {
+        Haptics.tap()
+        openComment(result)
+    }
+
+    func commentVote(_ result: SearchCommentResult, direction: VoteStatus.Action) async {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to vote", comment: "Sign-in gate title when a signed-out user tries to vote"))
+            return
+        }
+        UINotificationFeedbackGenerator().notificationOccurred(.success)
+        do {
+            try await viewModel.accountScope.lemmyService
+                .vote(serverCommentId: result.serverCommentId, vote: direction)
+        } catch {
+            alertService.handle(error, for: .vote)
+        }
+    }
+
+    func commentToggleSave(_ result: SearchCommentResult) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to save", comment: "Sign-in gate title when a signed-out user tries to save a comment"))
+            return
+        }
+        let saved = !result.isSaved
+        Task { [weak self] in
+            guard let self else { return }
+            Haptics.tap()
+            do {
+                try await viewModel.accountScope.lemmyService
+                    .setSaved(serverCommentId: result.serverCommentId, saved: saved)
+            } catch {
+                alertService.handle(error, for: .save)
+            }
+        }
+    }
+
+    func commentShare(_ result: SearchCommentResult) {
+        guard let url = commentShareURL(for: result) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    func commentCopyLink(_ result: SearchCommentResult) {
+        guard let url = commentShareURL(for: result) else {
+            Haptics.warning()
+            return
+        }
+        UIPasteboard.general.url = url
+    }
+
+    func commentViewAuthor(_ result: SearchCommentResult) {
+        guard
+            let actorId = result.creatorActorId,
+            let instance = InstanceActorId(from: actorId)
+        else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        pushPerson(personId: result.creatorPersonId, instance: instance)
+    }
+
+    func commentReport(_ result: SearchCommentResult) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to report", comment: "Sign-in gate title when a signed-out user tries to report"))
+            return
+        }
+        presentReportReasonAlert(
+            title: NSLocalizedString("Report comment", comment: "Report comment dialog title"),
+            message: NSLocalizedString("Tell the moderators why you're reporting this comment.", comment: "Report comment dialog message")
+        ) { [weak self] reason in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .reportComment(serverCommentId: result.serverCommentId, reason: reason)
+                    Haptics.success()
+                    presentReportSubmittedConfirmation()
+                } catch {
+                    alertService.handle(error, for: .reportComment)
+                }
+            }
+        }
+    }
+
+    /// The comment's canonical share/copy URL, mirroring
+    /// `PostDetailViewController.shareComment`: prefers the comment's own
+    /// `ap_id` permalink (`result.originalCommentUrl`), falling back to the
+    /// account's home-instance actor id.
+    private func commentShareURL(for result: SearchCommentResult) -> URL? {
+        LinkURL.forComment(
+            instance: preferencesService.shareLinkInstance,
+            originalCommentUrl: result.originalCommentUrl,
+            serverCommentId: Int64(result.serverCommentId),
+            instanceActorId: appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+        )
+    }
+}
+
 // MARK: - UITableViewDelegate
 
 extension SearchViewController: UITableViewDelegate {
@@ -951,8 +1077,7 @@ extension SearchViewController: UITableViewDelegate {
             navigationController?.pushViewController(vc, animated: true)
 
         case let .comment(result):
-            guard let window = view.window as? MainWindow else { return }
-            window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
+            openComment(result)
 
         case let .instance(result):
             // Reuse the open-URL instance row's path: push the in-app instance
@@ -961,9 +1086,10 @@ extension SearchViewController: UITableViewDelegate {
         }
     }
 
-    /// Attaches the shared post/community long-press menus to `.post` and
-    /// `.community` rows, reaching feed/Discover parity (plan Tasks 2-3). The
-    /// other result kinds return nil until Tasks 4-6 fill them in.
+    /// Attaches the shared post/community/comment long-press menus to `.post`,
+    /// `.community`, and `.comment` rows, reaching feed/Discover/PostDetail
+    /// parity (plan Tasks 2-4). The remaining result kinds return nil until
+    /// Tasks 5-6 fill them in.
     func tableView(
         _ tableView: UITableView,
         contextMenuConfigurationForRowAt indexPath: IndexPath,
@@ -987,7 +1113,18 @@ extension SearchViewController: UITableViewDelegate {
                 guard let self else { return nil }
                 return CommunityContextMenuBuilder.menu(for: result, host: self)
             }
-        case .user, .comment, .instance, .openURL:
+        case let .comment(result):
+            let general = appearanceService.general
+            return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                return CommentContextMenuBuilder.menu(
+                    for: result,
+                    host: self,
+                    upvoteIcon: general.upvoteIcon,
+                    downvoteIcon: general.downvoteIcon
+                )
+            }
+        case .user, .instance, .openURL:
             return nil
         }
     }
