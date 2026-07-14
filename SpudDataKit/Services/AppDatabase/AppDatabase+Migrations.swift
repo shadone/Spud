@@ -984,11 +984,6 @@ extension AppDatabase {
                 t.column("discoveredAt", .datetime).notNull()
                 t.uniqueKey(["accountId", "instanceHost", "communityActorId"])
             }
-            try db.create(
-                index: "index_instanceMetaCommunity_on_accountId_instanceHost",
-                on: "instanceMetaCommunity",
-                columns: ["accountId", "instanceHost"]
-            )
         }
 
         return migrator

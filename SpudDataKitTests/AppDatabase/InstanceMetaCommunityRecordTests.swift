@@ -64,6 +64,7 @@ struct InstanceMetaCommunityRecordTests {
         #expect(u.communityActorId == "https://discuss.tchncs.de/c/tchncs")
         #expect(u.confidence == "high")
         #expect(u.reason == "nameMatchesInstance")
+        #expect(u.discoveredAt == record.discoveredAt)
     }
 
     @Test
