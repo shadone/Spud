@@ -123,8 +123,13 @@ struct SubscriptionsCommunityView: View {
         HStack(spacing: 16) {
             SubscriptionsCommunityIconView(communityName: row.name)
             VStack(alignment: .leading, spacing: 1) {
-                Text(row.name)
-                    .foregroundStyle(Color(.label))
+                HStack(spacing: 6) {
+                    Text(row.name)
+                        .foregroundStyle(Color(.label))
+                    if row.isMeta {
+                        MetaCommunityBadge()
+                    }
+                }
                 // The instance handle stays quiet, like the feed cell.
                 Text("@\(row.instanceActorId.host)")
                     .foregroundStyle(Color(.tertiaryLabel))

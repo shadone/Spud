@@ -128,7 +128,10 @@ final class SubscriptionsViewModel {
         onExploreRequested()
     }
 
-    private static func makeRow(from record: CommunityRecord) -> SubscriptionsCommunityRow? {
+    /// Builds a row from a persisted `CommunityRecord`, including the "meta"
+    /// classification. Internal (not `private`) so it can be exercised directly
+    /// from tests without going through the observation pipeline.
+    static func makeRow(from record: CommunityRecord) -> SubscriptionsCommunityRow? {
         guard
             let id = record.id,
             let name = record.name,
@@ -137,11 +140,19 @@ final class SubscriptionsViewModel {
             let instance = InstanceActorId(from: url)
         else { return nil }
 
+        let isMeta = MetaCommunityClassifier.classify(
+            name: name,
+            title: record.title,
+            instanceHost: instance.host,
+            siteName: nil
+        ).isMeta
+
         return SubscriptionsCommunityRow(
             id: id,
             name: name,
             instanceActorId: instance,
-            communityActorId: actorIdString
+            communityActorId: actorIdString,
+            isMeta: isMeta
         )
     }
 }
