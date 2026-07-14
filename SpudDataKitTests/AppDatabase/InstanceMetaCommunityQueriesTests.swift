@@ -117,4 +117,62 @@ struct InstanceMetaCommunityQueriesTests {
         #expect(item.subscribedState == .subscribed)
         #expect(item.isFavorite)
     }
+
+    @Test
+    func observeOrdersHighFirstThenNameAndReportsUnfavorited() async throws {
+        let accountId = try makeAccount()
+        try insertCommunity(
+            accountId: accountId,
+            serverId: 1,
+            name: "zebra",
+            actorId: "https://tchncs.de/c/zebra"
+        )
+        try insertCommunity(
+            accountId: accountId,
+            serverId: 2,
+            name: "alpha",
+            actorId: "https://tchncs.de/c/alpha"
+        )
+        try insertCommunity(
+            accountId: accountId,
+            serverId: 3,
+            name: "beta",
+            actorId: "https://tchncs.de/c/beta"
+        )
+        appDatabase.replaceMetaCommunitiesSync(
+            forAccountId: accountId, instanceHost: "tchncs.de",
+            entries: [
+                .init(communityActorId: "https://tchncs.de/c/zebra", confidence: .high, reason: .strongKeyword),
+                .init(communityActorId: "https://tchncs.de/c/alpha", confidence: .high, reason: .strongKeyword),
+                .init(communityActorId: "https://tchncs.de/c/beta", confidence: .low, reason: .broadKeyword),
+            ]
+        )
+        var iterator = appDatabase.observeMetaCommunities(
+            forAccountId: accountId, instanceHost: "tchncs.de"
+        ).makeAsyncIterator()
+        let items = try #require(await iterator.next())
+        // High-confidence first (alpha, zebra by name), then low (beta).
+        #expect(items.map(\.name) == ["alpha", "zebra", "beta"])
+        #expect(items.allSatisfy { !$0.isFavorite })
+    }
+
+    @Test
+    func observeDropsMetaWithoutLocalCommunityRow() async throws {
+        let accountId = try makeAccount()
+        // Cache entry references a community we have NOT mirrored locally; the
+        // INNER JOIN to `community` deliberately drops it.
+        appDatabase.replaceMetaCommunitiesSync(
+            forAccountId: accountId, instanceHost: "tchncs.de",
+            entries: [.init(
+                communityActorId: "https://tchncs.de/c/ghost",
+                confidence: .high,
+                reason: .strongKeyword
+            )]
+        )
+        var iterator = appDatabase.observeMetaCommunities(
+            forAccountId: accountId, instanceHost: "tchncs.de"
+        ).makeAsyncIterator()
+        let items = try #require(await iterator.next())
+        #expect(items.isEmpty)
+    }
 }

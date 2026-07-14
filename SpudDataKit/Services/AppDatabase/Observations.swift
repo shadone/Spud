@@ -192,7 +192,7 @@ public extension AppDatabase {
     /// `observe*` helper across `AppDatabase` extensions (not just this file) —
     /// internal rather than private so other same-module `*Queries.swift` /
     /// `*Observations.swift` files can reuse it instead of duplicating the body.
-    func makeStream<Value: Sendable & Equatable>(
+    internal func makeStream<Value: Sendable & Equatable>(
         observation: ValueObservation<ValueReducers.RemoveDuplicates<ValueReducers.Fetch<Value>>>
     ) -> AsyncStream<Value> {
         AsyncStream { continuation in
