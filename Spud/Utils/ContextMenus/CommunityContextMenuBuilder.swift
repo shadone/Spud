@@ -37,13 +37,27 @@ protocol CommunityContextMenuHost: UIViewController {
 /// action calls back into `host`; the builder performs no side effects itself.
 @MainActor
 enum CommunityContextMenuBuilder {
-    static func menu(for result: SearchCommunityResult, host: CommunityContextMenuHost) -> UIMenu {
+    /// Builds the menu for `result`. `subscribedState` is the caller's RESOLVED
+    /// 5-state subscribe state (`SearchViewModel.subscribeState(for:)` —
+    /// persisted-DB-wins, falling back to the search response's network
+    /// `followState`), not the raw network state — so the Subscribe/Unsubscribe
+    /// label reflects a Pending / Requested follow the same way
+    /// `CommunityHeaderView` does, rather than the lossy `result.followState`
+    /// collapsing Pending down to "Subscribe".
+    static func menu(
+        for result: SearchCommunityResult,
+        subscribedState: CommunitySubscribedState,
+        host: CommunityContextMenuHost
+    ) -> UIMenu {
         let openAction = UIAction(
             title: NSLocalizedString("Open Community", comment: "Context-menu action to open a community"),
             image: UIImage(systemName: "arrow.up.forward.app")
         ) { [weak host] _ in host?.communityOpen(result) }
 
-        let subscribed = result.isSubscribed
+        // `.isSubscribed` covers subscribed / pending / approvalRequired — all of
+        // which show "Unsubscribe" here, matching `CommunitySubscribedState`'s own
+        // definition of an active follow.
+        let subscribed = subscribedState.isSubscribed
         let subscribeAction = UIAction(
             title: subscribed
                 ? NSLocalizedString("Unsubscribe", comment: "Context-menu action to unsubscribe from a community")

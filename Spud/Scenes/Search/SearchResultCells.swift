@@ -67,7 +67,7 @@ final class SearchCommunityCell: UITableViewCell {
     static let reuseIdentifier = "SearchCommunityCell"
 
     /// Invoked when the subscribe button is tapped. Argument is the desired
-    /// subscribed state.
+    /// subscribed state (`true` = subscribe, `false` = unsubscribe).
     var subscribeTapped: ((Bool) -> Void)?
 
     private let iconView: UIImageView = {
@@ -110,7 +110,10 @@ final class SearchCommunityCell: UITableViewCell {
         return button
     }()
 
-    private var isSubscribed = false
+    /// The last state rendered via `applySubscribedState`. Drives the tap toggle
+    /// intent: subscribe when the current state isn't already subscribed-ish
+    /// (subscribed / pending / approvalRequired), unsubscribe otherwise.
+    private var currentState: CommunitySubscribedState = .notSubscribed
     private var iconLoadTask: Task<Void, Never>?
 
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
@@ -154,10 +157,15 @@ final class SearchCommunityCell: UITableViewCell {
         subscribeTapped = nil
     }
 
+    /// Configures the icon + text. Does NOT touch the subscribe button — the
+    /// resolved 5-state (persisted-DB-wins, network fallback) is owned by
+    /// `SearchViewModel.subscribeState(for:)` and applied separately via
+    /// `applySubscribedState(_:)` (see `SearchViewController`'s cell provider),
+    /// so a result's stale network `followState` can never overwrite a live,
+    /// more-accurate persisted state (e.g. Pending) painted after `configure`.
     func configure(with result: SearchCommunityResult, imageService: ImageServiceType) {
         nameLabel.text = result.qualifiedName
         detailLabel.text = "\(result.subscribersText) subscribers"
-        applySubscribedState(result.isSubscribed)
 
         iconLoadTask?.cancel()
         guard let iconUrl = result.iconUrl else { return }
@@ -172,19 +180,23 @@ final class SearchCommunityCell: UITableViewCell {
         }
     }
 
-    /// Updates the button's title/style. Called both on configure and
-    /// optimistically by the view controller after a tap.
-    func applySubscribedState(_ subscribed: Bool) {
-        isSubscribed = subscribed
-        subscribeButton.configuration?.title = subscribed
-            ? NSLocalizedString("Subscribed", comment: "Search community row: already-subscribed button title")
-            : NSLocalizedString("Subscribe", comment: "Search community row: subscribe button title")
-        subscribeButton.configuration?.baseForegroundColor = subscribed ? .secondaryLabel : nil
+    /// Updates the button's title/icon/style to the real 5-state
+    /// ``CommunitySubscribedState`` (Subscribe / Subscribed / Pending / Requested),
+    /// via the shared `CommunitySubscribeButtonLabel` also used by
+    /// `CommunityHeaderView`'s community-detail button — so the two surfaces never
+    /// show different copy for the same state. Called on configure (the VC-resolved
+    /// state), optimistically right after a tap, and again when the live DB
+    /// observation reconciles to the server's confirmed answer.
+    func applySubscribedState(_ state: CommunitySubscribedState) {
+        currentState = state
+        subscribeButton.configuration?.title = CommunitySubscribeButtonLabel.title(for: state)
+        subscribeButton.configuration?.image = UIImage(systemName: CommunitySubscribeButtonLabel.symbol(for: state))
+        subscribeButton.configuration?.baseForegroundColor = state.isSubscribed ? .secondaryLabel : nil
     }
 
     @objc
     private func didTapSubscribe() {
-        subscribeTapped?(!isSubscribed)
+        subscribeTapped?(!currentState.isSubscribed)
     }
 }
 

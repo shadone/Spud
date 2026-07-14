@@ -23,6 +23,7 @@ struct SearchViewModelURLSuggestionTests {
             accountScope: scope,
             alertService: AlertService(),
             preferencesService: PreferencesService(),
+            appDatabase: appDatabase,
             isKnownInstance: isKnownInstance,
             searchInstances: searchInstances
         )

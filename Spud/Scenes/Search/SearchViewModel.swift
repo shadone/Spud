@@ -40,6 +40,15 @@ final class SearchViewModel {
     /// meaningless) and the VC shows an "Open in Spud" row instead.
     private(set) var urlSuggestion: SearchURLSuggestion?
 
+    /// The account's real, persisted community subscribe states, keyed by
+    /// community actor id (`CommunityRecord.actorId`, e.g.
+    /// `https://lemmy.world/c/tincidunt`) — mirrors `CommunityViewModel` / the
+    /// Community screen's source of truth instead of the transient, lossy
+    /// `followState` a search response carries. Kept live by
+    /// `observeFollowedCommunities`; read through `subscribeState(for:)`, never
+    /// directly, so callers get the persisted-wins-over-network fallback.
+    private(set) var subscribeStates: [String: CommunitySubscribedState] = [:]
+
     // MARK: Private
 
     @ObservationIgnored
@@ -48,6 +57,8 @@ final class SearchViewModel {
     private let alertService: AlertServiceType
     @ObservationIgnored
     private let preferencesService: PreferencesServiceType
+    @ObservationIgnored
+    private let appDatabase: AppDatabase
     @ObservationIgnored
     private let isKnownInstance: (String) -> Bool
     /// Client-side instance search over the bundled Lemmy Explorer directory.
@@ -61,24 +72,81 @@ final class SearchViewModel {
     @ObservationIgnored
     private var searchTask: Task<Void, Never>?
 
+    /// Live observation of the account's followed communities, feeding
+    /// `subscribeStates`. Started in `init` for a signed-in account that
+    /// resolves to a stored row; left `nil` (map stays empty) for a signed-out
+    /// account or one not yet imported, in which case `subscribeState(for:)`
+    /// always falls back to the network `followState`.
+    @ObservationIgnored
+    private var followedCommunitiesObservationTask: Task<Void, Never>?
+
     // MARK: Functions
 
     init(
         accountScope: AccountScope,
         alertService: AlertServiceType,
         preferencesService: PreferencesServiceType,
+        appDatabase: AppDatabase,
         isKnownInstance: @escaping (String) -> Bool,
         searchInstances: @escaping @Sendable (String) -> [SearchInstanceResult]
     ) {
         self.accountScope = accountScope
         self.alertService = alertService
         self.preferencesService = preferencesService
+        self.appDatabase = appDatabase
         self.isKnownInstance = isKnownInstance
         self.searchInstances = searchInstances
+
+        // Mirrors `DiscoverViewModel`'s "Because you follow" seam: only a
+        // signed-in account that resolves to a stored row has anything to
+        // observe. A signed-out account never has `accountFollowedCommunity`
+        // rows (subscribing is sign-in gated), so `subscribeStates` simply
+        // stays empty and every lookup falls back to the network state.
+        if !accountScope.isSignedOut,
+           let accountRowId = appDatabase.accountRowIdSync(forKeychainId: accountScope.accountKeychainId)
+        {
+            followedCommunitiesObservationTask = Task { [weak self] in
+                for await communities in appDatabase.observeFollowedCommunities(forAccountId: accountRowId) {
+                    if Task.isCancelled { break }
+                    guard let self else { return }
+                    var states: [String: CommunitySubscribedState] = [:]
+                    for community in communities {
+                        guard let actorId = community.actorId else { continue }
+                        states[actorId] = community.subscribed
+                    }
+                    subscribeStates = states
+                }
+            }
+        }
     }
 
     deinit {
         searchTask?.cancel()
+        followedCommunitiesObservationTask?.cancel()
+    }
+
+    /// Resolves the real 5-state subscribe state for a search community result.
+    /// The persisted `CommunityRecord.subscribedState` wins when the community is
+    /// currently followed — this is the authoritative state every other screen
+    /// (Community detail, Discover) reads, so it correctly shows Pending /
+    /// Requested where the search response's own `followState` may be stale or
+    /// collapsed. Falls back to the network `followState`, mapped 1:1 via
+    /// `CommunitySubscribedState.init(followState:)`, when the community isn't in
+    /// `subscribeStates`.
+    ///
+    /// `observeFollowedCommunities` yields only FOLLOWED communities (subscribed /
+    /// pending / approvalRequired), so a community that is unsubscribed or was
+    /// denied always falls back to the network state here — sufficient to fix the
+    /// reported bug (a result row showing "Subscribe" when the real state is
+    /// "Pending"). Live-correcting a stale `.denied`, or a row still showing
+    /// "Subscribed" after the account unsubscribed elsewhere, would need observing
+    /// every community rather than only the followed ones — out of scope for this
+    /// fix.
+    func subscribeState(for result: SearchCommunityResult) -> CommunitySubscribedState {
+        if let persisted = subscribeStates[result.communityUrl] {
+            return persisted
+        }
+        return CommunitySubscribedState(followState: result.followState)
     }
 
     /// Called on each keystroke. Trims, then either resets to the initial state

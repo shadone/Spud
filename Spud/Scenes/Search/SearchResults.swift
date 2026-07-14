@@ -84,10 +84,6 @@ struct SearchCommunityResult: Hashable, Identifiable {
         serverCommunityId
     }
 
-    var isSubscribed: Bool {
-        followState == .accepted
-    }
-
     init(
         serverCommunityId: Lemmy.CommunityID,
         name: String,

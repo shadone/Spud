@@ -363,49 +363,40 @@ final class CommunityHeaderView: UIView {
         // enough (`.denied`); nil lets UIKit derive it from the title/subtitle.
         var accessibilityLabel: String?
 
+        // Title + symbol come from the shared helper (also used by
+        // `SearchCommunityCell`) so the two surfaces never drift on copy/iconography.
+        config.title = CommunitySubscribeButtonLabel.title(for: subscribed)
+        config.image = UIImage(systemName: CommunitySubscribeButtonLabel.symbol(for: subscribed))
+        subscribeButton.isEnabled = true
+
         switch subscribed {
         case .notSubscribed:
-            config.title = NSLocalizedString("Subscribe", comment: "Community subscribe button")
-            config.image = UIImage(systemName: "plus")
             config.baseBackgroundColor = .systemBlue
             config.baseForegroundColor = .white
-            subscribeButton.isEnabled = true
         case .denied:
             // v4: the moderators denied the follow request. The primary action stays
             // Subscribe so the user can re-request, but a "Request declined" subtitle
             // and an explicit VoiceOver label distinguish it from a community never
             // subscribed to — the prior rejection isn't silently hidden.
-            config.title = NSLocalizedString("Subscribe", comment: "Community subscribe button")
             config.subtitle = NSLocalizedString("Request declined", comment: "Community subscribe button secondary line when the moderators denied a prior follow request")
-            config.image = UIImage(systemName: "plus")
             config.baseBackgroundColor = .systemBlue
             config.baseForegroundColor = .white
-            subscribeButton.isEnabled = true
             accessibilityLabel = NSLocalizedString(
                 "Subscribe. Your previous request was declined.",
                 comment: "VoiceOver label for the community subscribe button after the moderators denied a follow request"
             )
         case .subscribed:
-            config.title = NSLocalizedString("Subscribed", comment: "Community unsubscribe button")
-            config.image = UIImage(systemName: "checkmark")
             config.baseBackgroundColor = .secondarySystemBackground
             config.baseForegroundColor = .label
-            subscribeButton.isEnabled = true
         case .pending:
-            config.title = NSLocalizedString("Pending", comment: "Community pending-subscription button")
-            config.image = UIImage(systemName: "clock")
             config.baseBackgroundColor = .secondarySystemBackground
             config.baseForegroundColor = .secondaryLabel
-            subscribeButton.isEnabled = true
         case .approvalRequired:
             // v4: the community gates joining behind moderator approval and the
             // request is awaiting a decision. Distinct from the momentary
             // just-tapped Pending — this is the server's confirmed answer.
-            config.title = NSLocalizedString("Requested", comment: "Community subscribe button when the community requires moderator approval and the follow request is awaiting a decision")
-            config.image = UIImage(systemName: "hourglass")
             config.baseBackgroundColor = .secondarySystemBackground
             config.baseForegroundColor = .secondaryLabel
-            subscribeButton.isEnabled = true
         }
         config.imagePadding = 4
         subscribeButton.configuration = config

@@ -128,7 +128,7 @@ public enum CommunitySubscribedState: String, Sendable, Equatable {
     }
 }
 
-extension CommunitySubscribedState {
+public extension CommunitySubscribedState {
     /// Maps LemmyKit's version-neutral ``FollowState`` onto the persisted
     /// vocabulary 1:1, preserving the v4-only `.approvalRequired` / `.denied`
     /// distinctions rather than collapsing them. A v3 backend only ever produces
