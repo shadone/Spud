@@ -198,12 +198,13 @@ public extension AppDatabase {
                 }
             }
             var descendants: [Lemmy.CommentView] = []
-            var visited: Set<Int64> = []
+            var visited: Set<Int64> = [parentServerId]
             func appendSubtree(of parentId: Int64) {
-                guard visited.insert(parentId).inserted else { return }
                 for child in childrenByParent[parentId] ?? [] {
+                    let childId = Int64(child.comment.id)
+                    guard visited.insert(childId).inserted else { continue }
                     descendants.append(child)
-                    appendSubtree(of: Int64(child.comment.id))
+                    appendSubtree(of: childId)
                 }
             }
             appendSubtree(of: parentServerId)

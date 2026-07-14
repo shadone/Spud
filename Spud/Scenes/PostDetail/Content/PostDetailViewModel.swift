@@ -134,6 +134,7 @@ final class PostDetailViewModel {
     /// Element ids of "load more" rows with a fetch in flight. Reconciled against the live tree in
     /// `updateOrderedComments` (a successful splice removes the placeholder element, so its id
     /// disappears and the flag auto-clears); a failure is cleared explicitly by the view controller.
+    @ObservationIgnored
     private(set) var loadingMoreElementIds: Set<Int64> = []
 
     /// The `lastOpenedAt` from before this visit, used to flag comments

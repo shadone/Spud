@@ -2158,20 +2158,26 @@ extension PostDetailViewController {
                 // prior vote / vote / reply / collapse layout. Collapse is also
                 // available via tap; a collapse swipe slot mirrors it for
                 // gesture-first users.
-                let general = appearance.general
-                cell.swipeActionConfiguration = self?.commentSwipeActionConfig.viewConfiguration(
-                    state: Self.swipeState(for: row, isCollapsed: isCollapsed),
-                    appearance: general
-                )
-
-                cell.swipeActionTriggered = { [weak self] trigger in
-                    guard let self else { return }
-                    let action = commentSwipeActionConfig.action(for: SwipeActionSlot(trigger: trigger))
-                    performCommentSwipeAction(
-                        action,
-                        elementId: elementId,
-                        serverCommentId: row.serverCommentId
+                // A "load more" placeholder has no backing comment, so it carries
+                // no swipe actions — tapping the row is its only interaction.
+                if row.moreChildCount != nil {
+                    cell.swipeActionConfiguration = nil
+                } else {
+                    let general = appearance.general
+                    cell.swipeActionConfiguration = self?.commentSwipeActionConfig.viewConfiguration(
+                        state: Self.swipeState(for: row, isCollapsed: isCollapsed),
+                        appearance: general
                     )
+
+                    cell.swipeActionTriggered = { [weak self] trigger in
+                        guard let self else { return }
+                        let action = commentSwipeActionConfig.action(for: SwipeActionSlot(trigger: trigger))
+                        performCommentSwipeAction(
+                            action,
+                            elementId: elementId,
+                            serverCommentId: row.serverCommentId
+                        )
+                    }
                 }
                 return cell
             }
