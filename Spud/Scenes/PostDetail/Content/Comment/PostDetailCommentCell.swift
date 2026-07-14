@@ -51,6 +51,9 @@ class PostDetailCommentCell: UITableViewCell {
     /// swipe action) to collapse or expand its thread.
     var collapseTapped: (() -> Void)?
 
+    /// Fired when the user taps a "load more replies" placeholder row.
+    var loadMoreTapped: (() -> Void)?
+
     /// Fired when the user taps "Show" on a folded blocked-user comment.
     var revealBlockedTapped: (() -> Void)?
 
@@ -404,6 +407,23 @@ class PostDetailCommentCell: UITableViewCell {
     private var freshTintColor: UIColor = .clear
     private var isFresh = false
 
+    /// `true` while this cell is presenting a "load more replies" placeholder
+    /// row (`viewModel.isMore`). Read by `handleCollapseTap` to branch to
+    /// `loadMoreTapped` instead of `collapseTapped`.
+    private var isMoreRow = false
+    /// `true` while a "load more" row's fetch is in flight. A loading row
+    /// ignores taps (see `handleCollapseTap`).
+    private var isLoadingMoreRow = false
+
+    /// Inline spinner shown in the "load more replies" row while its fetch is
+    /// in flight, trailing the placeholder text in `authorLabel`.
+    private lazy var moreActivityIndicator: UIActivityIndicatorView = {
+        let indicator = UIActivityIndicatorView(style: .medium)
+        indicator.translatesAutoresizingMaskIntoConstraints = false
+        indicator.hidesWhenStopped = true
+        return indicator
+    }()
+
     // MARK: Functions
 
     private func makeBodyView(textScale: CGFloat, density: PostDensity) -> MarkdownBodyView {
@@ -425,6 +445,7 @@ class PostDetailCommentCell: UITableViewCell {
 
         contentView.addSubview(tintBackingView)
         contentView.addSubview(swipeActionView)
+        contentView.addSubview(moreActivityIndicator)
 
         NSLayoutConstraint.activate([
             tintBackingView.leadingAnchor.constraint(equalTo: contentView.leadingAnchor),
@@ -436,6 +457,11 @@ class PostDetailCommentCell: UITableViewCell {
             swipeActionView.trailingAnchor.constraint(equalTo: contentView.trailingAnchor),
             swipeActionView.topAnchor.constraint(equalTo: contentView.topAnchor),
             swipeActionView.bottomAnchor.constraint(equalTo: contentView.bottomAnchor),
+
+            // Centered on authorLabel, just trailing its text. Not pinned to
+            // contentView.trailing so authorLabel's own layout is untouched.
+            moreActivityIndicator.centerYAnchor.constraint(equalTo: authorLabel.centerYAnchor),
+            moreActivityIndicator.leadingAnchor.constraint(equalTo: authorLabel.trailingAnchor, constant: 8),
         ])
 
         contentView.addGestureRecognizer(collapseTapGestureRecognizer)
@@ -461,6 +487,7 @@ class PostDetailCommentCell: UITableViewCell {
         onBodyVideoTapped = nil
         onBodyAudioTapped = nil
         collapseTapped = nil
+        loadMoreTapped = nil
         revealBlockedTapped = nil
         pendingTapped = nil
         pendingTapGestureRecognizer.isEnabled = false
@@ -488,6 +515,9 @@ class PostDetailCommentCell: UITableViewCell {
         messageLabel.attributedText = nil
         clearBadges()
         clearLinkPreviews()
+        isMoreRow = false
+        isLoadingMoreRow = false
+        moreActivityIndicator.stopAnimating()
     }
 
     private func clearBadges() {
@@ -576,7 +606,21 @@ class PostDetailCommentCell: UITableViewCell {
         let accent = tintColor ?? .systemTeal
 
         if viewModel.isMore {
-            authorLabel.attributedText = viewModel.moreText
+            isMoreRow = true
+            isLoadingMoreRow = viewModel.isLoadingMore
+            if viewModel.isLoadingMore {
+                authorLabel.attributedText = NSAttributedString(
+                    string: NSLocalizedString("Loading replies\u{2026}", comment: "Placeholder row while more replies load"),
+                    attributes: [
+                        .font: UIFont.preferredFont(forTextStyle: .body),
+                        .foregroundColor: UIColor.secondaryLabel,
+                    ]
+                )
+                moreActivityIndicator.startAnimating()
+            } else {
+                authorLabel.attributedText = viewModel.moreText
+                moreActivityIndicator.stopAnimating()
+            }
             subtitleLabel.attributedText = nil
             bodyView.setBlocks([])
             bodyView.isHidden = true
@@ -584,6 +628,9 @@ class PostDetailCommentCell: UITableViewCell {
             messageLabel.isHidden = true
             clearBadges()
         } else {
+            isMoreRow = false
+            isLoadingMoreRow = false
+            moreActivityIndicator.stopAnimating()
             authorLabel.attributedText = viewModel.author
             subtitleLabel.attributedText = viewModel.subtitle
 
@@ -708,8 +755,9 @@ class PostDetailCommentCell: UITableViewCell {
         newDotView.isHidden = !viewModel.isNew
         newDotView.backgroundColor = viewModel.isNew ? accent : .clear
 
-        // A "load more" placeholder is not itself collapsible.
-        collapseTapGestureRecognizer.isEnabled = !viewModel.isMore
+        // The "load more" row IS tappable (routed to loadMoreTapped in handleCollapseTap); a
+        // loading row ignores taps. A normal row collapses.
+        collapseTapGestureRecognizer.isEnabled = true
 
         // Accessibility: the subtitle element carries the comment metadata
         // (score, age, depth, collapsed/moderation state) in a spoken form —
@@ -722,7 +770,7 @@ class PostDetailCommentCell: UITableViewCell {
         // can act on it without hunting for the tap target.
         accessibilityHint = viewModel.collapseAccessibilityHint
         if viewModel.isMore {
-            accessibilityTraits = .button
+            accessibilityTraits = viewModel.isLoadingMore ? .updatesFrequently : .button
         } else {
             accessibilityTraits = .none
         }
@@ -926,6 +974,13 @@ class PostDetailCommentCell: UITableViewCell {
             if linkPreviewsStackView.bounds.contains(pointInStack) {
                 return
             }
+        }
+
+        if isMoreRow {
+            if !isLoadingMoreRow {
+                loadMoreTapped?()
+            }
+            return
         }
 
         collapseTapped?()

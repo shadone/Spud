@@ -44,6 +44,11 @@ struct PostDetailCommentViewModel {
     let isMore: Bool
     let moreText: NSAttributedString?
 
+    /// `true` while a "load more replies" row's fetch is in flight. Only
+    /// meaningful when ``isMore`` is `true`; drives the cell's inline spinner
+    /// and the loading-flavored accessibility hint.
+    let isLoadingMore: Bool
+
     /// The current vote state on this comment — drives the score-pill fill and
     /// the pill's accessibility label.
     let voteStatus: VoteStatus
@@ -124,8 +129,11 @@ struct PostDetailCommentViewModel {
         collapsedNewDescendantCount: Int? = nil,
         isBlockedRevealed: Bool = false,
         isNew: Bool = false,
-        fetchLinkEmbeds: Bool = false
+        fetchLinkEmbeds: Bool = false,
+        isLoadingMore: Bool = false
     ) {
+        self.isLoadingMore = isLoadingMore
+
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
         commentDensity = appearance.postDetail.commentDensity
@@ -418,10 +426,9 @@ struct PostDetailCommentViewModel {
 
         if isMore {
             subtitleAccessibilityLabel = nil
-            collapseAccessibilityHint = NSLocalizedString(
-                "Loads more replies",
-                comment: "VoiceOver hint for the load-more-replies row"
-            )
+            collapseAccessibilityHint = isLoadingMore
+                ? NSLocalizedString("Loading replies", comment: "VoiceOver hint while more replies load")
+                : NSLocalizedString("Loads more replies", comment: "VoiceOver hint for the load-more-replies row")
         } else {
             // The subtitle element carries comment metadata (age, depth,
             // collapsed and moderation state) for VoiceOver — the visible run

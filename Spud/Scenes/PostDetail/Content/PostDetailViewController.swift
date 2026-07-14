@@ -1106,6 +1106,55 @@ class PostDetailViewController: UIViewController {
         dataSource.apply(snapshot, animatingDifferences: true)
     }
 
+    // MARK: - Load more replies
+
+    /// Tapping a "load more replies" row: mark it loading, reconfigure the cell to show the
+    /// spinner, then fetch + splice. On success the comment observation replaces the row; on
+    /// failure revert the row and toast.
+    private func handleLoadMoreTap(elementId: Int64, parentServerId: Int64?) {
+        guard let parentServerId else { return }
+        guard !viewModel.isLoadingMore(elementId: elementId) else { return }
+
+        viewModel.markLoadingMore(elementId: elementId)
+        reconfigureCommentRows([elementId])
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                try await viewModel.loadMoreReplies(elementId: elementId, parentServerId: parentServerId)
+                // Success: observePostDetailComments emits the spliced tree, and applySnapshot
+                // replaces the placeholder row; updateOrderedComments clears the loading flag.
+            } catch {
+                alertService.handle(error, for: .fetchComments)
+                viewModel.clearLoadingMore(elementId: elementId)
+                reconfigureCommentRows([elementId])
+                showLoadMoreFailureToast()
+            }
+        }
+    }
+
+    /// Re-runs the cell provider for the given comment rows without changing the snapshot's item
+    /// set (a loading-flag flip doesn't alter which items exist, so a plain apply won't reconfigure
+    /// them).
+    private func reconfigureCommentRows(_ elementIds: [Int64]) {
+        guard dataSource != nil else { return }
+        var snapshot = dataSource.snapshot()
+        let items = elementIds
+            .map { Item.comment(elementId: $0) }
+            .filter { snapshot.indexOfItem($0) != nil }
+        guard !items.isEmpty else { return }
+        snapshot.reconfigureItems(items)
+        dataSource.apply(snapshot, animatingDifferences: false)
+    }
+
+    private func showLoadMoreFailureToast() {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(
+            NSLocalizedString("Couldn't load more replies", comment: "Toast when loading more comment replies fails"),
+            in: window
+        )
+    }
+
     // MARK: - Jump to next top-level comment / next new comment
 
     /// The index path of the next visible depth-1 comment whose top is below the
@@ -2050,7 +2099,8 @@ extension PostDetailViewController {
                     collapsedNewDescendantCount: collapsedNewCount,
                     isBlockedRevealed: isBlockedRevealed,
                     isNew: self?.viewModel.isNewComment(elementId: elementId) ?? false,
-                    fetchLinkEmbeds: self?.preferencesService.fetchLinkEmbeds ?? false
+                    fetchLinkEmbeds: self?.preferencesService.fetchLinkEmbeds ?? false,
+                    isLoadingMore: self?.viewModel.isLoadingMore(elementId: elementId) ?? false
                 )
                 cell.configure(with: viewModel, imageService: imageService, linkEmbedService: linkEmbedService)
                 if let editOverlay {
@@ -2099,6 +2149,9 @@ extension PostDetailViewController {
                 // parity); "load more" placeholders are not collapsible.
                 cell.collapseTapped = { [weak self] in
                     self?.toggleCollapse(elementId: elementId)
+                }
+                cell.loadMoreTapped = { [weak self] in
+                    self?.handleLoadMoreTap(elementId: elementId, parentServerId: row.moreParentId)
                 }
 
                 // Swipe slots are user-configurable (M8). Defaults reproduce the
