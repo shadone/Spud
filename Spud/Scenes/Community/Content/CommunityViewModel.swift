@@ -43,6 +43,29 @@ final class CommunityViewModel {
     /// True when the community has marked itself as NSFW.
     var isNsfw: Bool = false
 
+    /// True when this community is classified "meta" for its own home instance
+    /// (e.g. an announcements / site community), via the shared, pure
+    /// `MetaCommunityClassifier` — the same classification Discover, Search,
+    /// and Subscriptions use, so the pill can never disagree with those
+    /// surfaces. The instance host is parsed from the community's own actor id
+    /// (a Lemmy community is always hosted on its home instance); `siteName` is
+    /// nil here (unlike the directory-sourced call sites, this view doesn't
+    /// load the instance's `getSite` human name), so identity matching falls
+    /// back to the domain label. `false` before `actorId` has resolved.
+    var isMeta: Bool {
+        guard
+            let actorId,
+            let url = URL(string: actorId),
+            let instance = InstanceActorId(from: url)
+        else { return false }
+        return MetaCommunityClassifier.classify(
+            name: name,
+            title: title,
+            instanceHost: instance.host,
+            siteName: nil
+        ).isMeta
+    }
+
     /// Whether this community is currently blocked by the backing account.
     /// Sourced from `getSite` -> `my_user` (blocks aren't persisted on the
     /// community record); set by the view controller. Updated optimistically

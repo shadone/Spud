@@ -525,6 +525,7 @@ class CommunityViewController: UIViewController {
             descriptionMarkdown: viewModel.descriptionMarkdown,
             subscribed: viewModel.subscribed,
             isNsfw: viewModel.isNsfw,
+            isMeta: viewModel.isMeta,
             blurBanner: viewModel.isNsfw && dependencies.nested.preferencesService.blurNsfw
         )
         // The header's height changes once real content (description, rules,

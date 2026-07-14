@@ -36,7 +36,9 @@ struct CommunityViewModelTests {
     private func makeSeed(
         keychainId: String = "kc-1",
         serverCommunityId: Int64 = 7,
-        communityActorId: String = "https://example.com/c/seededcommunity"
+        communityActorId: String = "https://example.com/c/seededcommunity",
+        name: String = "seededcommunity",
+        title: String? = nil
     ) async throws -> Seed {
         let appDatabase = try AppDatabase.inMemory()
 
@@ -57,7 +59,8 @@ struct CommunityViewModelTests {
             var community = CommunityRecord(
                 accountId: account.id!,
                 communityId: serverCommunityId,
-                name: "seededcommunity",
+                name: name,
+                title: title,
                 actorId: communityActorId
             )
             try community.insert(db)
@@ -186,5 +189,52 @@ struct CommunityViewModelTests {
             forKeychainId: seed.keychainId,
             communityActorId: seed.communityActorId
         ), "toggleFavorite must remove the favorited-community row when already favorited")
+    }
+
+    // MARK: - isMeta
+
+    /// Proves `isMeta` actually wires the loaded record's name/title/actorId
+    /// host into `MetaCommunityClassifier`, mirroring `SubscriptionsMetaRowTests`
+    /// for the observation-backed community screen model rather than a static
+    /// row-builder.
+    @Test
+    func isMeta_metaCommunityName_isTrue() async throws {
+        let seed = try await makeSeed(
+            communityActorId: "https://lemmy.world/c/announcements",
+            name: "announcements",
+            title: "Announcements"
+        )
+        let vm = makeViewModel(seed)
+        await poll { vm.actorId != nil }
+
+        #expect(vm.isMeta)
+    }
+
+    @Test
+    func isMeta_ordinaryCommunityName_isFalse() async throws {
+        let seed = try await makeSeed(
+            communityActorId: "https://lemmy.world/c/photography",
+            name: "photography",
+            title: "Photography"
+        )
+        let vm = makeViewModel(seed)
+        await poll { vm.actorId != nil }
+
+        #expect(!vm.isMeta)
+    }
+
+    @Test
+    func isMeta_beforeActorIdResolves_isFalse() async throws {
+        let seed = try await makeSeed(
+            communityActorId: "https://lemmy.world/c/announcements",
+            name: "announcements",
+            title: "Announcements"
+        )
+        let vm = makeViewModel(seed)
+
+        // No `await` has run yet, so `actorId` is still nil -- `isMeta` must not
+        // crash or misclassify before the observation lands.
+        #expect(vm.actorId == nil)
+        #expect(!vm.isMeta)
     }
 }

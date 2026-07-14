@@ -194,6 +194,7 @@ final class HeaderInlineImageSnapshotTests: XCTestCase {
             descriptionMarkdown: "A community for tech news.\n\n![banner](https://example.com/tech.png)\n\nBe nice.",
             subscribed: .notSubscribed,
             isNsfw: false,
+            isMeta: false,
             blurBanner: false
         )
 
