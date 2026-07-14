@@ -205,7 +205,8 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
                 subscribersText: "48.2K",
                 iconUrl: iconUrl,
                 followState: .notFollowing,
-                isNsfw: false
+                isNsfw: false,
+                communityUrl: "https://lemmy.world/c/photography"
             ),
             imageService: StaticImageService()
         )
@@ -248,7 +249,11 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
             postTitle: "A scenic mountain lake at golden hour",
             creatorName: "dorothea",
             score: 42,
-            published: Date(timeIntervalSinceNow: -2 * 3600)
+            published: Date(timeIntervalSinceNow: -2 * 3600),
+            creatorPersonId: 1,
+            creatorActorId: "https://lemmy.world/u/dorothea",
+            originalCommentUrl: "https://lemmy.world/comment/1",
+            isSaved: false
         )
     }
 

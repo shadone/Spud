@@ -74,6 +74,11 @@ struct SearchCommunityResult: Hashable, Identifiable {
     let iconUrl: URL?
     let followState: FollowState
     let isNsfw: Bool
+    /// The community's federation actor id (e.g.
+    /// `https://lemmy.world/c/tincidunt`). Used as the client-local mute-database
+    /// key (mirrors `CommunityListRow.communityUrl`) and as the Share / Copy Link
+    /// destination in the long-press context menu.
+    let communityUrl: String
 
     var id: Lemmy.CommunityID {
         serverCommunityId
@@ -91,7 +96,8 @@ struct SearchCommunityResult: Hashable, Identifiable {
         subscribersText: String,
         iconUrl: URL?,
         followState: FollowState,
-        isNsfw: Bool
+        isNsfw: Bool,
+        communityUrl: String
     ) {
         self.serverCommunityId = serverCommunityId
         self.name = name
@@ -101,6 +107,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.iconUrl = iconUrl
         self.followState = followState
         self.isNsfw = isNsfw
+        self.communityUrl = communityUrl
     }
 
     init?(view: Lemmy.CommunityView) {
@@ -119,11 +126,23 @@ struct SearchCommunityResult: Hashable, Identifiable {
         iconUrl = community.iconUrl.flatMap { URL(string: $0) }
         followState = view.followState
         isNsfw = community.nsfw
+        communityUrl = community.apId
     }
 }
 
 /// A single user result. Carries the server person id + home instance so a tap
 /// can open the Person screen.
+///
+/// This carries no per-viewer block state: the search `Lemmy.PersonView` has
+/// no per-viewer block flag (Lemmy's search API doesn't return one), and
+/// unlike a community's client-local mute state, whether the viewer has
+/// blocked a person is only knowable via a network round trip
+/// (`LemmyService.fetchBlockedList`, backed by `getSite` -- the same source
+/// `PersonViewController`'s block menu resolves from on appear). The
+/// long-press context menu (`UserContextMenuBuilder`) can't afford that fetch
+/// at menu-build time, so `SearchViewController` always builds it with
+/// `isBlocked: false`, which only ever offers "Block user" (never "Unblock")
+/// from Search -- the person's own profile screen shows the real state.
 struct SearchUserResult: Hashable, Identifiable {
     let serverPersonId: Lemmy.PersonID
     let name: String
@@ -166,7 +185,9 @@ struct SearchUserResult: Hashable, Identifiable {
 }
 
 /// A single comment result. Carries the parent post id so a tap can open the
-/// post containing the comment.
+/// post containing the comment, plus the enrichment the long-press context
+/// menu needs (creator identity, saved state) mirroring
+/// `PostDetailViewController`'s comment context-menu actions.
 struct SearchCommentResult: Hashable, Identifiable {
     let serverCommentId: Lemmy.CommentID
     let serverPostId: Lemmy.PostID
@@ -175,6 +196,19 @@ struct SearchCommentResult: Hashable, Identifiable {
     let creatorName: String
     let score: Int64
     let published: Date
+    /// The comment creator's server person id, for the "View author" context-menu action.
+    let creatorPersonId: Lemmy.PersonID
+    /// The creator's federation actor id (e.g. `https://lemmy.world/u/alice`), resolved
+    /// into an `InstanceActorId` for `pushPerson`.
+    let creatorActorId: String?
+    /// The comment's own federated ActivityPub id (`comment.ap_id`). Used to build the
+    /// canonical Share / Copy Link URL exactly like
+    /// `PostDetailViewController.shareComment` does (`LinkURL.forComment`), falling back
+    /// to `<instance>/comment/<id>` when nil.
+    let originalCommentUrl: String?
+    /// Whether the signed-in viewer has saved the comment. Drives the Save/Unsave label
+    /// in the long-press context menu.
+    let isSaved: Bool
 
     var id: Lemmy.CommentID {
         serverCommentId
@@ -187,7 +221,11 @@ struct SearchCommentResult: Hashable, Identifiable {
         postTitle: String,
         creatorName: String,
         score: Int64,
-        published: Date
+        published: Date,
+        creatorPersonId: Lemmy.PersonID,
+        creatorActorId: String?,
+        originalCommentUrl: String?,
+        isSaved: Bool
     ) {
         self.serverCommentId = serverCommentId
         self.serverPostId = serverPostId
@@ -196,6 +234,10 @@ struct SearchCommentResult: Hashable, Identifiable {
         self.creatorName = creatorName
         self.score = score
         self.published = published
+        self.creatorPersonId = creatorPersonId
+        self.creatorActorId = creatorActorId
+        self.originalCommentUrl = originalCommentUrl
+        self.isSaved = isSaved
     }
 
     init(view: Lemmy.CommentView) {
@@ -206,6 +248,10 @@ struct SearchCommentResult: Hashable, Identifiable {
         creatorName = view.creator.displayName ?? view.creator.name
         score = view.comment.score
         published = view.comment.publishedAt
+        creatorPersonId = Lemmy.PersonID(view.creator.id)
+        creatorActorId = view.creator.apId
+        originalCommentUrl = view.comment.apId
+        isSaved = view.isSaved
     }
 }
 

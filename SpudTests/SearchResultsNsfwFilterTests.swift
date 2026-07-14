@@ -74,7 +74,8 @@ struct SearchResultsNsfwFilterTests {
             subscribersText: "100",
             iconUrl: nil,
             followState: .notFollowing,
-            isNsfw: false
+            isNsfw: false,
+            communityUrl: "https://example.com/c/sfwcommunity\(id)"
         )
     }
 
@@ -87,7 +88,8 @@ struct SearchResultsNsfwFilterTests {
             subscribersText: "50",
             iconUrl: nil,
             followState: .notFollowing,
-            isNsfw: true
+            isNsfw: true,
+            communityUrl: "https://example.com/c/nsfwcommunity\(id)"
         )
     }
 
