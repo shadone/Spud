@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [discover.md](discover.md), [new-post.md](new-post.md), [post-thumbnails.md](post-thumbnails.md), [community-screen.md](community-screen.md), [search.md](search.md)
+- **Related:** [feeds-and-sorting.md](feeds-and-sorting.md), [mark-read-and-hiding.md](mark-read-and-hiding.md), [discover.md](discover.md), [new-post.md](new-post.md), [post-thumbnails.md](post-thumbnails.md), [community-screen.md](community-screen.md), [search.md](search.md), [app-shortcuts-and-siri.md](app-shortcuts-and-siri.md)
 
 ## What it does
 
@@ -115,6 +115,24 @@ across devices.
 - **Screenshots can't be blocked.** iOS provides no way to prevent a manually-taken screenshot;
   this covers the app-switcher snapshot and active screen capture only.
 
+### System integration (Handoff, Spotlight, Siri)
+
+- **NSFW posts are never advertised to Handoff, in-app Spotlight search, or Siri
+  Prediction/suggestions.** Opening a post's detail screen normally vends an
+  `NSUserActivity` so the post can be continued on another device, found via
+  system-wide Spotlight search, and suggested by Siri. For an NSFW post (the
+  post's own flag OR its community's flag), no activity is vended at all.
+- **Unconditional — independent of Show NSFW.** This exclusion applies even when
+  Show NSFW is on and you are actively viewing the post; it is not the same
+  control as feed/discovery filtering, and does not sync or depend on any
+  preference. See also the separate content Spotlight index (saved / recently
+  opened posts) in [app-shortcuts-and-siri.md](app-shortcuts-and-siri.md), which
+  applies the same unconditional exclusion.
+- **Deferred, not corrected after the fact.** The NSFW flag is only known once the
+  post's header row has loaded (a beat after the screen appears), so advertising
+  is deferred until then rather than vended eagerly and revoked — an NSFW post is
+  never advertised even momentarily.
+
 ## Scenarios
 
 ### NSFW posts are hidden by default
@@ -215,6 +233,14 @@ across devices.
 - **Given** Show NSFW is off and I am composing a new post
 - **When** I open the community picker and search
 - **Then** NSFW communities do not appear in the picker results
+
+### NSFW posts are excluded from Handoff, Spotlight, and Siri
+
+- **Given** Show NSFW is on and I open an NSFW post's detail screen
+- **When** the post's header loads
+- **Then** no Handoff/Spotlight/Siri activity is vended for that post — it cannot
+  be continued on another device, found via system Spotlight, or suggested by
+  Siri, regardless of the Show NSFW preference
 
 ### Discover follows the same setting
 

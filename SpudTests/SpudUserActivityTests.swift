@@ -8,8 +8,8 @@ struct SpudUserActivityTests {
     private let postURL = URL(string: "info.ddenis.spud://internal/resolve?url=https://lemmy.world/post/5")!
 
     @Test
-    func viewPost_setsTypeURLAndEligibility() {
-        let activity = SpudUserActivity.viewPost(routingURL: postURL, title: "Hello")
+    func viewPost_setsTypeURLAndEligibility() throws {
+        let activity = try #require(SpudUserActivity.viewPost(routingURL: postURL, title: "Hello", isNsfw: false))
         #expect(activity.activityType == SpudUserActivity.viewPostType)
         #expect(activity.userInfo?["url"] as? String == postURL.absoluteString)
         #expect(activity.persistentIdentifier == postURL.absoluteString)
@@ -19,8 +19,13 @@ struct SpudUserActivityTests {
     }
 
     @Test
-    func routingURL_decodesOwnActivity() {
-        let activity = SpudUserActivity.viewPost(routingURL: postURL, title: "Hello")
+    func viewPost_returnsNilForNsfw() {
+        #expect(SpudUserActivity.viewPost(routingURL: postURL, title: "Hello", isNsfw: true) == nil)
+    }
+
+    @Test
+    func routingURL_decodesOwnActivity() throws {
+        let activity = try #require(SpudUserActivity.viewPost(routingURL: postURL, title: "Hello", isNsfw: false))
         #expect(SpudUserActivity.routingURL(from: activity) == postURL)
     }
 

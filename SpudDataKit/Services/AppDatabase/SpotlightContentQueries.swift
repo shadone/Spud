@@ -15,6 +15,10 @@ public struct IndexableContentRow: Sendable, Equatable {
     public let originalPostUrl: String?
     public let thumbnailUrl: String?
     public let communityName: String?
+    /// Post OR its community flagged NSFW. Unconditional (independent of the
+    /// "Show NSFW" preference) — NSFW content must never be indexed into
+    /// Spotlight, see `ContentSpotlightIndexer.makeItem(from:)`.
+    public let isNsfw: Bool
 }
 
 public extension AppDatabase {
@@ -33,7 +37,8 @@ public extension AppDatabase {
                         post.title           AS title,
                         post.originalPostUrl AS originalPostUrl,
                         post.thumbnailUrl    AS thumbnailUrl,
-                        community.name       AS communityName
+                        community.name       AS communityName,
+                        (post.isNsfw OR community.isNsfw) AS isNsfw
                     FROM postInteraction
                     JOIN post      ON post.accountId = postInteraction.accountId AND post.postId = postInteraction.postServerId
                     JOIN community ON community.id = post.communityId
@@ -48,7 +53,8 @@ public extension AppDatabase {
                     title: row["title"],
                     originalPostUrl: row["originalPostUrl"],
                     thumbnailUrl: row["thumbnailUrl"],
-                    communityName: row["communityName"]
+                    communityName: row["communityName"],
+                    isNsfw: row["isNsfw"]
                 )
             }
         }) ?? []

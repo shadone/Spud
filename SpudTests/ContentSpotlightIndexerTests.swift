@@ -18,7 +18,8 @@ struct ContentSpotlightIndexerTests {
             title: "Hello world",
             originalPostUrl: "https://lemmy.world/post/5",
             thumbnailUrl: "https://lemmy.world/pic.jpg",
-            communityName: "programming"
+            communityName: "programming",
+            isNsfw: false
         )
         let item = try #require(ContentSpotlightIndexer.makeItem(from: row))
 
@@ -37,7 +38,21 @@ struct ContentSpotlightIndexerTests {
             title: "No URL",
             originalPostUrl: nil,
             thumbnailUrl: nil,
-            communityName: nil
+            communityName: nil,
+            isNsfw: false
+        )
+        #expect(ContentSpotlightIndexer.makeItem(from: row) == nil)
+    }
+
+    @Test
+    func makeItem_returnsNilForNsfw() {
+        let row = IndexableContentRow(
+            serverPostId: 5,
+            title: "Hello world",
+            originalPostUrl: "https://lemmy.world/post/5",
+            thumbnailUrl: nil,
+            communityName: "programming",
+            isNsfw: true
         )
         #expect(ContentSpotlightIndexer.makeItem(from: row) == nil)
     }

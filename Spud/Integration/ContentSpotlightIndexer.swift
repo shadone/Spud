@@ -54,8 +54,14 @@ enum ContentSpotlightIndexer {
     }
 
     /// Pure mapping from a content row to a Spotlight item. nil when no canonical
-    /// URL can be built (so the item would not be routable).
+    /// URL can be built (so the item would not be routable), or when the row is
+    /// NSFW (post OR community) — NSFW content must never be indexed into
+    /// Spotlight, unconditionally (independent of the "Show NSFW" preference).
+    /// Already-indexed NSFW items are removed on the next `reindex` because it
+    /// deletes the whole `content` domain before re-adding the (now-filtered)
+    /// item set — see `reindex(appDatabase:diagnostics:)` below.
     static func makeItem(from row: IndexableContentRow) -> CSSearchableItem? {
+        guard !row.isNsfw else { return nil }
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,
             originalPostUrl: row.originalPostUrl,

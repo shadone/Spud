@@ -569,19 +569,50 @@ class PostDetailViewController: UIViewController {
 
     /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
     /// canonical `ap_id` so it resolves under any account on any device.
+    ///
+    /// Deferred until the header GRDB row is known: `headerRow` is usually still
+    /// nil at `viewDidAppear` (the observation publishes a beat later), and the
+    /// NSFW flag lives on that row. Waiting for it — rather than advertising
+    /// eagerly and correcting later — means an NSFW post is never advertised to
+    /// Handoff/Spotlight/Siri, not even momentarily. `SpudUserActivity.viewPost`
+    /// itself refuses to build an activity when the row is flagged NSFW.
+    ///
+    /// Re-invoked on every header GRDB emission (vote/save/edit), so it must also
+    /// handle the post being edited to NSFW while already on screen: an
+    /// already-vended activity is revoked the moment the row flips NSFW, not just
+    /// refused at first vend. Also gated on `isViewVisible` so the observation
+    /// loop can't re-vend a non-NSFW post's activity while the VC is alive but
+    /// not currently on screen.
     private func updateUserActivity() {
+        // Only advertise a post to Handoff/Spotlight/Siri while it's on screen AND known to be
+        // non-NSFW. headerRow arrives via the GRDB observation a beat after viewDidAppear and can
+        // change if the post is edited on-screen, so this is re-invoked from the header observation
+        // loop and MUST re-evaluate NSFW every time — including revoking an already-vended activity
+        // if the post becomes NSFW. Never surface sensitive posts to these off-device/system surfaces.
+        guard isViewVisible else { return }
+        guard let headerRow = viewModel.headerRow else { return } // NSFW status not known yet
+
+        if headerRow.isNsfw {
+            userActivity?.resignCurrent()
+            userActivity = nil
+            return
+        }
+
+        guard userActivity == nil else { return } // already advertising this non-NSFW post
+
         let instanceActorId = viewModel.instanceActorId
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,
-            originalPostUrl: viewModel.headerRow?.originalPostUrl,
+            originalPostUrl: headerRow.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: canonical).url
-        let activity = SpudUserActivity.viewPost(
+        guard let activity = SpudUserActivity.viewPost(
             routingURL: routingURL,
-            title: viewModel.headerRow?.title ?? "Post"
-        )
+            title: headerRow.title,
+            isNsfw: headerRow.isNsfw
+        ) else { return }
         userActivity = activity
         activity.becomeCurrent()
     }
@@ -653,6 +684,9 @@ class PostDetailViewController: UIViewController {
                 reevaluateUnavailability()
                 if didFirePlaceholder { break }
                 updateHeaderPrivacy()
+                // A late-arriving header (the common case: nil at viewDidAppear)
+                // is what actually advertises the activity for most opens.
+                updateUserActivity()
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
                 overflowBarButtonItem.menu = makePostOverflowMenu()
