@@ -20,6 +20,8 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
     private(set) var subscribedCalls: [(result: SearchCommunityResult, subscribed: Bool)] = []
     private(set) var mutedCalls: [(result: SearchCommunityResult, duration: MuteDuration)] = []
     private(set) var unmutedResults: [SearchCommunityResult] = []
+    private(set) var sharedResults: [SearchCommunityResult] = []
+    private(set) var copiedLinkResults: [SearchCommunityResult] = []
     private(set) var blockedResults: [SearchCommunityResult] = []
     var isMuted = false
 
@@ -43,6 +45,14 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
         unmutedResults.append(result)
     }
 
+    func communityShare(_ result: SearchCommunityResult) {
+        sharedResults.append(result)
+    }
+
+    func communityCopyLink(_ result: SearchCommunityResult) {
+        copiedLinkResults.append(result)
+    }
+
     func communityBlock(_ result: SearchCommunityResult) {
         blockedResults.append(result)
     }
@@ -55,8 +65,7 @@ extension SearchCommunityResult {
         name: String = "tincidunt",
         followState: FollowState = .notFollowing,
         isNsfw: Bool = false,
-        communityUrl: String = "https://lemmy.world/c/tincidunt",
-        isBlocked: Bool = false
+        communityUrl: String = "https://lemmy.world/c/tincidunt"
     ) -> SearchCommunityResult {
         SearchCommunityResult(
             serverCommunityId: serverCommunityId,
@@ -67,8 +76,7 @@ extension SearchCommunityResult {
             iconUrl: nil,
             followState: followState,
             isNsfw: isNsfw,
-            communityUrl: communityUrl,
-            isBlocked: isBlocked
+            communityUrl: communityUrl
         )
     }
 }
@@ -186,6 +194,24 @@ struct CommunityContextMenuBuilderTests {
         let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
         performAction(titled: "Unmute", in: menu)
         #expect(host.unmutedResults.map(\.serverCommunityId) == [result.serverCommunityId])
+    }
+
+    @Test
+    func shareInvokesHostShare() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        performAction(titled: "Share", in: menu)
+        #expect(host.sharedResults.map(\.serverCommunityId) == [result.serverCommunityId])
+    }
+
+    @Test
+    func copyLinkInvokesHostCopyLink() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        performAction(titled: "Copy Link", in: menu)
+        #expect(host.copiedLinkResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
 
     @Test

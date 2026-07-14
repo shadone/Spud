@@ -252,11 +252,8 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
             published: Date(timeIntervalSinceNow: -2 * 3600),
             creatorPersonId: 1,
             creatorActorId: "https://lemmy.world/u/dorothea",
-            communityName: "photography",
-            communityActorId: "https://lemmy.world/c/photography",
             originalCommentUrl: "https://lemmy.world/comment/1",
-            isSaved: false,
-            myVote: .none
+            isSaved: false
         )
     }
 

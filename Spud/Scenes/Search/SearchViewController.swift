@@ -924,6 +924,23 @@ extension SearchViewController: CommunityContextMenuHost {
         )
     }
 
+    func communityShare(_ result: SearchCommunityResult) {
+        guard let url = URL(string: result.communityUrl) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    func communityCopyLink(_ result: SearchCommunityResult) {
+        guard let url = URL(string: result.communityUrl) else {
+            Haptics.warning()
+            return
+        }
+        UIPasteboard.general.url = url
+        Haptics.tap()
+    }
+
     /// Blocks the community on the signed-in account, gated on sign-in and a
     /// destructive confirmation (mirrors `postBlockAuthor`'s pattern for the
     /// person-block overload).
@@ -1020,6 +1037,7 @@ extension SearchViewController: CommentContextMenuHost {
             return
         }
         UIPasteboard.general.url = url
+        Haptics.tap()
     }
 
     func commentViewAuthor(_ result: SearchCommentResult) {

@@ -23,6 +23,10 @@ protocol CommunityContextMenuHost: UIViewController {
     func communityIsMuted(_ result: SearchCommunityResult) -> Bool
     func communityMute(_ result: SearchCommunityResult, duration: MuteDuration)
     func communityUnmute(_ result: SearchCommunityResult)
+    /// Shares the community's `communityUrl`.
+    func communityShare(_ result: SearchCommunityResult)
+    /// Copies the community's `communityUrl` to the pasteboard.
+    func communityCopyLink(_ result: SearchCommunityResult)
     func communityBlock(_ result: SearchCommunityResult)
 }
 
@@ -70,15 +74,15 @@ enum CommunityContextMenuBuilder {
         let muteGroup = UIMenu(options: .displayInline, children: [muteElement])
 
         var shareChildren: [UIMenuElement] = []
-        if let url = URL(string: result.communityUrl) {
+        if URL(string: result.communityUrl) != nil {
             let shareAction = UIAction(
                 title: NSLocalizedString("Share", comment: "Context-menu action to share a community"),
                 image: UIImage(systemName: "square.and.arrow.up")
-            ) { [weak host] _ in host?.presentShareSheet(for: url) }
+            ) { [weak host] _ in host?.communityShare(result) }
             let copyAction = UIAction(
                 title: NSLocalizedString("Copy Link", comment: "Context-menu action to copy a community's link"),
                 image: UIImage(systemName: "link")
-            ) { _ in UIPasteboard.general.url = url }
+            ) { [weak host] _ in host?.communityCopyLink(result) }
             shareChildren = [shareAction, copyAction]
         }
         let shareGroup = UIMenu(options: .displayInline, children: shareChildren)

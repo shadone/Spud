@@ -79,10 +79,6 @@ struct SearchCommunityResult: Hashable, Identifiable {
     /// key (mirrors `CommunityListRow.communityUrl`) and as the Share / Copy Link
     /// destination in the long-press context menu.
     let communityUrl: String
-    /// Whether the signed-in viewer has blocked this community. Sourced from the
-    /// live per-viewer `Lemmy.CommunityView` (unlike Discover's Explorer-directory
-    /// rows, which carry no per-viewer relationship state).
-    let isBlocked: Bool
 
     var id: Lemmy.CommunityID {
         serverCommunityId
@@ -101,8 +97,7 @@ struct SearchCommunityResult: Hashable, Identifiable {
         iconUrl: URL?,
         followState: FollowState,
         isNsfw: Bool,
-        communityUrl: String,
-        isBlocked: Bool = false
+        communityUrl: String
     ) {
         self.serverCommunityId = serverCommunityId
         self.name = name
@@ -113,7 +108,6 @@ struct SearchCommunityResult: Hashable, Identifiable {
         self.followState = followState
         self.isNsfw = isNsfw
         self.communityUrl = communityUrl
-        self.isBlocked = isBlocked
     }
 
     init?(view: Lemmy.CommunityView) {
@@ -133,21 +127,20 @@ struct SearchCommunityResult: Hashable, Identifiable {
         followState = view.followState
         isNsfw = community.nsfw
         communityUrl = community.apId
-        isBlocked = view.isBlocked
     }
 }
 
 /// A single user result. Carries the server person id + home instance so a tap
 /// can open the Person screen.
 ///
-/// Unlike ``SearchCommunityResult``, this carries no `isBlocked` field: the
-/// search `Lemmy.PersonView` has no per-viewer block flag (Lemmy's search API
-/// doesn't return one), and unlike a community's client-local mute state,
-/// whether the viewer has blocked a person is only knowable via a network
-/// round trip (`LemmyService.fetchBlockedList`, backed by `getSite` -- the
-/// same source `PersonViewController`'s block menu resolves from on appear).
-/// The long-press context menu (`UserContextMenuBuilder`) can't afford that
-/// fetch at menu-build time, so `SearchViewController` always builds it with
+/// This carries no per-viewer block state: the search `Lemmy.PersonView` has
+/// no per-viewer block flag (Lemmy's search API doesn't return one), and
+/// unlike a community's client-local mute state, whether the viewer has
+/// blocked a person is only knowable via a network round trip
+/// (`LemmyService.fetchBlockedList`, backed by `getSite` -- the same source
+/// `PersonViewController`'s block menu resolves from on appear). The
+/// long-press context menu (`UserContextMenuBuilder`) can't afford that fetch
+/// at menu-build time, so `SearchViewController` always builds it with
 /// `isBlocked: false`, which only ever offers "Block user" (never "Unblock")
 /// from Search -- the person's own profile screen shows the real state.
 struct SearchUserResult: Hashable, Identifiable {
@@ -193,7 +186,7 @@ struct SearchUserResult: Hashable, Identifiable {
 
 /// A single comment result. Carries the parent post id so a tap can open the
 /// post containing the comment, plus the enrichment the long-press context
-/// menu needs (creator/community identity, saved state, vote) mirroring
+/// menu needs (creator identity, saved state) mirroring
 /// `PostDetailViewController`'s comment context-menu actions.
 struct SearchCommentResult: Hashable, Identifiable {
     let serverCommentId: Lemmy.CommentID
@@ -208,12 +201,6 @@ struct SearchCommentResult: Hashable, Identifiable {
     /// The creator's federation actor id (e.g. `https://lemmy.world/u/alice`), resolved
     /// into an `InstanceActorId` for `pushPerson`.
     let creatorActorId: String?
-    /// The comment's parent community name. Not currently surfaced in the context menu
-    /// (no "Visit community" action in this first cut), kept for parity with the other
-    /// enriched search result kinds and future use.
-    let communityName: String
-    /// The parent community's federation actor id, kept alongside `communityName`.
-    let communityActorId: String?
     /// The comment's own federated ActivityPub id (`comment.ap_id`). Used to build the
     /// canonical Share / Copy Link URL exactly like
     /// `PostDetailViewController.shareComment` does (`LinkURL.forComment`), falling back
@@ -222,8 +209,6 @@ struct SearchCommentResult: Hashable, Identifiable {
     /// Whether the signed-in viewer has saved the comment. Drives the Save/Unsave label
     /// in the long-press context menu.
     let isSaved: Bool
-    /// The signed-in viewer's vote on the comment, from the live per-viewer `CommentView`.
-    let myVote: VoteDirection
 
     var id: Lemmy.CommentID {
         serverCommentId
@@ -239,11 +224,8 @@ struct SearchCommentResult: Hashable, Identifiable {
         published: Date,
         creatorPersonId: Lemmy.PersonID,
         creatorActorId: String?,
-        communityName: String,
-        communityActorId: String?,
         originalCommentUrl: String?,
-        isSaved: Bool,
-        myVote: VoteDirection
+        isSaved: Bool
     ) {
         self.serverCommentId = serverCommentId
         self.serverPostId = serverPostId
@@ -254,11 +236,8 @@ struct SearchCommentResult: Hashable, Identifiable {
         self.published = published
         self.creatorPersonId = creatorPersonId
         self.creatorActorId = creatorActorId
-        self.communityName = communityName
-        self.communityActorId = communityActorId
         self.originalCommentUrl = originalCommentUrl
         self.isSaved = isSaved
-        self.myVote = myVote
     }
 
     init(view: Lemmy.CommentView) {
@@ -271,11 +250,8 @@ struct SearchCommentResult: Hashable, Identifiable {
         published = view.comment.publishedAt
         creatorPersonId = Lemmy.PersonID(view.creator.id)
         creatorActorId = view.creator.apId
-        communityName = view.community.name
-        communityActorId = view.community.apId
         originalCommentUrl = view.comment.apId
         isSaved = view.isSaved
-        myVote = view.myVote
     }
 }
 

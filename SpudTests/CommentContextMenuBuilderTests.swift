@@ -60,7 +60,6 @@ extension SearchCommentResult {
         creatorName: String = "alice",
         creatorActorId: String? = "https://lemmy.world/u/alice",
         isSaved: Bool = false,
-        myVote: VoteDirection = .none,
         originalCommentUrl: String? = "https://lemmy.world/comment/1"
     ) -> SearchCommentResult {
         SearchCommentResult(
@@ -73,11 +72,8 @@ extension SearchCommentResult {
             published: Date(timeIntervalSince1970: 0),
             creatorPersonId: 1,
             creatorActorId: creatorActorId,
-            communityName: "tincidunt",
-            communityActorId: "https://lemmy.world/c/tincidunt",
             originalCommentUrl: originalCommentUrl,
-            isSaved: isSaved,
-            myVote: myVote
+            isSaved: isSaved
         )
     }
 }
