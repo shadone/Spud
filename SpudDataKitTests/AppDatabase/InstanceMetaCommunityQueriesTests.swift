@@ -157,6 +157,36 @@ struct InstanceMetaCommunityQueriesTests {
     }
 
     @Test
+    func resolvedMetaCandidateSyncReadsBackMirroredCommunity() throws {
+        let accountId = try makeAccount()
+        try insertCommunity(
+            accountId: accountId,
+            serverId: 42,
+            name: "meta",
+            actorId: "https://tchncs.de/c/meta"
+        )
+
+        let resolved = appDatabase.resolvedMetaCandidateSync(
+            forKeychainId: "kc-1", serverCommunityId: 42
+        )
+        let candidate = try #require(resolved)
+        #expect(candidate.name == "meta")
+        #expect(candidate.title == "meta")
+        #expect(candidate.actorId == "https://tchncs.de/c/meta")
+        #expect(candidate.instanceHost == "tchncs.de")
+    }
+
+    @Test
+    func resolvedMetaCandidateSyncReturnsNilForUnknownCommunity() throws {
+        _ = try makeAccount()
+
+        let resolved = appDatabase.resolvedMetaCandidateSync(
+            forKeychainId: "kc-1", serverCommunityId: 999
+        )
+        #expect(resolved == nil)
+    }
+
+    @Test
     func observeDropsMetaWithoutLocalCommunityRow() async throws {
         let accountId = try makeAccount()
         // Cache entry references a community we have NOT mirrored locally; the

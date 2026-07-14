@@ -25,7 +25,8 @@ struct DependencyContainer:
     HasUnreadCountService,
     HasExplorerService,
     HasReachabilityMonitor,
-    HasDiagnosticLog
+    HasDiagnosticLog,
+    HasMetaCommunityService
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -43,6 +44,7 @@ struct DependencyContainer:
     let explorerService: ExplorerServiceType
     let reachabilityMonitor: ReachabilityMonitoring
     let diagnosticLog: DiagnosticLogging
+    let metaCommunityService: MetaCommunityServiceType
 
     // MARK: Functions
 
@@ -111,6 +113,12 @@ struct DependencyContainer:
         )
         unreadCountService = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
+        metaCommunityService = MetaCommunityService(
+            resolver: LiveMetaCommunityResolver(
+                accountService: accountService, appDatabase: appDatabase
+            ),
+            appDatabase: appDatabase
+        )
     }
 
     func start() {

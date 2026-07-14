@@ -140,4 +140,36 @@ public extension AppDatabase {
             .removeDuplicates()
         return makeStream(observation: observation)
     }
+
+    /// Read back a just-mirrored community as a `ResolvedMetaCandidate`, used by
+    /// `LiveMetaCommunityResolver` after `LemmyService.fetchCommunityInfo` has
+    /// mirrored the `CommunityRecord`. Returns nil when the account or community
+    /// row can't be found, or the community has no `actorId` / its `actorId`
+    /// carries no parseable host.
+    func resolvedMetaCandidateSync(
+        forKeychainId keychainId: String, serverCommunityId: Int64
+    ) -> ResolvedMetaCandidate? {
+        do {
+            return try writer.read { db -> ResolvedMetaCandidate? in
+                guard
+                    let accountId = try AccountRecord
+                    .filter(Column("accountKeychainId") == keychainId)
+                    .fetchOne(db)?.id,
+                    let community = try CommunityRecord
+                    .filter(Column("accountId") == accountId)
+                    .filter(Column("communityId") == serverCommunityId)
+                    .fetchOne(db),
+                    let actorId = community.actorId,
+                    let host = URL(string: actorId)?.host
+                else { return nil }
+                return ResolvedMetaCandidate(
+                    name: community.name ?? "", title: community.title,
+                    actorId: actorId, instanceHost: host
+                )
+            }
+        } catch {
+            Logger.appDatabase.error("resolvedMetaCandidateSync failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
 }
