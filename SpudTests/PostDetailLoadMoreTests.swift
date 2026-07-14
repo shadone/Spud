@@ -48,20 +48,41 @@ struct PostDetailLoadMoreTests {
         )
     }
 
+    /// Builds a minimal `PostDetailCommentRow` keyed by `id` (the element id). Mirrors the
+    /// row-builder helper in `PostDetailViewModelExpandAncestorsTests` so tests that only need to
+    /// drive `updateOrderedComments` directly (no async/DB) match house style.
+    private func row(id: Int64, depth: Int64 = 1) -> PostDetailCommentRow {
+        PostDetailCommentRow(
+            id: id, position: id, depth: depth,
+            serverCommentId: id, body: "b\(id)",
+            originalCommentUrl: "https://example.test/comment/\(id)",
+            score: 0, voteStatus: nil, isSaved: false, isRemoved: false,
+            isDistinguished: false, isDeleted: false, isCreatorModerator: false,
+            isCreatorAdmin: false, isCreatorBannedFromCommunity: false,
+            isCreatorBlocked: false, isCreatorSiteBanned: false, isCreatorBot: false,
+            isCreatorAccountDeleted: false, removedReason: nil,
+            published: Date(timeIntervalSince1970: 1_000_000),
+            creatorName: "u\(id)", creatorPersonId: id,
+            creatorActorId: "https://example.test",
+            moreChildCount: nil, moreParentId: nil, childCount: nil
+        )
+    }
+
     @Test
     func loadMoreReplies_forwardsParentAndSort_andClearsFlagOnFailure() async {
+        struct Boom: Error { }
         var captured: (parent: Int64, sort: Lemmy.CommentSortType)?
         let viewModel = makeViewModel(
             fetchMoreCommentsOperation: { parent, sort in
                 captured = (parent, sort)
-                throw LemmyServiceError.internalInconsistency(description: "boom")
+                throw Boom()
             }
         )
 
         viewModel.markLoadingMore(elementId: 7)
         #expect(viewModel.isLoadingMore(elementId: 7) == true)
 
-        await #expect(throws: (any Error).self) {
+        await #expect(throws: Boom.self) {
             try await viewModel.loadMoreReplies(elementId: 7, parentServerId: 99)
         }
         #expect(captured?.parent == 99)
@@ -69,5 +90,24 @@ struct PostDetailLoadMoreTests {
         // On failure the VC clears the flag; simulate the VC step and confirm it clears.
         viewModel.clearLoadingMore(elementId: 7)
         #expect(viewModel.isLoadingMore(elementId: 7) == false)
+    }
+
+    /// Covers the one behaviorally-novel line in `updateOrderedComments`:
+    /// `loadingMoreElementIds.formIntersection(existingIds)`. A successful splice replaces the
+    /// "load more" placeholder row with the loaded comments, so the placeholder's element id
+    /// disappears from the new tree - this must auto-clear the loading flag with no explicit
+    /// `clearLoadingMore` call, or the row would render a stuck spinner forever.
+    @Test
+    func updateOrderedComments_autoClearsLoadingFlagForSplicedAwayElement() {
+        let viewModel = makeViewModel(fetchMoreCommentsOperation: { _, _ in })
+
+        viewModel.updateOrderedComments([row(id: 1), row(id: 2)])
+        viewModel.markLoadingMore(elementId: 2)
+        #expect(viewModel.isLoadingMore(elementId: 2) == true)
+
+        // Element 2 (the "load more" placeholder) is spliced away by the successful fetch.
+        viewModel.updateOrderedComments([row(id: 1)])
+
+        #expect(viewModel.isLoadingMore(elementId: 2) == false)
     }
 }

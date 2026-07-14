@@ -468,6 +468,10 @@ final class PostDetailViewModel {
     /// controller) marks the row loading and reconfigures the cell before calling this, and on a
     /// thrown error clears the flag + reconfigures + shows a toast. On success the comment
     /// observation emits the spliced tree and the row is replaced.
+    ///
+    /// - Parameter elementId: Not read by this method's body; kept for API symmetry with
+    ///   ``markLoadingMore(elementId:)`` / ``clearLoadingMore(elementId:)`` (the caller already keys
+    ///   its mark/clear/reconfigure on it) and for potential future use here (e.g. logging).
     func loadMoreReplies(elementId: Int64, parentServerId: Int64) async throws {
         try await fetchMoreCommentsOperation(parentServerId, commentSortType)
     }
