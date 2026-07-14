@@ -124,7 +124,11 @@ struct CommunityContextMenuBuilderTests {
     func includesCoreActionsWhenNotSubscribedNotMuted() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture(followState: .notFollowing)
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         let titles = allTitles(menu)
         #expect(titles.contains("Open Community"))
         #expect(titles.contains("Subscribe"))
@@ -140,10 +144,42 @@ struct CommunityContextMenuBuilderTests {
     func showsUnsubscribeWhenSubscribed() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture(followState: .accepted)
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         let titles = allTitles(menu)
         #expect(titles.contains("Unsubscribe"))
         #expect(!titles.contains("Subscribe"))
+    }
+
+    /// The resolved `subscribedState` param — not `result.followState` — decides
+    /// the label. A community with an in-flight approval request has a network
+    /// `followState` of `.notFollowing` (v3 collapses "approval required" away)
+    /// but a resolved `.pending` state (the persisted DB truth); the menu must
+    /// still show "Unsubscribe" so a long-press offers to cancel the pending
+    /// request rather than re-offering "Subscribe".
+    @Test
+    func showsUnsubscribeWhenResolvedStatePending_evenWhenNetworkFollowStateIsNotFollowing() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture(followState: .notFollowing)
+        let menu = CommunityContextMenuBuilder.menu(for: result, subscribedState: .pending, host: host)
+        let titles = allTitles(menu)
+        #expect(titles.contains("Unsubscribe"))
+        #expect(!titles.contains("Subscribe"))
+    }
+
+    /// The mirror image: a resolved `.notSubscribed` state shows "Subscribe"
+    /// regardless of what the network response says.
+    @Test
+    func showsSubscribeWhenResolvedStateNotSubscribed() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture(followState: .accepted)
+        let menu = CommunityContextMenuBuilder.menu(for: result, subscribedState: .notSubscribed, host: host)
+        let titles = allTitles(menu)
+        #expect(titles.contains("Subscribe"))
+        #expect(!titles.contains("Unsubscribe"))
     }
 
     @Test
@@ -151,7 +187,11 @@ struct CommunityContextMenuBuilderTests {
         let host = FakeCommunityContextMenuHost()
         host.isMuted = true
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         let titles = allTitles(menu)
         #expect(titles.contains("Unmute"))
         #expect(!titles.contains("Mute"))
@@ -161,7 +201,11 @@ struct CommunityContextMenuBuilderTests {
     func openCommunityInvokesHostOpen() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Open Community", in: menu)
         #expect(host.openedResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
@@ -170,7 +214,11 @@ struct CommunityContextMenuBuilderTests {
     func subscribeInvokesHostSetSubscribed() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture(followState: .notFollowing)
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Subscribe", in: menu)
         #expect(host.subscribedCalls.count == 1)
         #expect(host.subscribedCalls.first?.subscribed == true)
@@ -180,7 +228,11 @@ struct CommunityContextMenuBuilderTests {
     func unsubscribeInvokesHostSetSubscribed() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture(followState: .accepted)
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Unsubscribe", in: menu)
         #expect(host.subscribedCalls.count == 1)
         #expect(host.subscribedCalls.first?.subscribed == false)
@@ -191,7 +243,11 @@ struct CommunityContextMenuBuilderTests {
         let host = FakeCommunityContextMenuHost()
         host.isMuted = true
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Unmute", in: menu)
         #expect(host.unmutedResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
@@ -200,7 +256,11 @@ struct CommunityContextMenuBuilderTests {
     func shareInvokesHostShare() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Share", in: menu)
         #expect(host.sharedResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
@@ -209,7 +269,11 @@ struct CommunityContextMenuBuilderTests {
     func copyLinkInvokesHostCopyLink() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Copy Link", in: menu)
         #expect(host.copiedLinkResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
@@ -218,7 +282,11 @@ struct CommunityContextMenuBuilderTests {
     func blockInvokesHostBlock() {
         let host = FakeCommunityContextMenuHost()
         let result = SearchCommunityResult.fixture()
-        let menu = CommunityContextMenuBuilder.menu(for: result, host: host)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
         performAction(titled: "Block Community", in: menu)
         #expect(host.blockedResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }

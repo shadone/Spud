@@ -210,6 +210,11 @@ final class SearchResultCellsSnapshotTests: XCTestCase {
             ),
             imageService: StaticImageService()
         )
+        // `configure` no longer paints the subscribe button (the VC now resolves
+        // and applies the real 5-state separately) -- apply it here to match the
+        // "not subscribed" state the fixture's `followState: .notFollowing` used
+        // to derive.
+        cell.applySubscribedState(.notSubscribed)
         await settle()
     }
 

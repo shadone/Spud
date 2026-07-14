@@ -95,6 +95,11 @@ final class SearchViewController: UIViewController {
 
     private var phaseObservationTask: Task<Void, Never>?
     private var resultsObservationTask: Task<Void, Never>?
+    /// Reconfigures the visible `.community` rows whenever
+    /// `viewModel.subscribeStates` changes — e.g. the outbox's durable subscribe
+    /// mirror lands and turns an optimistic Pending into a confirmed Subscribed —
+    /// so a row live-corrects without re-running the search.
+    private var subscribeStatesObservationTask: Task<Void, Never>?
 
     private enum Section: Hashable {
         case openURL
@@ -163,6 +168,7 @@ final class SearchViewController: UIViewController {
             accountScope: dependencies.accountService.scope(forAccountKeychainId: accountKeychainId),
             alertService: dependencies.alertService,
             preferencesService: dependencies.preferencesService,
+            appDatabase: appDatabase,
             isKnownInstance: { host in appDatabase.explorerInstanceSync(baseurl: host) != nil },
             searchInstances: { query in
                 appDatabase.searchExplorerInstancesSync(query: query)
@@ -184,6 +190,7 @@ final class SearchViewController: UIViewController {
     deinit {
         phaseObservationTask?.cancel()
         resultsObservationTask?.cancel()
+        subscribeStatesObservationTask?.cancel()
     }
 
     /// Pre-fills and runs a search from an external entry (App Intent / Siri).
@@ -224,6 +231,7 @@ final class SearchViewController: UIViewController {
     private func startObservations() {
         phaseObservationTask?.cancel()
         resultsObservationTask?.cancel()
+        subscribeStatesObservationTask?.cancel()
 
         let viewModel = viewModel
         phaseObservationTask = Task { @MainActor [weak self] in
@@ -238,6 +246,27 @@ final class SearchViewController: UIViewController {
                 self?.render()
             }
         }
+        subscribeStatesObservationTask = Task { @MainActor [weak self] in
+            for await _ in ObservationStream.values(of: { viewModel.subscribeStates }) {
+                if Task.isCancelled { break }
+                self?.reconfigureCommunityRows()
+            }
+        }
+    }
+
+    /// Reconfigures every currently-shown `.community` item so a change to
+    /// `viewModel.subscribeStates` repaints those rows in place. A no-op (no
+    /// crash, no visible change) the first time it fires — before any search has
+    /// run there are no `.community` items in the snapshot yet.
+    private func reconfigureCommunityRows() {
+        var snapshot = dataSource.snapshot()
+        let communityItems = snapshot.itemIdentifiers.filter {
+            if case .community = $0 { return true }
+            return false
+        }
+        guard !communityItems.isEmpty else { return }
+        snapshot.reconfigureItems(communityItems)
+        dataSource.apply(snapshot, animatingDifferences: false)
     }
 
     // MARK: Rendering
@@ -369,6 +398,12 @@ final class SearchViewController: UIViewController {
                     for: indexPath
                 ) as! SearchCommunityCell
                 cell.configure(with: result, imageService: imageService)
+                // The real 5-state, persisted-DB-wins-over-network state — see
+                // `SearchViewModel.subscribeState(for:)`. Applied separately from
+                // `configure` so a `reconfigureItems` triggered by the live
+                // `subscribeStates` observation re-resolves and repaints just the
+                // button without re-fetching the icon/text.
+                cell.applySubscribedState(viewModel.subscribeState(for: result))
                 cell.subscribeTapped = { [weak self, weak cell] subscribe in
                     self?.setSubscribed(result: result, subscribe: subscribe, cell: cell)
                 }
@@ -527,8 +562,13 @@ final class SearchViewController: UIViewController {
         }
 
         Haptics.tap()
-        // Optimistic UI: reflect the new state immediately.
-        cell?.applySubscribedState(subscribe)
+        // Optimistic UI: paint the state the outbox is about to durably write
+        // (`LemmyService.setSubscribed` enqueues `.pending`, not a bare
+        // "Subscribed" — see `CommunitySubscribedState.outboxBaseline`), so a
+        // community that requires moderator approval never flashes a
+        // false-positive "Subscribed" before the DB observation reconciles to the
+        // server's real answer (subscribeStatesObservationTask -> reconfigureItems).
+        cell?.applySubscribedState(subscribe ? .pending : .notSubscribed)
 
         Task { [weak self, weak cell] in
             guard let self else { return }
@@ -537,7 +577,12 @@ final class SearchViewController: UIViewController {
                     .setSubscribed(serverCommunityId: result.serverCommunityId, subscribed: subscribe)
             } catch {
                 alertService.handle(error, for: .setSubscribed)
-                cell?.applySubscribedState(!subscribe)
+                // Revert to the resolved state (persisted-DB-wins, network
+                // fallback) rather than a hardcoded opposite — the enqueue only
+                // throws on a defensive precondition (e.g. no outbox), so this
+                // is rare, but the resolved state is always the correct one to
+                // fall back to.
+                cell?.applySubscribedState(viewModel.subscribeState(for: result))
             }
         }
     }
@@ -1264,7 +1309,11 @@ extension SearchViewController: UITableViewDelegate {
         case let .community(result):
             return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
                 guard let self else { return nil }
-                return CommunityContextMenuBuilder.menu(for: result, host: self)
+                return CommunityContextMenuBuilder.menu(
+                    for: result,
+                    subscribedState: viewModel.subscribeState(for: result),
+                    host: self
+                )
             }
         case let .comment(result):
             let general = appearanceService.general
