@@ -185,6 +185,14 @@ private actor FakeComposerLemmyService: LemmyServiceType {
         trap()
     }
 
+    func fetchMoreComments(
+        serverPostId _: Lemmy.PostID,
+        parentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async throws {
+        trap()
+    }
+
     func outboxFailureEvents() async -> AsyncStream<OutboxFailure> {
         AsyncStream { $0.finish() }
     }

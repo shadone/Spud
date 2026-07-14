@@ -339,6 +339,14 @@ private actor ActivityPollLemmyService: LemmyServiceType {
         activityPollUnreachable()
     }
 
+    func fetchMoreComments(
+        serverPostId _: Lemmy.PostID,
+        parentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async throws {
+        activityPollUnreachable()
+    }
+
     func fetchSubtreeChildCount(
         postServerId: Lemmy.PostID,
         rootCommentServerId: Int64,

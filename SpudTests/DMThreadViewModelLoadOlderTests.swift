@@ -61,6 +61,14 @@ private actor QueuedPMLemmyService: LemmyServiceType {
         trap()
     }
 
+    func fetchMoreComments(
+        serverPostId _: Lemmy.PostID,
+        parentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async throws {
+        trap()
+    }
+
     func fetchSiteInfo() async throws {
         trap()
     }

@@ -275,6 +275,14 @@ private actor GiveUpLemmyService: LemmyServiceType {
     func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
         giveUpUnreachable()
     }
+
+    func fetchMoreComments(
+        serverPostId _: Lemmy.PostID,
+        parentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async throws {
+        giveUpUnreachable()
+    }
 }
 
 private func giveUpUnreachable(_ function: StaticString = #function) -> Never {
