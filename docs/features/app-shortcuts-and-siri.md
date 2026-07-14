@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Widget](widget.md), [Feeds and sorting](feeds-and-sorting.md), [Search](search.md), [New post](new-post.md), [Inbox](inbox.md), [Saving](saving.md), [Accounts and switching](accounts-and-switching.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md)
+- **Related:** [Widget](widget.md), [Feeds and sorting](feeds-and-sorting.md), [Search](search.md), [New post](new-post.md), [Inbox](inbox.md), [Saving](saving.md), [Accounts and switching](accounts-and-switching.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [NSFW content visibility and blur](nsfw-content.md)
 
 ## What it does
 
@@ -35,6 +35,14 @@ current default account; Switch Account changes which account that is.
   indexed via `ContentSpotlightIndexer` (domain `"content"`). Both refresh on launch
   and when the app returns to the foreground. A Spotlight hit opens the community or
   post in Spud.
+- **The content index excludes NSFW posts, unconditionally.** A saved or
+  recently-opened post whose own flag or community's flag is NSFW is never
+  written into the content Spotlight index — this holds even when Show NSFW is
+  on. Because each reindex deletes the whole `content` domain before re-adding
+  the current item set, a post that becomes NSFW after being indexed (or was
+  indexed before this exclusion shipped) drops out on the next reindex rather
+  than lingering. See [nsfw-content.md](nsfw-content.md) for the equivalent rule
+  on the per-post Handoff/Spotlight/Siri continuation activity.
 - **Default account, signed-out fallback.** Actions use the current default
   account. While signed out, Open Feed maps Subscribed / Moderator view to All, and
   New Post opens the app and shows the in-app sign-in prompt.
@@ -79,6 +87,13 @@ current default account; Switch Account changes which account that is.
 - **Given** my subscribed communities and saved / history posts are indexed
 - **When** I search a name in system Spotlight
 - **Then** the matching community or post appears and opens in Spud when tapped
+
+### NSFW posts never appear in the content Spotlight index
+
+- **Given** a post is saved or recently opened, and it (or its community) is NSFW
+- **When** the content Spotlight index is rebuilt (launch or foreground)
+- **Then** that post is not indexed, so it cannot be found via system Spotlight
+  search — regardless of the Show NSFW preference
 
 ### New post while signed out
 
