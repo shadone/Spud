@@ -1,0 +1,27 @@
+{
+  "type_": "Users",
+  "comments": [],
+  "posts": [],
+  "communities": [],
+  "users": [
+    {
+      "person": {
+        "id": 40021,
+        "name": "tincidunt",
+        "banned": false,
+        "published": "2023-06-09T16:51:35.914901",
+        "actor_id": "https://lemmy.world/u/tincidunt",
+        "local": false,
+        "deleted": false,
+        "bot_account": false,
+        "instance_id": 1192
+      },
+      "counts": {
+        "person_id": 40021,
+        "post_count": 12,
+        "comment_count": 34
+      },
+      "is_admin": false
+    }
+  ]
+}

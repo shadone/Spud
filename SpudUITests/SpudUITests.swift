@@ -139,6 +139,34 @@ class SpudUITests: XCTestCase {
                 ),
                 response: SBTStubResponse(fileNamed: "search-communities-tincidunt.json")
             )
+
+            // Search's `.users` scope hits the same neutral v3 search path with
+            // `type_=Users`. Returns a fresh person (id 40021, NOT the finibus
+            // fixture other tests use) so opening its profile from the context
+            // menu resolves through its own `user?person_id=` stub below rather
+            // than colliding with an already-loaded finibus row.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/search",
+                    query: ["q=tincidunt", "type_=Users"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "search-users-tincidunt.json")
+            )
+
+            // Opening the user search result ("Open profile") resolves the
+            // person via `personDetailsNeutral`/`personContentNeutral`, both of
+            // which hit `GET /api/v3/user?person_id=40021` (the latter also adds
+            // `page`/`limit`) -- a single person_id-keyed matcher covers both,
+            // mirroring the `user-31989.json` stub above.
+            _ = self.app.stubRequests(
+                matching: SBTRequestMatch(
+                    url: "discuss.tchncs.de/api/v3/user",
+                    query: ["person_id=40021"],
+                    method: "GET"
+                ),
+                response: SBTStubResponse(fileNamed: "person-details-tincidunt.json")
+            )
         }
     }
 
@@ -395,6 +423,50 @@ class SpudUITests: XCTestCase {
         XCTAssertTrue(
             sortButton.exists,
             "Community navbar should show the post sort button"
+        )
+    }
+
+    /// Search's user-result rows carry the SAME shared long-press context menu
+    /// as `PersonViewController`'s header menu (Task 5 of the
+    /// search-context-menus initiative: `SearchViewController` conforms to
+    /// `UserContextMenuHost` and attaches `UserContextMenuBuilder`'s menu via
+    /// `contextMenuConfigurationForRowAt`). Mirrors
+    /// `test_Search_CommunityResultContextMenu_OpenCommunity`: search for a
+    /// user, switch to the Users scope, long-press its search-result row,
+    /// choose "Open profile", and land on that person's profile screen --
+    /// proving the menu is wired end to end (not just present-but-inert).
+    func test_Search_UserResultContextMenu_OpenProfile() {
+        let searchTab = app.buttons["Search"].firstMatch
+        XCTAssertTrue(searchTab.waitForExistence(timeout: 10), "Search tab button not found")
+        searchTab.tap()
+
+        let searchField = app.searchFields.firstMatch
+        XCTAssertTrue(searchField.waitForExistence(timeout: 10), "Search field not found")
+        searchField.tap()
+        searchField.typeText("tincidunt")
+
+        // The scope bar renders inside the search bar's own navigation-bar area,
+        // matching the Communities-scope test's disambiguation.
+        let usersScope = app.navigationBars.buttons["Users"]
+        XCTAssertTrue(usersScope.waitForExistence(timeout: 10), "Users search scope button not found")
+        usersScope.tap()
+
+        let userCell = app.cell(containing: "tincidunt")
+        XCTAssertTrue(userCell.waitForExistence(timeout: 10), "Search should return the stubbed user result")
+
+        // Long-press the search result to open its context menu, then open the profile.
+        userCell.press(forDuration: 1.2)
+
+        let openAction = app.buttons["Open profile"]
+        XCTAssertTrue(
+            openAction.waitForExistence(timeout: 5),
+            "Search user-result context menu should offer 'Open profile'"
+        )
+        openAction.tap()
+
+        XCTAssertTrue(
+            app.staticTexts["@tincidunt@lemmy.world"].waitForExistence(timeout: 10),
+            "Tapping 'Open profile' should push the person's profile screen"
         )
     }
 

@@ -490,6 +490,29 @@ final class SearchViewController: UIViewController {
         window.display(serverPostId: result.serverPostId, accountKeychainId: accountKeychainId)
     }
 
+    /// Pushes the Person screen for a search `.user` result. Shared by the row
+    /// tap and the long-press menu's "Open profile" action.
+    private func openUser(_ result: SearchUserResult) {
+        let vc = PersonOrLoadingViewController(
+            personId: result.serverPersonId,
+            instance: result.instance,
+            accountKeychainId: accountKeychainId,
+            dependencies: dependencies.nested
+        )
+        navigationController?.pushViewController(vc, animated: true)
+    }
+
+    /// The person's canonical profile URL, for the long-press menu's Share
+    /// action. `result.name` prefers the person's display name when they set
+    /// one, so it isn't safe to use as the URL path segment; the bare Lemmy
+    /// username is recovered instead from `qualifiedName` (`@name@host[:port]`,
+    /// built from the bare name at `SearchUserResult` construction time).
+    private func userProfileURL(for result: SearchUserResult) -> URL? {
+        let handle = result.qualifiedName.drop { $0 == "@" }
+        guard let bareName = handle.split(separator: "@", maxSplits: 1).first else { return nil }
+        return result.instance.url?.appending(path: "u/\(bareName)")
+    }
+
     // MARK: Actions
 
     private func setSubscribed(result: SearchCommunityResult, subscribe: Bool, cell: SearchCommunityCell?) {
@@ -1048,6 +1071,75 @@ extension SearchViewController: CommentContextMenuHost {
     }
 }
 
+// MARK: - UserContextMenuHost
+
+/// Adopts the shared `UserContextMenuBuilder` for a search `.user` result's
+/// long-press menu (plan Task 5), mirroring `PersonViewController`'s header
+/// context menu (Copy handle, Block/Unblock) plus Open profile and Share.
+extension SearchViewController: UserContextMenuHost {
+    func userOpen(_ result: SearchUserResult) {
+        Haptics.tap()
+        openUser(result)
+    }
+
+    func userCopyHandle(_ result: SearchUserResult) {
+        UIPasteboard.general.string = result.qualifiedName
+        Haptics.tap()
+    }
+
+    func userShare(_ result: SearchUserResult) {
+        guard let url = userProfileURL(for: result) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    /// Blocks or unblocks the person, gated on sign-in. Blocking presents a
+    /// destructive confirmation first (mirrors `postBlockAuthor` /
+    /// `PersonViewController.toggleBlockUser`'s blocking branch); unblocking is
+    /// not destructive and applies directly, matching `toggleBlockUser`'s
+    /// non-blocking branch.
+    func userSetBlocked(_ result: SearchUserResult, blocked: Bool) {
+        guard !viewModel.accountScope.isSignedOut else {
+            presentSignInGate(title: NSLocalizedString("Sign in to block", comment: "Sign-in gate title when a signed-out user tries to block"))
+            return
+        }
+        guard blocked else {
+            Task { [weak self] in
+                guard let self else { return }
+                Haptics.tap()
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .setBlocked(serverPersonId: result.serverPersonId, blocked: false)
+                } catch {
+                    alertService.handle(error, for: .setBlockedPerson)
+                }
+            }
+            return
+        }
+        presentDestructiveConfirmation(
+            title: String(format: NSLocalizedString("Block %@?", comment: "Block user confirmation title"), result.qualifiedName),
+            message: NSLocalizedString(
+                "You won't see posts or comments from this user. You can unblock them later.",
+                comment: "Block user confirmation message"
+            ),
+            confirmTitle: NSLocalizedString("Block", comment: "Block user confirm button"),
+            sourceView: view
+        ) { [weak self] in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await viewModel.accountScope.lemmyService
+                        .setBlocked(serverPersonId: result.serverPersonId, blocked: true)
+                } catch {
+                    alertService.handle(error, for: .setBlockedPerson)
+                }
+            }
+        }
+    }
+}
+
 // MARK: - UITableViewDelegate
 
 extension SearchViewController: UITableViewDelegate {
@@ -1068,13 +1160,7 @@ extension SearchViewController: UITableViewDelegate {
             openCommunity(result)
 
         case let .user(result):
-            let vc = PersonOrLoadingViewController(
-                personId: result.serverPersonId,
-                instance: result.instance,
-                accountKeychainId: accountKeychainId,
-                dependencies: dependencies.nested
-            )
-            navigationController?.pushViewController(vc, animated: true)
+            openUser(result)
 
         case let .comment(result):
             openComment(result)
@@ -1124,7 +1210,19 @@ extension SearchViewController: UITableViewDelegate {
                     downvoteIcon: general.downvoteIcon
                 )
             }
-        case .user, .instance, .openURL:
+        case let .user(result):
+            return UIContextMenuConfiguration(identifier: indexPath as NSCopying, previewProvider: nil) { [weak self] _ in
+                guard let self else { return nil }
+                // Whether this person is blocked can only be learned via a network
+                // round trip (`LemmyService.fetchBlockedList`), not a cheap sync
+                // lookup, and a menu-build closure must not perform one -- so
+                // Search always passes `false`, meaning the menu only ever offers
+                // "Block user", never "Unblock" (see `UserContextMenuBuilder`'s
+                // doc comment). The person's own profile screen resolves and
+                // shows the real state once opened.
+                return UserContextMenuBuilder.menu(for: result, isBlocked: false, host: self)
+            }
+        case .instance, .openURL:
             return nil
         }
     }

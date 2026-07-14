@@ -139,6 +139,17 @@ struct SearchCommunityResult: Hashable, Identifiable {
 
 /// A single user result. Carries the server person id + home instance so a tap
 /// can open the Person screen.
+///
+/// Unlike ``SearchCommunityResult``, this carries no `isBlocked` field: the
+/// search `Lemmy.PersonView` has no per-viewer block flag (Lemmy's search API
+/// doesn't return one), and unlike a community's client-local mute state,
+/// whether the viewer has blocked a person is only knowable via a network
+/// round trip (`LemmyService.fetchBlockedList`, backed by `getSite` -- the
+/// same source `PersonViewController`'s block menu resolves from on appear).
+/// The long-press context menu (`UserContextMenuBuilder`) can't afford that
+/// fetch at menu-build time, so `SearchViewController` always builds it with
+/// `isBlocked: false`, which only ever offers "Block user" (never "Unblock")
+/// from Search -- the person's own profile screen shows the real state.
 struct SearchUserResult: Hashable, Identifiable {
     let serverPersonId: Lemmy.PersonID
     let name: String
