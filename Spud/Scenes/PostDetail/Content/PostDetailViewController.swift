@@ -569,19 +569,32 @@ class PostDetailViewController: UIViewController {
 
     /// Vends a Handoff/Spotlight/Prediction activity for this post, keyed by its
     /// canonical `ap_id` so it resolves under any account on any device.
+    ///
+    /// Deferred until the header GRDB row is known: `headerRow` is usually still
+    /// nil at `viewDidAppear` (the observation publishes a beat later), and the
+    /// NSFW flag lives on that row. Waiting for it — rather than advertising
+    /// eagerly and correcting later — means an NSFW post is never advertised to
+    /// Handoff/Spotlight/Siri, not even momentarily. `SpudUserActivity.viewPost`
+    /// itself refuses to build an activity when the row is flagged NSFW.
     private func updateUserActivity() {
+        guard let headerRow = viewModel.headerRow else { return }
+        // Already advertised for this appearance; don't re-vend on every
+        // subsequent header emit (vote/save/edit re-emits shouldn't churn
+        // Handoff state).
+        guard userActivity == nil else { return }
         let instanceActorId = viewModel.instanceActorId
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,
-            originalPostUrl: viewModel.headerRow?.originalPostUrl,
+            originalPostUrl: headerRow.originalPostUrl,
             serverPostId: Int64(viewModel.serverPostId),
             instanceActorId: instanceActorId
         ) else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: canonical).url
-        let activity = SpudUserActivity.viewPost(
+        guard let activity = SpudUserActivity.viewPost(
             routingURL: routingURL,
-            title: viewModel.headerRow?.title ?? "Post"
-        )
+            title: headerRow.title,
+            isNsfw: headerRow.isNsfw
+        ) else { return }
         userActivity = activity
         activity.becomeCurrent()
     }
@@ -653,6 +666,9 @@ class PostDetailViewController: UIViewController {
                 reevaluateUnavailability()
                 if didFirePlaceholder { break }
                 updateHeaderPrivacy()
+                // A late-arriving header (the common case: nil at viewDidAppear)
+                // is what actually advertises the activity for most opens.
+                updateUserActivity()
                 // Rebuild so the Save/Unsave label, Mute target, and the
                 // own-post-gated Report/Block items reflect the latest row.
                 overflowBarButtonItem.menu = makePostOverflowMenu()

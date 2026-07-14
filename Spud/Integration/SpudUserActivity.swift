@@ -25,8 +25,15 @@ enum SpudUserActivity {
     /// Our own activity types (also declared in `Info.plist`'s `NSUserActivityTypes`).
     static let allTypes = [viewPostType, viewCommunityType, viewPersonType]
 
-    static func viewPost(routingURL: URL, title: String) -> NSUserActivity {
-        make(type: viewPostType, routingURL: routingURL, title: title)
+    /// Builds the Handoff/Spotlight/Siri activity for a viewed post.
+    ///
+    /// Returns `nil` for an NSFW post (post OR its community flagged NSFW):
+    /// NSFW posts must never be advertised to Handoff, Spotlight, or Siri
+    /// suggestions, unconditionally — independent of the user's "Show NSFW"
+    /// preference, which only controls in-app visibility.
+    static func viewPost(routingURL: URL, title: String, isNsfw: Bool) -> NSUserActivity? {
+        guard !isNsfw else { return nil }
+        return make(type: viewPostType, routingURL: routingURL, title: title)
     }
 
     static func viewCommunity(routingURL: URL, name: String) -> NSUserActivity {
