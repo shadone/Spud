@@ -53,12 +53,49 @@ struct MetaCommunityClassifierTests {
 
     @Test
     func multiWordTitleMatchesOnToken() {
-        // Broad recall: any word token matching a keyword flags it.
+        // Broad recall: the NAME token "general" (not the title) matches the
+        // broad keyword set.
         let c = MetaCommunityClassifier.classify(
             name: "general_discussion", title: "General Discussion", instanceHost: "example.social", siteName: nil
         )
         #expect(c.isMeta)
         #expect(c.confidence == .low)
+    }
+
+    @Test
+    func titleBorneStrongKeywordIsHigh() {
+        // Recall: a generic name with a strong keyword only in the title is
+        // still flagged HIGH.
+        let c = MetaCommunityClassifier.classify(
+            name: "offtopic", title: "Site Announcements",
+            instanceHost: "example.social", siteName: nil
+        )
+        #expect(c.isMeta)
+        #expect(c.confidence == .high)
+        #expect(c.reason == .strongKeyword)
+    }
+
+    @Test
+    func broadKeywordInTitleAloneDoesNotFlag() {
+        // Broad keywords are name-only: "news" in the title must NOT flag an
+        // ordinary community.
+        let c = MetaCommunityClassifier.classify(
+            name: "photos", title: "Photo News",
+            instanceHost: "example.social", siteName: nil
+        )
+        #expect(!c.isMeta)
+    }
+
+    @Test
+    func multiWordSiteNameMatchesTitle() {
+        // Identity match via the whole title against a multi-word site name.
+        let c = MetaCommunityClassifier.classify(
+            name: "chat", title: "Lemmy World",
+            instanceHost: "lemmy.world", siteName: "Lemmy World"
+        )
+        #expect(c.isMeta)
+        #expect(c.confidence == .high)
+        #expect(c.reason == .nameMatchesInstance)
     }
 
     @Test

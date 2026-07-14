@@ -44,24 +44,24 @@ public enum MetaCommunityClassifier {
         instanceHost: String,
         siteName: String?
     ) -> MetaClassification {
-        // Normalized whole-strings (alphanumerics only, lowercased) used for
-        // equality against the instance identity.
         let normalizedName = normalizeCollapsed(name)
         let normalizedTitle = title.map(normalizeCollapsed)
 
-        // Word tokens (split on non-alphanumerics) used for keyword matching.
-        // Deliberately derived from `name` only, not `title`: a title is free-form
-        // prose ("World News", "Support & Meta") and can incidentally contain a
-        // keyword-shaped word without the community actually being about the
-        // instance/meta topic, so titles participate only via the whole-string
-        // equality check below, never via token-level keyword matching.
-        let tokens = Set(wordTokens(name))
+        // Tokens from the name only — used for the BROAD keyword set, whose
+        // common words (news, general, updates) appear incidentally in titles
+        // and would cause false positives if title-matched.
+        let nameTokens = Set(wordTokens(name))
+        // Tokens from name + title — used for the STRONG (unambiguous) keyword
+        // set and for instance-identity matching, where a title hit is
+        // high-value and low-noise (e.g. name "offtopic", title "Site
+        // Announcements").
+        var nameAndTitleTokens = nameTokens
+        if let title { nameAndTitleTokens.formUnion(wordTokens(title)) }
 
-        // High-confidence: name/title equals the instance identity.
         if matchesInstanceIdentity(
             normalizedName: normalizedName,
             normalizedTitle: normalizedTitle,
-            tokens: tokens,
+            tokens: nameAndTitleTokens,
             instanceHost: instanceHost,
             siteName: siteName
         ) {
@@ -70,8 +70,7 @@ public enum MetaCommunityClassifier {
             )
         }
 
-        // High-confidence keyword wins over broad.
-        if !tokens.isDisjoint(with: MetaCommunityKeywords.strong)
+        if !nameAndTitleTokens.isDisjoint(with: MetaCommunityKeywords.strong)
             || MetaCommunityKeywords.strong.contains(normalizedName)
         {
             return MetaClassification(
@@ -79,7 +78,7 @@ public enum MetaCommunityClassifier {
             )
         }
 
-        if !tokens.isDisjoint(with: MetaCommunityKeywords.broad)
+        if !nameTokens.isDisjoint(with: MetaCommunityKeywords.broad)
             || MetaCommunityKeywords.broad.contains(normalizedName)
         {
             return MetaClassification(
@@ -122,7 +121,7 @@ public enum MetaCommunityClassifier {
 
     /// The registrable-domain primary label: second-to-last dot component,
     /// normalized. Returns nil for single-label hosts (e.g. "localhost").
-    static func primaryDomainLabel(_ host: String) -> String? {
+    private static func primaryDomainLabel(_ host: String) -> String? {
         let bare = host.split(separator: ":").first.map(String.init) ?? host
         let labels = bare.split(separator: ".").map(String.init)
         guard labels.count >= 2 else { return nil }
@@ -130,14 +129,14 @@ public enum MetaCommunityClassifier {
     }
 
     /// Lowercased, alphanumerics only (drops spaces, hyphens, underscores).
-    static func normalizeCollapsed(_ s: String) -> String {
+    private static func normalizeCollapsed(_ s: String) -> String {
         s.lowercased().unicodeScalars
             .filter { CharacterSet.alphanumerics.contains($0) }
             .map(String.init).joined()
     }
 
     /// Lowercased word tokens split on any non-alphanumeric boundary.
-    static func wordTokens(_ s: String) -> [String] {
+    private static func wordTokens(_ s: String) -> [String] {
         s.lowercased()
             .components(separatedBy: CharacterSet.alphanumerics.inverted)
             .filter { !$0.isEmpty }
