@@ -576,12 +576,30 @@ class PostDetailViewController: UIViewController {
     /// eagerly and correcting later — means an NSFW post is never advertised to
     /// Handoff/Spotlight/Siri, not even momentarily. `SpudUserActivity.viewPost`
     /// itself refuses to build an activity when the row is flagged NSFW.
+    ///
+    /// Re-invoked on every header GRDB emission (vote/save/edit), so it must also
+    /// handle the post being edited to NSFW while already on screen: an
+    /// already-vended activity is revoked the moment the row flips NSFW, not just
+    /// refused at first vend. Also gated on `isViewVisible` so the observation
+    /// loop can't re-vend a non-NSFW post's activity while the VC is alive but
+    /// not currently on screen.
     private func updateUserActivity() {
-        guard let headerRow = viewModel.headerRow else { return }
-        // Already advertised for this appearance; don't re-vend on every
-        // subsequent header emit (vote/save/edit re-emits shouldn't churn
-        // Handoff state).
-        guard userActivity == nil else { return }
+        // Only advertise a post to Handoff/Spotlight/Siri while it's on screen AND known to be
+        // non-NSFW. headerRow arrives via the GRDB observation a beat after viewDidAppear and can
+        // change if the post is edited on-screen, so this is re-invoked from the header observation
+        // loop and MUST re-evaluate NSFW every time — including revoking an already-vended activity
+        // if the post becomes NSFW. Never surface sensitive posts to these off-device/system surfaces.
+        guard isViewVisible else { return }
+        guard let headerRow = viewModel.headerRow else { return } // NSFW status not known yet
+
+        if headerRow.isNsfw {
+            userActivity?.resignCurrent()
+            userActivity = nil
+            return
+        }
+
+        guard userActivity == nil else { return } // already advertising this non-NSFW post
+
         let instanceActorId = viewModel.instanceActorId
         guard let canonical = LinkURL.forPost(
             instance: .originalInstance,

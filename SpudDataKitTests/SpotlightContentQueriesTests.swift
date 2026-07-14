@@ -10,7 +10,7 @@ import Testing
 @testable import SpudDataKit
 
 struct SpotlightContentQueriesTests {
-    private static func seedGraph(_ db: Database, keychainId: String, isDefault: Bool) throws -> (accountId: Int64, communityId: Int64, personId: Int64) {
+    private static func seedGraph(_ db: Database, keychainId: String, isDefault: Bool, communityIsNsfw: Bool = false) throws -> (accountId: Int64, communityId: Int64, personId: Int64) {
         try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://\(keychainId).test", Date()])
         let instanceId = db.lastInsertedRowID
         try db.execute(sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)", arguments: [instanceId, Date(), Date()])
@@ -27,17 +27,27 @@ struct SpotlightContentQueriesTests {
         let accountId = db.lastInsertedRowID
         try db.execute(sql: """
             INSERT INTO community (accountId, communityId, name, actorId, isHidden, isLocal, isNsfw, isPostingRestrictedToMods, isRemoved, subscribedState, numberOfSubscribers, numberOfPosts, numberOfComments, createdAt, updatedAt)
-            VALUES (?, 5, 'programming', 'https://\(keychainId).test/c/programming', 0, 0, 0, 0, 0, 'NotSubscribed', 0, 0, 0, ?, ?)
-            """, arguments: [accountId, Date(), Date()])
+            VALUES (?, 5, 'programming', 'https://\(keychainId).test/c/programming', 0, 0, ?, 0, 0, 'NotSubscribed', 0, 0, 0, ?, ?)
+            """, arguments: [accountId, communityIsNsfw, Date(), Date()])
         let communityId = db.lastInsertedRowID
         return (accountId, communityId, personId)
     }
 
-    private static func insertPost(_ db: Database, accountId: Int64, communityId: Int64, personId: Int64, serverPostId: Int64, title: String, isSaved: Bool) throws {
+    /// Inserts a second community under an already-seeded account, so a test can
+    /// exercise a post whose own `isNsfw` is false but whose community is NSFW.
+    private static func insertCommunity(_ db: Database, accountId: Int64, communityId: Int64, name: String, isNsfw: Bool) throws -> Int64 {
         try db.execute(sql: """
-            INSERT INTO post (accountId, communityId, creatorId, postId, title, originalPostUrl, score, numberOfUpvotes, numberOfDownvotes, numberOfComments, isRead, isSaved, isHidden, isRemoved, isLocked, isFeaturedCommunity, isFeaturedLocal, isDeleted, published, createdAt, updatedAt)
-            VALUES (?, ?, ?, ?, ?, 'https://x.test/post/\(serverPostId)', 7, 7, 0, 3, 0, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?)
-            """, arguments: [accountId, communityId, personId, serverPostId, title, isSaved, Date(), Date(), Date()])
+            INSERT INTO community (accountId, communityId, name, actorId, isHidden, isLocal, isNsfw, isPostingRestrictedToMods, isRemoved, subscribedState, numberOfSubscribers, numberOfPosts, numberOfComments, createdAt, updatedAt)
+            VALUES (?, ?, ?, 'https://x.test/c/\(name)', 0, 0, ?, 0, 0, 'NotSubscribed', 0, 0, 0, ?, ?)
+            """, arguments: [accountId, communityId, name, isNsfw, Date(), Date()])
+        return db.lastInsertedRowID
+    }
+
+    private static func insertPost(_ db: Database, accountId: Int64, communityId: Int64, personId: Int64, serverPostId: Int64, title: String, isSaved: Bool, isNsfw: Bool = false) throws {
+        try db.execute(sql: """
+            INSERT INTO post (accountId, communityId, creatorId, postId, title, originalPostUrl, score, numberOfUpvotes, numberOfDownvotes, numberOfComments, isRead, isSaved, isHidden, isRemoved, isLocked, isFeaturedCommunity, isFeaturedLocal, isDeleted, isNsfw, published, createdAt, updatedAt)
+            VALUES (?, ?, ?, ?, ?, 'https://x.test/post/\(serverPostId)', 7, 7, 0, 3, 0, ?, 0, 0, 0, 0, 0, 0, ?, ?, ?, ?)
+            """, arguments: [accountId, communityId, personId, serverPostId, title, isSaved, isNsfw, Date(), Date(), Date()])
     }
 
     private static func insertInteraction(_ db: Database, accountId: Int64, postServerId: Int64, title: String, lastOpenedAt: Date?) throws {
@@ -103,5 +113,35 @@ struct SpotlightContentQueriesTests {
         let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
         #expect(rows.map(\.serverPostId) == [101])
         #expect(!(rows.contains(where: { $0.serverPostId == 202 })), "account kc-2 post must not appear in kc-1 index")
+    }
+
+    /// `IndexableContentRow.isNsfw` is `(post.isNsfw OR community.isNsfw)`. This
+    /// proves the projection actually reads both source columns: a post can be
+    /// NSFW on its own, or inherit NSFW from a non-NSFW-flagged post sitting in an
+    /// NSFW community. A column typo in the SQL (e.g. selecting only
+    /// `post.isNsfw`) would fail case (c) below.
+    @Test
+    func indexableRows_isNsfw_reflectsPostOrCommunityNsfw() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        try await appDatabase.writer.write { db in
+            let g = try Self.seedGraph(db, keychainId: "kc-1", isDefault: true, communityIsNsfw: false)
+            let nsfwCommunityId = try Self.insertCommunity(db, accountId: g.accountId, communityId: 6, name: "nsfw-community", isNsfw: true)
+
+            // (a) plain post in a non-NSFW community -> isNsfw false.
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 1, title: "Plain", isSaved: true, isNsfw: false)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 1, title: "Plain", lastOpenedAt: nil)
+
+            // (b) NSFW post in a non-NSFW community -> isNsfw true (post.isNsfw drives it).
+            try Self.insertPost(db, accountId: g.accountId, communityId: g.communityId, personId: g.personId, serverPostId: 2, title: "NsfwPost", isSaved: true, isNsfw: true)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 2, title: "NsfwPost", lastOpenedAt: nil)
+
+            // (c) non-NSFW post in an NSFW community -> isNsfw true (community.isNsfw drives it).
+            try Self.insertPost(db, accountId: g.accountId, communityId: nsfwCommunityId, personId: g.personId, serverPostId: 3, title: "PostInNsfwCommunity", isSaved: true, isNsfw: false)
+            try Self.insertInteraction(db, accountId: g.accountId, postServerId: 3, title: "PostInNsfwCommunity", lastOpenedAt: nil)
+        }
+        let rows = appDatabase.indexableContentRowsSync(forKeychainId: "kc-1", limit: 100)
+        #expect(rows.first { $0.serverPostId == 1 }?.isNsfw == false)
+        #expect(rows.first { $0.serverPostId == 2 }?.isNsfw == true)
+        #expect(rows.first { $0.serverPostId == 3 }?.isNsfw == true)
     }
 }
