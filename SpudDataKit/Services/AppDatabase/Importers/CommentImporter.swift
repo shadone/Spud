@@ -130,6 +130,156 @@ public extension AppDatabase {
         }
     }
 
+    /// Splices a freshly-fetched comment SUBTREE (a "load more replies" parent and its
+    /// descendants) into the existing stored comment tree for `(post, sortType)`, in place —
+    /// WITHOUT the destructive whole-tree rebuild `upsertComments` performs.
+    ///
+    /// Locates the "load more" placeholder element for `parentServerId`, upserts the fetched
+    /// comments, inserts element rows for the descendants at the placeholder's position (shifting
+    /// the rows after it), removes the placeholder, and regenerates frontier "load more"
+    /// placeholders for any still-missing deeper leaves (same `childCount`-driven rule as
+    /// `upsertComments`).
+    ///
+    /// Idempotent: a no-op if the placeholder is already gone (a double tap, or a re-splice after
+    /// the observation already updated the tree). Skips silently if the post is not yet mirrored.
+    ///
+    /// - Parameters:
+    ///   - parentServerId: the server comment id of the parent whose replies were fetched.
+    ///   - comments: the fetched subtree (may include the parent itself; it is not re-inserted as a
+    ///     new element, only refreshed).
+    func spliceMoreComments(
+        forServerPostId serverPostId: Int64,
+        accountId: Int64,
+        siteId: Int64,
+        sortType: Lemmy.CommentSortType,
+        parentServerId: Int64,
+        comments: [Lemmy.CommentView]
+    ) async throws {
+        guard !comments.isEmpty else { return }
+
+        try await writer.write { db in
+            guard
+                let postRowId = try PostRecord
+                .filter(Column("accountId") == accountId)
+                .filter(Column("postId") == serverPostId)
+                .fetchOne(db)?
+                .id
+            else {
+                logger.debug("Skipping splice - post \(serverPostId, privacy: .public) not yet in AppDatabase")
+                return
+            }
+
+            let sortTypeRaw = sortType.rawValue
+
+            // Locate the placeholder for this parent. Absent => already loaded; no-op (idempotent).
+            guard
+                let placeholder = try CommentElementRecord
+                .filter(Column("postId") == postRowId)
+                .filter(Column("sortType") == sortTypeRaw)
+                .filter(Column("commentId") == nil)
+                .filter(Column("moreParentId") == parentServerId)
+                .fetchOne(db)
+            else {
+                return
+            }
+            let placeholderPosition = placeholder.position
+
+            // Thread the fetched subtree in flat (pre-order) display order, rooted at the parent —
+            // NOT via LemmyCommentImportHelper.sort, which only threads a root-anchored full tree and
+            // would drop the whole subtree when `parentServerId` is a nested comment (its own
+            // ancestors aren't in the fetched set). Group children by parent id (preserving the
+            // server's within-parent order) and walk descendants of `parentServerId`. This skips the
+            // parent itself (it already has an element) and is robust to nested parents and to a
+            // child appearing before its parent in the response.
+            var childrenByParent: [Int64: [Lemmy.CommentView]] = [:]
+            for view in comments {
+                if let parentId = CommentPath(path: view.comment.path).parent {
+                    childrenByParent[Int64(parentId), default: []].append(view)
+                }
+            }
+            var descendants: [Lemmy.CommentView] = []
+            var visited: Set<Int64> = [parentServerId]
+            func appendSubtree(of parentId: Int64) {
+                for child in childrenByParent[parentId] ?? [] {
+                    let childId = Int64(child.comment.id)
+                    guard visited.insert(childId).inserted else { continue }
+                    descendants.append(child)
+                    appendSubtree(of: childId)
+                }
+            }
+            appendSubtree(of: parentServerId)
+
+            let missingChildren: Set<Lemmy.CommentID> = Set(
+                LemmyCommentImportHelper
+                    .findCommentsWithMissingChildren(comments)
+                    .map { Lemmy.CommentID($0.comment.id) }
+            )
+
+            // Refresh the parent's own row (childCount etc.) if it was echoed in the response.
+            if let parentView = comments.first(where: { Int64($0.comment.id) == parentServerId }) {
+                _ = try Self.upsertComment(
+                    from: parentView, accountId: accountId, postRowId: postRowId, siteId: siteId,
+                    respectsPendingOutbox: true, in: db
+                )
+            }
+
+            // Build the new element rows (each descendant, plus a frontier placeholder after any
+            // descendant that still claims missing children), using absolute path depth.
+            struct PendingElement {
+                let commentId: Int64?
+                let depth: Int64
+                let moreChildCount: Int64?
+                let moreParentId: Int64?
+            }
+            var pending: [PendingElement] = []
+            for view in descendants {
+                let depth = Int64(CommentPath(path: view.comment.path).depth)
+                let commentRowId = try Self.upsertComment(
+                    from: view, accountId: accountId, postRowId: postRowId, siteId: siteId,
+                    respectsPendingOutbox: true, in: db
+                )
+                pending.append(PendingElement(commentId: commentRowId, depth: depth, moreChildCount: nil, moreParentId: nil))
+                if missingChildren.contains(Lemmy.CommentID(view.comment.id)) {
+                    pending.append(PendingElement(
+                        commentId: nil,
+                        depth: depth + 1,
+                        moreChildCount: view.comment.childCount,
+                        moreParentId: Int64(view.comment.id)
+                    ))
+                }
+            }
+
+            // Shift the rows after the placeholder to make room. The single placeholder is removed
+            // and `count` new rows take positions [placeholderPosition ..< placeholderPosition + count],
+            // so rows after it move by (count - 1). (count == 1 => no shift; count == 0 => -1, closing
+            // the placeholder's gap.)
+            let count = Int64(pending.count)
+            if count != 1 {
+                try db.execute(
+                    sql: "UPDATE commentElement SET position = position + ? WHERE postId = ? AND sortType = ? AND position > ?",
+                    arguments: [count - 1, postRowId, sortTypeRaw, placeholderPosition]
+                )
+            }
+
+            try placeholder.delete(db)
+
+            var position = placeholderPosition
+            for element in pending {
+                var record = CommentElementRecord(
+                    postId: postRowId,
+                    commentId: element.commentId,
+                    position: position,
+                    depth: element.depth,
+                    sortType: sortTypeRaw,
+                    moreChildCount: element.moreChildCount,
+                    moreParentId: element.moreParentId
+                )
+                try record.insert(db)
+                position += 1
+            }
+        }
+    }
+
     /// Sets the moderator removal reason (mirrored from the public modlog) on
     /// the comments identified by their server comment id, under
     /// `(accountId, serverPostId)`. Skips silently if the post is not mirrored.

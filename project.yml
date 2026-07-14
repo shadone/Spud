@@ -34,7 +34,7 @@ packages:
     # code-complete but not yet human-validated against a real 1.0 server, so it is
     # not released. Push LemmyKit main and validate first; tag a release + switch this
     # to exactVersion only once it is verified.
-    revision: 906a954d6bd0a1465bc9f39675b0a5e50e064c9d
+    revision: 54fb2747a28b174dcaf6d5c07ff889e8b3095948
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
     exactVersion: 2.0.0

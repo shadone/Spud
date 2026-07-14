@@ -312,6 +312,14 @@ actor RecordingLemmyService: LemmyServiceType {
 
     // MARK: - LemmyServiceType (unused — trap if hit)
 
+    func fetchMoreComments(
+        serverPostId _: Lemmy.PostID,
+        parentServerId _: Int64,
+        sortType _: Lemmy.CommentSortType
+    ) async throws {
+        unreachable()
+    }
+
     func fetchSiteInfo() async throws {
         unreachable()
     }

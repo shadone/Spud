@@ -62,6 +62,21 @@ public protocol LemmyServiceType: Actor {
         sortType: Lemmy.CommentSortType
     ) async throws
 
+    /// Fetches the missing reply subtree under `parentServerId` (the "load more replies" action)
+    /// and splices it into the stored comment tree in place via `AppDatabase.spliceMoreComments`.
+    /// Unlike `fetchSubtreeChildCount` (best-effort, returns nil on failure), this THROWS - the UI
+    /// drives a loading/error state and must distinguish success from failure.
+    ///
+    /// - Parameters:
+    ///   - serverPostId: the post the parent comment belongs to.
+    ///   - parentServerId: the server comment id whose descendant subtree to fetch.
+    ///   - sortType: sort order for the underlying listing request.
+    func fetchMoreComments(
+        serverPostId: Lemmy.PostID,
+        parentServerId: Int64,
+        sortType: Lemmy.CommentSortType
+    ) async throws
+
     /// Fetch a comment-subtree's live `child_count` (descendant count) by
     /// paginating a post's comment listing until `rootCommentServerId` is
     /// found - a bounded, self-contained alternative to `fetchComments` for
@@ -1094,6 +1109,63 @@ public actor LemmyService: LemmyServiceType {
         if page.items.contains(where: \.comment.removed) {
             await mirrorCommentRemovalReasons(serverPostId: serverPostId)
         }
+    }
+
+    /// Fetches the missing reply subtree under `parentServerId` (the "load more replies" action)
+    /// and splices it into the stored comment tree in place via `AppDatabase.spliceMoreComments`.
+    ///
+    /// Accumulates the whole subtree, following `Page.nextPage` up to `maxSubtreeChildCountPages`
+    /// pages. On a v4 (cursor-paginated) server this walks every page; on v3 the whole subtree
+    /// comes in one response (`nextPage` nil) so the loop runs once. Unlike `fetchSubtreeChildCount`
+    /// (best-effort, returns nil), this THROWS on failure — the UI drives a loading/error state and
+    /// must distinguish success from failure.
+    public func fetchMoreComments(
+        serverPostId: Lemmy.PostID,
+        parentServerId: Int64,
+        sortType: Lemmy.CommentSortType
+    ) async throws {
+        logger.debug("""
+            Fetch more comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+            postId=\(serverPostId, privacy: .public) parentId=\(parentServerId, privacy: .public) \
+            sortType=\(sortType.rawValue, privacy: .public)
+            """)
+
+        var pageCursor: LemmyKit.Cursor?
+        var collected: [Lemmy.CommentView] = []
+        for _ in 0..<Self.maxSubtreeChildCountPages {
+            let page: Page<Lemmy.CommentView>
+            do {
+                page = try await api.getCommentsNeutral(
+                    parentId: parentServerId,
+                    sort: sortType.neutralCommentSort,
+                    pageCursor: pageCursor
+                )
+            } catch {
+                logger.error("""
+                    Fetch more comments failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                    postId=\(serverPostId, privacy: .public) parentId=\(parentServerId, privacy: .public). \
+                    \(String(describing: error), privacy: .public)
+                    """)
+                throw LemmyServiceError(from: error)
+            }
+            collected.append(contentsOf: page.items)
+            guard let next = page.nextPage else { break }
+            pageCursor = next
+        }
+
+        guard let (accountRowId, siteRowId) = try await accountSiteIds() else {
+            throw LemmyServiceError.internalInconsistency(
+                description: "fetchMoreComments: account/site not found for \(accountIdentifierForLogging)"
+            )
+        }
+        try await appDatabase.spliceMoreComments(
+            forServerPostId: Int64(serverPostId),
+            accountId: accountRowId,
+            siteId: siteRowId,
+            sortType: sortType,
+            parentServerId: parentServerId,
+            comments: collected
+        )
     }
 
     /// Bound on how many comment pages `fetchSubtreeChildCount` will follow

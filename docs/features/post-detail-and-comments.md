@@ -1,7 +1,7 @@
 # Post detail and comments
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped
+- **Status:** shipped — inline "load more replies" expansion pending release (implemented + tested on `feat/load-more-replies`; not yet merged, and the LemmyKit pin it needs hasn't been tagged a release)
 - **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -27,7 +27,7 @@ when the account has them.
 - **Tap to collapse.** Tapping a comment's body area collapses it (and expands it again); a light haptic fires. Tapping a link or inline image inside the author or body text follows the link (or opens the image) instead of collapsing. A collapsed comment hides its own body and all of its descendants, and shows a **"+N" badge** counting the hidden replies underneath it.
 - **Collapse is a view-layer filter.** The full ordered comment tree is produced once from the database; collapse only hides rows from the visible list and is never written to the server or the database. Collapse state is dropped when a comment leaves the tree, and is not persisted across reopening the post.
 - **Collapse via swipe too.** Collapse is also one of the assignable comment swipe slots, so gesture-first users can fold a thread without tapping. See [swipe-actions.md](swipe-actions.md) for the configurable swipe set.
-- **"Load more replies" rows.** Where the server truncated a deep thread, a "N more replies" placeholder row appears. It is not collapsible and carries no per-comment actions.
+- **"Load more replies" rows are tappable and expand inline.** Where a comment reports more replies than the loaded tree carries, a "N more replies" row (singular "1 more reply" for exactly one) appears beneath it. Tapping it swaps the row's text for a spinner while the missing subtree fetches, then splices the replies in at their correct depth right where the row was — the rest of the tree isn't reloaded, and a second tap while it's loading is ignored (no duplicate fetch). If that subtree is itself deep enough to contain replies beyond a single fetch, a fresh "N more replies" row appears further down under whichever descendant still has missing children, tappable the same way — so a very deep thread self-heals by expanding one layer at a time rather than leaving a stale or broken row. If the fetch fails (offline, server error), the row reverts from its spinner back to the "N more replies" count and a "Couldn't load more replies" toast appears; tapping the row again retries. This works the same talking to a v3 or a native v4 Lemmy server. The row is never collapsible and carries no swipe or long-press actions — tapping it is its only interaction.
 - **Your just-posted comment appears immediately.** A comment you post shows up inline in the tree at its position right away in a dimmed "Sending…" state (and "Failed — tap to retry" if the send fails), before the server confirms it; on success it becomes a normal comment. The compose / draft / retry flow behind this is documented in [Replying](replying.md) and [Drafts & Outbox](drafts-and-outbox.md).
 - **Jump to next top-level comment.** A floating chevron button at the bottom-trailing corner scrolls to the next top-level (depth-1) comment below the current position. It appears only while there is a next top-level comment to jump to and fades out otherwise.
 - **Comment permalink anchoring.** Opening the post via a `/comment/<id>` permalink (a deep link or the "Open in Spud" share extension) scrolls to that comment once the tree loads — expanding any collapsed ancestors — and flashes it with a one-time tint (skipped under Reduce Motion, where the scroll-to-top is the cue). If the target comment isn't in the post's loaded tree, it lands on the post without scrolling. See [Open in Spud](share-extension.md).
@@ -108,6 +108,46 @@ when the account has them.
 - **Then** the list scrolls to the next top-level comment
 - **And** the button hides once there is no further top-level comment below
 
+### A truncated thread shows a "load more replies" row
+
+- **Given** a comment reports more replies than the loaded tree carries
+- **When** the tree renders
+- **Then** a "N more replies" row appears beneath it ("1 more reply" for exactly one)
+- **And** the row is not collapsible and has no swipe or long-press actions
+
+### Tapping the row expands the subtree inline
+
+- **Given** a "N more replies" row
+- **When** I tap it
+- **Then** the row's text is replaced by a spinner while the missing subtree fetches
+- **And** on success the fetched replies are spliced in at their correct depth right where the row was, without reloading the rest of the tree
+- **When** I tap the row again while it is still loading
+- **Then** nothing happens — no second fetch is started
+
+### A subtree deeper than one fetch leaves a fresh "load more" row (self-healing)
+
+- **Given** a "N more replies" row whose subtree is itself deep enough that some of its own descendants still have replies beyond what a single expansion fetches
+- **When** the tap's fetch completes
+- **Then** the fetched portion is spliced into the tree
+- **And** a fresh "N more replies" row appears further down, under whichever descendant still has missing children
+- **And** that row is tappable the same way, so a very deep thread expands one layer at a time instead of leaving a stale or broken row
+
+### A failed fetch reverts the row and offers retry
+
+- **Given** a "N more replies" row I have tapped
+- **When** the fetch fails (e.g. offline, or the server errors)
+- **Then** the row reverts from its spinner back to showing the "N more replies" count
+- **And** a "Couldn't load more replies" toast appears
+- **When** I tap the row again
+- **Then** it retries the fetch
+
+### VoiceOver announces the "load more replies" row's state
+
+- **Given** a "N more replies" row
+- **Then** VoiceOver reads it with the hint "Loads more replies"
+- **When** the row is loading
+- **Then** the hint changes to "Loading replies"
+
 ### A comment's context menu
 
 - **Given** another person's comment
@@ -185,6 +225,6 @@ when the account has them.
 - **No in-screen comment-sort control.** The thread uses the account's default comment sort; there is no per-post picker to re-sort it without changing the global default. (Setting the default lives in Settings.)
 - Editing, deleting, and restoring your own *post* are supported via the post overflow / header menu (see above), as is full edit / delete / restore of your own *comment*.
 - Collapse state is not persisted: reopening the post starts fully expanded.
-- "Load more replies" placeholders are not collapsible and have no per-comment actions.
+- "Load more replies" rows are not collapsible and carry no swipe or long-press actions — tapping the row (to load its subtree) is the only interaction.
 - The post is saved from the toolbar or header action bar (or a swipe), not from the post's context menu.
 - Swipe-gesture configuration itself is a separate feature — see [swipe-actions.md](swipe-actions.md).
