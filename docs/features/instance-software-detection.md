@@ -171,9 +171,13 @@ directory-sourced value in place.
   boundary. Only login, register, and the explicit instance-detail screen opener
   pre-flight NodeInfo. A better-scoped candidate (the Search paste-to-open path) is
   deferred.
-- **Actually speaking non-Lemmy APIs.** Detection is awareness only. Spud does not
-  implement PieFed, Mbin, or Mastodon API clients; this feature blocks a home-connection
-  attempt to those instances rather than silently failing later.
+- **Actually speaking non-Lemmy APIs.** Detection itself is awareness only. Spud now
+  speaks PieFed's read API well enough to **browse** a PieFed instance signed-out (see
+  [PieFed instances](piefed.md)) — the detected software is what routes those reads to the
+  PieFed dialect — but detection still blocks a *login/registration* home-connection to
+  PieFed (that is Phase 2). Mbin, Mastodon, and other software are neither browsable nor
+  loginable: this feature blocks the home-connection attempt rather than silently failing
+  later.
 - **Signed-out "visit instance" guarding.** The anonymous-browse bootstrap path is not
   pre-flighted in this release.
 - **Version gaps within Lemmy itself.** This feature only distinguishes Lemmy from
