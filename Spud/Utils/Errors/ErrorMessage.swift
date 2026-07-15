@@ -75,6 +75,14 @@ enum ErrorMessage {
             )
         case let .unknown(underlying):
             return underlying.localizedDescription
+        case .unsupportedByDialect:
+            // A neutral endpoint with no PieFed implementation yet (see
+            // `LemmyApiError.unsupportedByDialect`). Shares the same generic
+            // fallback copy as `.unsupportedByInstance` above.
+            return NSLocalizedString(
+                "This isn't supported by your account's instance yet.",
+                comment: "Error shown when a capability-gated operation is blocked by the account's home instance dialect"
+            )
         }
     }
 }

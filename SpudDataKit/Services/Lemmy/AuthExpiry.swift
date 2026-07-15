@@ -45,7 +45,7 @@ public enum AuthExpiry {
             // v4 GET /account rejects an invalid token with 401. A bare 403 is
             // WAF/CDN, NOT auth -- excluded here on purpose.
             return httpStatusCode == 401
-        case .network, .failedToDeserializeResponse, .unknown:
+        case .network, .failedToDeserializeResponse, .unknown, .unsupportedByDialect:
             return false
         }
     }

@@ -386,6 +386,11 @@ public class AccountService: AccountServiceType {
     }
 
     public func instanceCapabilities(forAccountKeychainId accountKeychainId: String) -> InstanceCapabilities {
+        guard !isPiefed(forKeychainId: accountKeychainId) else {
+            // PieFed's version string (e.g. "1.7.5") is not on the Lemmy
+            // version scale -- don't parse it as one.
+            return InstanceCapabilities.capabilities(software: .piefed, version: nil)
+        }
         let version = appDatabase.accountSiteVersionSync(forKeychainId: accountKeychainId)
         return InstanceCapabilities.capabilities(
             software: .lemmy,
@@ -647,15 +652,35 @@ public class AccountService: AccountServiceType {
     }
 
     /// Derives which LemmyKit API version to dispatch through for the account
-    /// matching `keychainId`, from the site version last mirrored from getSite —
-    /// the same signal Phase 1's capability detection uses. A parsed Lemmy major
-    /// >= 1 is v4; anything older, or an unknown/unparseable version, fails open
-    /// to v3.
+    /// matching `keychainId`. Checks the account host's NodeInfo-detected
+    /// software FIRST: a host NodeInfo has cached as PieFed always resolves
+    /// `.piefed`, regardless of what `site.version` holds (a PieFed version
+    /// string is never on the Lemmy scale, so it must never reach the parse
+    /// below). Otherwise falls through to the existing Lemmy-version signal —
+    /// the site version last mirrored from getSite, the same signal Phase 1's
+    /// capability detection uses. A parsed Lemmy major >= 1 is v4; anything
+    /// older, or an unknown/unparseable version, fails open to v3.
     private func resolvedApiVersion(forKeychainId keychainId: String) -> LemmyKit.ApiVersion {
+        guard !isPiefed(forKeychainId: keychainId) else { return .piefed }
         let major = appDatabase
             .accountSiteVersionSync(forKeychainId: keychainId)
             .flatMap { LemmyVersion(parsing: $0)?.major } ?? 0
         return major >= 1 ? .v4 : .v3
+    }
+
+    /// Whether NodeInfo has cached the account's home instance as PieFed —
+    /// the single signal both `resolvedApiVersion` and `instanceCapabilities`
+    /// key off. A synchronous host-keyed cache read (no probe): a host that
+    /// hasn't been NodeInfo-probed yet (e.g. an account added before the probe
+    /// ran, or a probe that hasn't landed yet) reads as `false` here and the
+    /// caller falls through to its existing Lemmy-version-based logic — the
+    /// same fail-open posture NodeInfo detection uses everywhere else.
+    private func isPiefed(forKeychainId keychainId: String) -> Bool {
+        guard
+            let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
+            let host = InstanceActorId(from: actorIdRaw)?.host
+        else { return false }
+        return appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed
     }
 
     /// Blocks a home connection to non-Lemmy software; fail-open when the router

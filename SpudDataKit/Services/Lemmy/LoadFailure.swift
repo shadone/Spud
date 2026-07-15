@@ -132,6 +132,11 @@ public struct LoadFailure: Error, Equatable {
                 return kind(for: urlError)
             }
             return .unreachable
+        case .unsupportedByDialect:
+            // Mirrors `.unsupportedByInstance` above: no dedicated bucket in
+            // this generic three-kind classifier, and retrying can't help —
+            // fall back to the closest one.
+            return .unreachable
         }
     }
 }

@@ -77,6 +77,11 @@ public enum OutboxFailureClass: Sendable, Equatable {
             return .transient
         case .network, .unknown:
             return .transient
+        case .unsupportedByDialect:
+            // Mirrors `.unsupportedByInstance` above: the account's dialect
+            // (e.g. PieFed) has no implementation for this endpoint at all, so
+            // no retry can ever succeed — roll back rather than spin.
+            return .permanent
         }
     }
 }

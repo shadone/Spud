@@ -124,7 +124,14 @@ public extension LemmyService {
                 )
                 return response.replies.map(InboxCommentNotification.init(reply:))
 
-            case .v4:
+            case .v4, .piefed:
+                // PieFed has no unified-inbox equivalent among its neutral READ
+                // endpoints; `listNotificationsNeutral` throws
+                // `unsupportedByDialect` for `.piefed`, caught below like any
+                // other transport failure. This is unreachable in practice
+                // today (the `!accountIsSignedOut` guard above already rejects
+                // a PieFed browse account before this switch), kept only for
+                // exhaustiveness.
                 let notifications = try await api.listNotificationsNeutral(
                     unreadOnly: unreadOnly,
                     pageCursor: Self.inboxCursor(forPage: page),
@@ -167,7 +174,8 @@ public extension LemmyService {
                 )
                 return response.mentions.map(InboxCommentNotification.init(mention:))
 
-            case .v4:
+            case .v4, .piefed:
+                // See the matching `.v4, .piefed` arm in `fetchReplies` above.
                 let notifications = try await api.listNotificationsNeutral(
                     unreadOnly: unreadOnly,
                     pageCursor: Self.inboxCursor(forPage: page),
@@ -326,7 +334,7 @@ public extension LemmyService {
                 throw LemmyServiceError(from: error)
             }
 
-        case .v4:
+        case .v4, .piefed:
             // v4 marks a private-message notification read by its unified
             // notification id, but the DM conversation store keys messages by
             // `PrivateMessageID` and `IncomingPrivateMessage` does not carry the
@@ -336,9 +344,12 @@ public extension LemmyService {
             // conversation model; that is a follow-up. The DM thread still clears
             // the unread dot locally (`setPrivateMessageRead`), and
             // `markAllInboxAsRead` clears private-message read state on the server
-            // in bulk. Skip the server push here rather than throwing.
+            // in bulk. Skip the server push here rather than throwing. PieFed has
+            // no per-message read-sync endpoint among its neutral surface at all,
+            // so it shares this no-op arm (also unreachable today - private
+            // messages require auth, and PieFed browse is signed-out only).
             logger.debug("""
-                Skipping per-message server mark-read on a v4 instance \
+                Skipping per-message server mark-read on a v4/PieFed instance \
                 (notification id not carried; markAllInboxAsRead covers bulk clear).
                 """)
         }
@@ -387,9 +398,14 @@ public extension LemmyService {
                 throw LemmyServiceError(from: error)
             }
 
-        case .v4:
+        case .v4, .piefed:
             // v4's unified inbox marks every kind read in one call — including
             // private messages, unlike v3's replies/mentions-only markAllAsRead.
+            // PieFed shares this arm for exhaustiveness only:
+            // `markAllNotificationsAsReadNeutral` throws `unsupportedByDialect`
+            // for `.piefed`, caught below like any other transport failure
+            // (unreachable today — inbox requires auth, and PieFed browse is
+            // signed-out only).
             do {
                 try await api.markAllNotificationsAsReadNeutral()
             } catch {

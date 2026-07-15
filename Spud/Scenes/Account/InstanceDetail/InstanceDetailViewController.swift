@@ -726,8 +726,22 @@ final class InstanceDetailViewController: UIViewController {
 
     private func browseTapped() {
         guard let instance = row?.instance else { return }
-        accountService.signInAsSignedOut(atInstance: instance)
-        dismiss(animated: true)
+        let nodeInfoService = nodeInfoService
+        let accountService = accountService
+        Task { @MainActor [weak self] in
+            // `AccountService.resolvedApiVersion` reads the NodeInfo cache
+            // SYNCHRONOUSLY when the browse account's `LemmyService` is later
+            // built, so this host's software must already be resolved by then.
+            // `viewDidLoad`'s metadata probe is best-effort and gets cancelled
+            // (via `deinit`) by the `dismiss` below if the user taps through
+            // before it lands, so await detection explicitly here too — the
+            // common case is an instant cache hit from that same probe, with
+            // no extra network fetch (`detect`/`metadata` share one host-keyed
+            // cache row and TTL).
+            _ = await nodeInfoService.detect(host: instance.host)
+            accountService.signInAsSignedOut(atInstance: instance)
+            self?.dismiss(animated: true)
+        }
     }
 
     private func shareTapped() {
