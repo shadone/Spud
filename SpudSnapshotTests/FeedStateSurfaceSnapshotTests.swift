@@ -129,9 +129,11 @@ final class FeedStateSurfaceSnapshotTests: XCTestCase {
         config.text = descriptor.title
         config.secondaryText = descriptor.message
 
-        var primary = UIButton.Configuration.borderedProminent()
-        primary.title = descriptor.primary.title
-        config.button = primary
+        if let primary = descriptor.primary {
+            var primaryConfig = UIButton.Configuration.borderedProminent()
+            primaryConfig.title = primary.title
+            config.button = primaryConfig
+        }
 
         if let secondary = descriptor.secondary {
             var secondaryConfig = UIButton.Configuration.plain()

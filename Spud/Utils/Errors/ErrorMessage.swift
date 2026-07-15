@@ -43,7 +43,7 @@ enum ErrorMessage {
             // A generic fallback; dedicated per-capability messaging/UI is added
             // by the capability-gating UI tasks that consume this error case.
             return NSLocalizedString(
-                "This isn't supported by your account's instance yet.",
+                "This isn't available on your account's instance.",
                 comment: "Error shown when a capability-gated operation is blocked by the account's home instance version"
             )
         }
@@ -80,7 +80,7 @@ enum ErrorMessage {
             // `LemmyApiError.unsupportedByDialect`). Shares the same generic
             // fallback copy as `.unsupportedByInstance` above.
             return NSLocalizedString(
-                "This isn't supported by your account's instance yet.",
+                "This isn't available on your account's instance.",
                 comment: "Error shown when a capability-gated operation is blocked by the account's home instance dialect"
             )
         }

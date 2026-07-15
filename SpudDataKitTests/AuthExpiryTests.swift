@@ -47,6 +47,32 @@ struct AuthExpiryTests {
     }
 
     @Test
+    func piefedIncorrectLoginBareIsAuthExpiry() {
+        // The shape LemmyKit's own fixture tests use (no trailing explanation).
+        #expect(AuthExpiry.isAuthExpiry(LemmyApiError.serverError(errorResponse("incorrect_login"))))
+    }
+
+    @Test
+    func piefedIncorrectLoginWithSuffixIsAuthExpiry() {
+        // The shape CONFIRMED LIVE (Task 8 probe): `curl -A 'Mozilla/5.0' -H
+        // 'Authorization: Bearer invalid.token.value'
+        // https://piefed1.lemmy.ddenis.info/api/alpha/user/unread_count` returned
+        // HTTP 400, body `{"code":400,"message":"incorrect_login - problem
+        // decoding bearer token","status":"Bad Request"}`. LemmyKit's
+        // `PiefedClient` maps `message` verbatim into `ErrorResponse.error`, so
+        // the wire value carries the token PLUS a trailing explanation --
+        // must still match via `authCodePrefixes`' prefix check.
+        #expect(AuthExpiry.isAuthExpiry(
+            LemmyApiError.serverError(errorResponse("incorrect_login - problem decoding bearer token"))
+        ))
+    }
+
+    @Test
+    func piefedUnrelatedErrorCodeIsNotAuthExpiry() {
+        #expect(!AuthExpiry.isAuthExpiry(LemmyApiError.serverError(errorResponse("not_yet_implemented"))))
+    }
+
+    @Test
     func unwrapsLemmyServiceErrorWrapper() {
         // getSiteInfo throws LemmyServiceError(from:), so the classifier must see through .apiError.
         let wrapped = LemmyServiceError.apiError(.unauthorized(message: nil))

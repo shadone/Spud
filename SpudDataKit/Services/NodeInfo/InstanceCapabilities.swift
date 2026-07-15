@@ -43,28 +43,47 @@ public struct InstanceCapabilities: Sendable, Equatable {
 
     public static let allAvailable = InstanceCapabilities(unavailable: [])
 
-    /// The version-derivation table. **Gates nothing today**: it returns
-    /// ``allAvailable`` for every input.
+    /// The version/software-derivation table.
     ///
-    /// Spud speaks both Lemmy's stable v3 API (pre-1.0 instances) and the native
-    /// v4 API (the 1.0 rewrite — initiative Phase 6), so all seven capabilities
-    /// — person profiles, inbox, private messages, image upload, server
-    /// settings, hide-posts, and mark-posts-read — work on every Lemmy version.
-    /// The Phase-1 gating that briefly withheld these on Lemmy 1.0, back when
-    /// Spud spoke only v3 and the 1.0 server's v3 compat shim lacked the
-    /// endpoints, has been retired now that Spud speaks v4 natively.
+    /// **Lemmy: gates nothing.** Spud speaks both Lemmy's stable v3 API
+    /// (pre-1.0 instances) and the native v4 API (the 1.0 rewrite — initiative
+    /// Phase 6), so all seven capabilities — person profiles, inbox, private
+    /// messages, image upload, server settings, hide-posts, and
+    /// mark-posts-read — work on every Lemmy version. The Phase-1 gating that
+    /// briefly withheld these on Lemmy 1.0, back when Spud spoke only v3 and
+    /// the 1.0 server's v3 compat shim lacked the endpoints, has been retired
+    /// now that Spud speaks v4 natively. `version` is unused for Lemmy as a
+    /// result, but stays a parameter so a future Lemmy-version-specific gap can
+    /// be added here without re-plumbing every call site.
     ///
-    /// The gating MECHANISM is deliberately kept intact — this function, the
-    /// service-level ``LemmyServiceError/unsupportedByInstance`` backstop, and
-    /// the UI gates all remain — so a future capability whose support genuinely
-    /// varies by software or version can be re-added to a real gated set here
-    /// without re-plumbing anything. Non-Lemmy software also fails open: it
-    /// cannot be a home connection at all (`PlatformRouter` blocks it), and its
-    /// version numbers must not be read on the Lemmy scale.
+    /// **PieFed: withholds `imageUpload` and `serverUserSettings`.** PieFed's
+    /// own version numbering (e.g. "1.7.5") is not on the Lemmy scale, so
+    /// `version` is deliberately ignored for this branch too — see
+    /// `AccountService.instanceCapabilities`'s "don't parse it as one" comment.
+    /// The two gaps mirror what the Phase-2 PieFed dialect (LemmyKit
+    /// `feat/piefed-dialect`) does NOT implement yet:
+    /// - `imageUpload`: pict-rs-style multipart upload has no PieFed
+    ///   implementation — deferred, not investigated.
+    /// - `serverUserSettings`: `saveUserSettings` has no PieFed implementation
+    ///   (the wire shape for PieFed's settings endpoint hasn't been verified
+    ///   against a live instance) — deferred; local-only preferences (the
+    ///   soft-degrade setters this capability also gates, e.g. show/blur NSFW)
+    ///   keep working regardless, they just skip the server push.
+    ///
+    /// The gating MECHANISM is deliberately kept intact for the capabilities
+    /// that DO remain available — this function, the service-level
+    /// ``LemmyServiceError/unsupportedByInstance`` backstop, and the UI gates
+    /// all remain — so a future capability gap (on either dialect) can be
+    /// added to a real gated set here without re-plumbing anything.
     public static func capabilities(
-        software _: InstanceSoftware,
+        software: InstanceSoftware,
         version _: LemmyVersion?
     ) -> InstanceCapabilities {
-        .allAvailable
+        switch software {
+        case .piefed:
+            InstanceCapabilities(unavailable: [.imageUpload, .serverUserSettings])
+        default:
+            .allAvailable
+        }
     }
 }

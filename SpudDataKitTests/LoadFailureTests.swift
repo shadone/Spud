@@ -112,4 +112,33 @@ struct LoadFailureTests {
         )
         #expect(failure.kind == .unreachable)
     }
+
+    @Test
+    func unsupportedByInstanceIsNotSupported() {
+        let failure = LoadFailure.classify(
+            LemmyServiceError.unsupportedByInstance(.imageUpload),
+            isOnline: true
+        )
+        #expect(failure.kind == .notSupported)
+    }
+
+    @Test
+    func apiErrorUnsupportedByDialectIsNotSupported() {
+        let failure = LoadFailure.classify(
+            LemmyServiceError.apiError(.unsupportedByDialect(operation: "uploadImage")),
+            isOnline: true
+        )
+        #expect(failure.kind == .notSupported)
+    }
+
+    @Test
+    func offlineTakesPrecedenceOverNotSupported() {
+        // `isOnline: false` short-circuits every other classification, including
+        // the new kind — mirrors the existing offline-precedence tests above.
+        let failure = LoadFailure.classify(
+            LemmyServiceError.unsupportedByInstance(.imageUpload),
+            isOnline: false
+        )
+        #expect(failure.kind == .offline)
+    }
 }

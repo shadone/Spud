@@ -57,14 +57,33 @@ struct InstanceCapabilitiesTests {
 
     @Test
     func nonLemmySoftwareFailsOpen() {
-        // Non-Lemmy software can't be a home connection (PlatformRouter blocks
-        // it), so capabilities are moot there — but the derivation must not
-        // mis-apply the Lemmy shim table to e.g. PieFed version numbers.
+        // PieFed's own version numbers (e.g. "1.2.0") are not on the Lemmy
+        // scale, so the derivation must not mis-apply the Lemmy shim table to
+        // them — `version` is ignored entirely for non-Lemmy software (see
+        // `piefedWithholdsOnlyImageUploadAndServerUserSettings` for the actual
+        // PieFed-specific gaps this table now encodes).
         let caps = InstanceCapabilities.capabilities(
             software: .piefed,
             version: LemmyVersion(parsing: "1.2.0")
         )
         #expect(caps.can(.inbox))
+    }
+
+    @Test
+    func piefedWithholdsOnlyImageUploadAndServerUserSettings() {
+        // Confirmed live against piefed1.lemmy.ddenis.info + the local LemmyKit
+        // `feat/piefed-dialect` checkout (Phase 2, Task 8): the dialect has no
+        // multipart image-upload implementation, and no `saveUserSettings`
+        // implementation (unverified wire shape) — every other capability,
+        // including the ones LemmyKit DOES implement for PieFed (person
+        // profiles, inbox, private messages, hide-posts, mark-posts-read),
+        // stays available.
+        let caps = InstanceCapabilities.capabilities(software: .piefed, version: nil)
+        #expect(!caps.can(.imageUpload))
+        #expect(!caps.can(.serverUserSettings))
+        for capability in InstanceCapability.allCases where capability != .imageUpload && capability != .serverUserSettings {
+            #expect(caps.can(capability), "expected \(capability) available on PieFed")
+        }
     }
 
     @Test

@@ -22,4 +22,19 @@ public extension AppDatabase {
         }
         return record.map { InstanceSoftware(softwareName: $0.softwareName) }
     }
+
+    /// `async` counterpart of ``nodeInfoCachedSoftwareSync(forHost:)``, for an
+    /// actor-isolated caller that cannot block on the synchronous `writer.read`
+    /// (e.g. `LemmyService.instanceCapabilities()`, mirroring how
+    /// `accountSiteVersion(forKeychainId:)` pairs with
+    /// `accountSiteVersionSync(forKeychainId:)`). Same fail-open contract on
+    /// `nil` -- an unprobed host is "unknown", never "confirmed not PieFed".
+    func nodeInfoCachedSoftware(forHost host: String) async -> InstanceSoftware? {
+        let normalizedHost = NodeInfoService.normalize(host)
+        guard !normalizedHost.isEmpty else { return nil }
+        let record = try? await writer.read { db in
+            try NodeInfoCacheRecord.filter(key: normalizedHost).fetchOne(db)
+        }
+        return record.map { InstanceSoftware(softwareName: $0.softwareName) }
+    }
 }
