@@ -203,8 +203,10 @@ class MainWindow: UIWindow {
     /// UI-test seam: presents the login form for a non-Lemmy host directly,
     /// with the NodeInfo cache pre-seeded so the platform-block fires on
     /// "Log in" tap without any network call. The host is read from the
-    /// `SPUDNonLemmyLoginHost` environment variable (default `"piefed.social"`).
-    /// Replaces whatever root was set by the onboarding branch in `init`
+    /// `SPUDNonLemmyLoginHost` environment variable (default `"mastodon.social"`).
+    /// The seeded software is Mastodon -- genuinely non-Lemmy, so login is
+    /// blocked (unlike PieFed, whose Lemmy-compatible dialect Spud CAN log in
+    /// to). Replaces whatever root was set by the onboarding branch in `init`
     /// (this method runs after `showOnboarding()`). Never compiled into
     /// release builds.
     private func seedNonLemmyLoginForUITestsIfRequested() {
@@ -214,13 +216,13 @@ class MainWindow: UIWindow {
             accountService.currentDefaultAccountKeychainId() == nil
         else { return }
 
-        let host = ProcessInfo.processInfo.environment["SPUDNonLemmyLoginHost"] ?? "piefed.social"
+        let host = ProcessInfo.processInfo.environment["SPUDNonLemmyLoginHost"] ?? "mastodon.social"
 
         // Pre-seed the NodeInfo cache so detect(host:) short-circuits with
         // PlatformUnsupportedError instead of hitting the network.
         try! appDatabase.seedNodeInfoCacheForUITests(
             host: host,
-            softwareName: "piefed",
+            softwareName: "mastodon",
             softwareVersion: nil
         )
 

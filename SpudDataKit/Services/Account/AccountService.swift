@@ -683,13 +683,29 @@ public class AccountService: AccountServiceType {
         return appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed
     }
 
-    /// Blocks a home connection to non-Lemmy software; fail-open when the router
-    /// is absent (widget/tests) or the software could not be determined.
-    func preflightHomeConnection(host: String) async throws {
+    /// Blocks a home connection Spud can't serve for `purpose`; fail-open when
+    /// the router is absent (widget/tests) or the software could not be
+    /// determined. `.register` additionally blocks software Spud can log in to
+    /// but can't create accounts on in-app (PieFed), while `.login` allows it.
+    func preflightHomeConnection(host: String, purpose: HomeConnectionPurpose) async throws {
         guard let platformRouter else { return }
-        if case let .block(software, displayName, version) = await platformRouter.evaluateHomeConnection(host: host) {
+        if case let .block(software, displayName, version) = await platformRouter.evaluateHomeConnection(host: host, purpose: purpose) {
             throw PlatformUnsupportedError(software: software, displayName: displayName, version: version, host: host)
         }
+    }
+
+    /// The `ApiVersion` to dispatch the pre-account login / reauth request
+    /// through, resolved from the NodeInfo software cache for `host`. Login
+    /// predates the account's `getSite`, so the Lemmy version isn't known yet:
+    /// a host NodeInfo has already cached as PieFed dispatches through `.piefed`
+    /// (whose login route is `/api/alpha/user/login`, not Lemmy's), while
+    /// everything else -- including a host that was never probed -- falls open
+    /// to `.v3`, the Lemmy compat surface both 0.19 and 1.0 accept for login.
+    /// The preflight's `detect(host:)` has just populated the cache, so by the
+    /// time this runs the PieFed signal (if any) is available. The account's
+    /// full v3/v4 resolution happens later in `resolvedApiVersion(forKeychainId:)`.
+    private func resolvedLoginApiVersion(forHost host: String) -> LemmyKit.ApiVersion {
+        appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed ? .piefed : .v3
     }
 
     public func login(
@@ -702,20 +718,22 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .login)
 
-        // Temporary unauthenticated api for the login request.
-        // The instance's API version isn't known until getSite has run; login,
-        // register, and password-reset predate that, so dispatch through v3 (the
-        // compat surface). TODO: probe the version once neutral auth is adopted here.
-        let api = makeApi(url, nil, .v3)
+        // Temporary unauthenticated api for the login request. The instance's
+        // full API version isn't known until getSite has run (login predates
+        // that), so dispatch through the host-resolved login version: `.piefed`
+        // when NodeInfo has cached the host as PieFed (its login route differs
+        // from Lemmy's), else `.v3`, the Lemmy compat surface both 0.19 and 1.0
+        // accept. `loginNeutral` returns the bare JWT for whichever dialect.
+        let api = makeApi(url, nil, resolvedLoginApiVersion(forHost: instance.host))
 
-        let response: Lemmy.LoginResponse
+        let jwt: String
         do {
-            response = try await api.login(
+            jwt = try await api.loginNeutral(
                 usernameOrEmail: username,
                 password: password,
-                totp2faToken: totp2faToken
+                totp: totp2faToken
             )
         } catch {
             let error = AccountServiceLoginError(from: error)
@@ -733,9 +751,6 @@ public class AccountService: AccountServiceType {
             throw error
         }
 
-        guard let jwt = response.jwt else {
-            throw AccountServiceLoginError.missingJwt
-        }
         let keychainId = try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
         // Fetch the new account's site info (which carries `MyUserInfo`, and so
         // the account holder's own Person row) right now. Without this the row
@@ -756,18 +771,19 @@ public class AccountService: AccountServiceType {
             throw AccountServiceLoginError.missingJwt
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .login)
 
-        // Same unauthenticated v3 login call as `login` (version isn't known until
-        // getSite runs; login predates that).
-        let api = makeApi(url, nil, .v3)
+        // Same unauthenticated login call as `login`, through the host-resolved
+        // login version (`.piefed` for a PieFed-cached host, else `.v3`); the
+        // full version isn't known until getSite runs, which login predates.
+        let api = makeApi(url, nil, resolvedLoginApiVersion(forHost: instance.host))
 
-        let response: Lemmy.LoginResponse
+        let jwt: String
         do {
-            response = try await api.login(
+            jwt = try await api.loginNeutral(
                 usernameOrEmail: username,
                 password: password,
-                totp2faToken: totp2faToken
+                totp: totp2faToken
             )
         } catch {
             let error = AccountServiceLoginError(from: error)
@@ -786,10 +802,6 @@ public class AccountService: AccountServiceType {
                 \(String(describing: error), privacy: .public)
                 """)
             throw error
-        }
-
-        guard let jwt = response.jwt else {
-            throw AccountServiceLoginError.missingJwt
         }
 
         // Reuse the EXISTING keychain id -- no ensureAccount, no new UUID, no
@@ -829,7 +841,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .register)
 
         // Temporary unauthenticated api for the registration request.
         // The instance's API version isn't known until getSite has run; login,

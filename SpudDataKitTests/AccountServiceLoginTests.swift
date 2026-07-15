@@ -176,10 +176,14 @@ struct AccountServiceLoginTests {
     }
 
     /// A 200 login response without a JWT is an internal inconsistency, not a
-    /// sign-in: it throws `.missingJwt` and leaves no account behind (so the
-    /// immediate site-info fetch never runs either).
+    /// sign-in: it throws and leaves no account behind (so the immediate
+    /// site-info fetch never runs either). The neutral login path detects the
+    /// missing JWT inside LemmyKit and throws it as a wrapped `LemmyApiError`,
+    /// which classifies as `.apiError` here (LemmyKit's internal missing-jwt
+    /// error type is not public, so it can't be re-mapped to a more specific
+    /// case) — either way the safety property is that nothing is persisted.
     @Test
-    func login_withoutJwt_throwsMissingJwtAndStoresNothing() async throws {
+    func login_withoutJwt_throwsAndStoresNothing() async throws {
         let transport = try StubAuthTransport(login: .fake(jwt: nil))
         let credentialStore = InMemoryCredentialStore()
         let sut = makeSUT(transport: transport, credentialStore: credentialStore)
@@ -188,8 +192,8 @@ struct AccountServiceLoginTests {
             try await sut.login(atInstance: exampleInstance(), username: "alice", password: "secret")
             Issue.record("expected login to throw")
         } catch let error as AccountServiceLoginError {
-            guard case .missingJwt = error else {
-                Issue.record("expected .missingJwt, got \(error)")
+            guard case .apiError = error else {
+                Issue.record("expected .apiError, got \(error)")
                 return
             }
         }

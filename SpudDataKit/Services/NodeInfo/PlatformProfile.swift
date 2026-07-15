@@ -5,18 +5,31 @@
 //
 
 /// What Spud can do with an instance running a given `InstanceSoftware`.
-/// Pure lookup, no I/O. In v1 only Lemmy speaks the API Spud uses.
+/// Pure lookup, no I/O.
 public struct PlatformProfile: Sendable, Equatable {
     public let software: InstanceSoftware
     public let version: String?
     /// Human-facing name for messages and badges.
     public let displayName: String
-    /// Whether Spud's LemmyService can talk to this software. v1: only `.lemmy`.
+    /// Whether Spud's `LemmyService` can drive this software's API surface:
+    /// Lemmy (v3/v4) natively, and PieFed via its Lemmy-compatible `/api/alpha`
+    /// dialect. Everything else (Mbin, Mastodon, forks, ...) is not drivable.
     public let speaksLemmyAPI: Bool
 
     /// Whether this instance can be a Spud home connection (login / signed-out browse).
     public var canBeHomeConnection: Bool {
         speaksLemmyAPI
+    }
+
+    /// Whether Spud can create a NEW account against this software from inside
+    /// the app. Only `.lemmy` exposes a machine-usable registration endpoint
+    /// Spud drives: PieFed registration is web-only (verified 2026-07-15 — its
+    /// `/api/alpha` write surface has no working sign-up flow), so a PieFed home
+    /// connection is allowed for login but its in-app registration is routed to
+    /// the browser instead. Non-Lemmy software that can't be a home connection
+    /// at all is likewise `false` here.
+    public var supportsAppRegistration: Bool {
+        software == .lemmy
     }
 
     /// What the instance's API supports, derived from software + version.
@@ -33,7 +46,7 @@ public struct PlatformProfile: Sendable, Equatable {
             software: software,
             version: version,
             displayName: displayName(for: software),
-            speaksLemmyAPI: software == .lemmy
+            speaksLemmyAPI: software == .lemmy || software == .piefed
         )
     }
 
