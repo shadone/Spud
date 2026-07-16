@@ -82,9 +82,8 @@ final class PostDetailCommentsFailedCell: UITableViewCell {
             stack.trailingAnchor.constraint(lessThanOrEqualTo: contentView.trailingAnchor, constant: -32),
         ])
 
-        // The labels and button are created once and only re-populated on
-        // configure, so the VoiceOver reading order is stable — set it here so
-        // reuse can't leave a stale backing.
+        // Default reading order including Retry; `configure(with:)` narrows this
+        // to omit the button for a non-retriable failure.
         accessibilityElements = [titleLabel, subtitleLabel, retryButton]
     }
 
@@ -103,13 +102,26 @@ final class PostDetailCommentsFailedCell: UITableViewCell {
     /// wording; the comments fetch has no instance host to interpolate, so the
     /// `unreachable`/`malformedResponse` host-aware variant falls back to the
     /// generic "the server" phrasing.
+    ///
+    /// `descriptor.primary` is `nil` for the non-retriable `.notSupported` kind
+    /// (a capability-gated comment fetch, e.g. on an instance/dialect that
+    /// doesn't support it) — the Retry button hides in that case, since a retry
+    /// can never succeed, and drops out of the VoiceOver reading order with it.
     func configure(with failure: LoadFailure) {
         let descriptor = FeedStatePresenter.descriptor(for: failure.kind, host: nil)
         iconView.image = UIImage(systemName: descriptor.symbolName)
         titleLabel.text = descriptor.title
         subtitleLabel.text = descriptor.message
-        retryButton.configuration?.title = descriptor.primary.title
-        retryButton.configuration?.baseBackgroundColor = ThemeManager.currentAccentColor
+
+        if let primary = descriptor.primary {
+            retryButton.isHidden = false
+            retryButton.configuration?.title = primary.title
+            retryButton.configuration?.baseBackgroundColor = ThemeManager.currentAccentColor
+            accessibilityElements = [titleLabel, subtitleLabel, retryButton]
+        } else {
+            retryButton.isHidden = true
+            accessibilityElements = [titleLabel, subtitleLabel]
+        }
     }
 
     @objc

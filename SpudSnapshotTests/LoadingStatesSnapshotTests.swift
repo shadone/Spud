@@ -248,6 +248,16 @@ final class LoadingStatesSnapshotTests: XCTestCase {
         assertErrorState(.malformedResponse, host: "lemmy.world", style: .dark)
     }
 
+    /// Non-retriable — no button renders at all (see `assertErrorState`'s
+    /// `if let primary` guard), unlike the other three kinds above.
+    func test_errorNotSupported_light() {
+        assertErrorState(.notSupported, host: "lemmy.world", style: .light)
+    }
+
+    func test_errorNotSupported_dark() {
+        assertErrorState(.notSupported, host: "lemmy.world", style: .dark)
+    }
+
     /// Builds a `UIContentUnavailableView` from the real `FeedStatePresenter.descriptor`
     /// so the snapshot captures the actual icon + copy + buttons.
     ///
@@ -268,10 +278,13 @@ final class LoadingStatesSnapshotTests: XCTestCase {
         config.image = UIImage(systemName: descriptor.symbolName)
         config.text = descriptor.title
         config.secondaryText = descriptor.message
-        var primary = UIButton.Configuration.borderedProminent()
-        primary.title = descriptor.primary.title
-        primary.baseBackgroundColor = lemmyTeal
-        config.button = primary
+        // `primary` is nil for the non-retriable `.notSupported` kind — no button.
+        if let primary = descriptor.primary {
+            var primaryConfig = UIButton.Configuration.borderedProminent()
+            primaryConfig.title = primary.title
+            primaryConfig.baseBackgroundColor = lemmyTeal
+            config.button = primaryConfig
+        }
         if let secondary = descriptor.secondary {
             var s = UIButton.Configuration.plain()
             s.title = secondary.title

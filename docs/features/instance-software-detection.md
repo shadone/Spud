@@ -7,12 +7,19 @@
 ## What it does
 
 Before letting you log in or register on an instance, Spud probes the instance's NodeInfo
-(`/.well-known/nodeinfo`) to determine what server software it runs. If the instance runs
-non-Lemmy software — PieFed, Mbin, Mastodon, and others — the attempt is blocked with an
-action sheet that names the software, explains it is not yet supported, and offers an
-"Open in Safari" shortcut. Lemmy instances proceed normally. When the probe fails or is
-blocked (for example, by a WAF), Spud fails open and lets the login or registration flow
-continue exactly as before.
+(`/.well-known/nodeinfo`) to determine what server software it runs. The pre-flight is
+**purpose-aware**:
+
+- **Login.** Spud can log in to Lemmy **and PieFed** (it speaks both dialects), so a login to
+  either proceeds. A login to software Spud can't speak at all — Mbin, Mastodon, and others — is
+  blocked with an action sheet that names the software, explains it is not yet supported, and
+  offers an "Open in Safari" shortcut.
+- **Register.** In-app account creation is Lemmy-only. Registering on PieFed (whose account
+  creation is web-only) or on any other non-Lemmy software is routed to the browser via the same
+  sheet.
+
+When the probe fails or is blocked (for example, by a WAF), Spud fails open and lets the login or
+registration flow continue exactly as before.
 
 The same NodeInfo probe also carries live instance metadata — the software's version and
 whether registrations are currently open — surfaced wherever an instance is browsed, not
@@ -26,19 +33,21 @@ directory-sourced value in place.
 ## Behavior and rules
 
 - **Pre-flight on login and register only.** NodeInfo is probed before the login or
-  registration network call is sent, blocking the attempt when non-Lemmy software is
-  detected. The probe runs only on explicit home-connection engagement — login, register,
-  and opening an instance's detail screen — never during feed browsing, pagination, or
-  community-list rendering.
+  registration network call is sent. Login is blocked only for software Spud can't speak
+  (i.e. not Lemmy and not PieFed); register is blocked for any non-Lemmy software (PieFed
+  included, since PieFed registration is web-only). The probe runs only on explicit
+  home-connection engagement — login, register, and opening an instance's detail screen —
+  never during feed browsing, pagination, or community-list rendering.
 - **Fail-open on undetermined software.** When the NodeInfo probe fails (network error,
   timeout, WAF block, or an unrecognized response body), the software is considered
   undetermined and the flow continues as if no detection had occurred. This preserves
   the pre-existing behavior for instances that restrict metadata endpoints.
-- **Block sheet for non-Lemmy software.** When the detected software is not Lemmy, an
-  action sheet appears with the message "<Software> isn't supported yet — <host> runs
-  <Software>. Spud can only connect to Lemmy instances right now." Two actions are
-  offered: "Open in Safari" (opens the instance's root URL in the browser) and "Cancel"
-  (dismisses and returns to the previous screen).
+- **Block sheet for software Spud can't complete the attempt on.** When an attempt is
+  blocked — a login to non-Lemmy/non-PieFed software, or a register to any non-Lemmy
+  software — an action sheet appears naming the software, explaining it isn't supported for
+  that action yet, and offering "Open in Safari" (opens the instance's root URL in the
+  browser) and "Cancel". A PieFed *login* is not blocked; a PieFed *register* is routed to
+  the browser this way.
 - **Federated browsing from an existing Lemmy account is unaffected.** Browsing a PieFed
   or Mbin community while signed in to a Lemmy account is not affected: all federation
   traffic routes through the user's Lemmy home instance. Detection only blocks making a
@@ -72,22 +81,29 @@ directory-sourced value in place.
 
 ## Scenarios
 
-### Log in to a non-Lemmy host — blocked
+### Log in to software Spud can't speak — blocked
 
-- **Given** I have chosen an instance whose NodeInfo reveals it runs PieFed (or another
-  non-Lemmy platform)
+- **Given** I have chosen an instance whose NodeInfo reveals it runs Mastodon (or another
+  platform Spud can't speak — i.e. not Lemmy and not PieFed)
 - **When** I attempt to log in
-- **Then** an action sheet appears: "PieFed isn't supported yet — <host> runs PieFed.
-  Spud can only connect to Lemmy instances right now."
+- **Then** an action sheet appears naming the software and explaining it isn't supported yet
 - **And** I can tap "Open in Safari" to open the instance in the browser, or "Cancel" to
   dismiss and return without logging in
 
-### Register on a non-Lemmy host — blocked
+### Log in to a PieFed host — proceeds
+
+- **Given** I have chosen an instance whose NodeInfo reveals it runs PieFed
+- **When** I attempt to log in
+- **Then** the pre-flight allows it and the PieFed login proceeds (Spud speaks the PieFed
+  dialect) — see [PieFed instances](piefed.md)
+
+### Register on a non-Lemmy host (including PieFed) — routed to the web
 
 - **Given** I have chosen an instance whose NodeInfo reveals it runs non-Lemmy software
+  (PieFed included)
 - **When** I attempt to register
-- **Then** the same unsupported-software action sheet appears, blocking the attempt and
-  offering "Open in Safari" and "Cancel"
+- **Then** the unsupported-for-register action sheet appears, routing the attempt to the
+  browser and offering "Open in Safari" and "Cancel" (in-app account creation is Lemmy-only)
 
 ### Log in to a Lemmy host — proceeds normally
 
@@ -171,9 +187,12 @@ directory-sourced value in place.
   boundary. Only login, register, and the explicit instance-detail screen opener
   pre-flight NodeInfo. A better-scoped candidate (the Search paste-to-open path) is
   deferred.
-- **Actually speaking non-Lemmy APIs.** Detection is awareness only. Spud does not
-  implement PieFed, Mbin, or Mastodon API clients; this feature blocks a home-connection
-  attempt to those instances rather than silently failing later.
+- **Actually speaking non-Lemmy APIs.** Detection itself is awareness only, but the detected
+  software is what routes requests to the right dialect. Spud now speaks PieFed's API well
+  enough to **browse and sign in** to a PieFed instance (see [PieFed instances](piefed.md)) —
+  so a PieFed *login* is allowed; only PieFed *registration* is web-routed. Mbin, Mastodon,
+  and other software are neither browsable nor loginable: this feature blocks the
+  home-connection attempt rather than silently failing later.
 - **Signed-out "visit instance" guarding.** The anonymous-browse bootstrap path is not
   pre-flighted in this release.
 - **Version gaps within Lemmy itself.** This feature only distinguishes Lemmy from

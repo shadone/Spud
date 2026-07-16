@@ -30,11 +30,11 @@ settings:
 packages:
   LemmyKit:
     url: https://github.com/shadone/LemmyKit
-    # Pinned by commit, not a release tag: the neutral v4 surface + follow-ups are
-    # code-complete but not yet human-validated against a real 1.0 server, so it is
-    # not released. Push LemmyKit main and validate first; tag a release + switch this
-    # to exactVersion only once it is verified.
-    revision: 54fb2747a28b174dcaf6d5c07ff889e8b3095948
+    # Pinned by commit, not a release tag: the PieFed dialect (browse + auth/interactions)
+    # is code-complete, reviewed, and live-validated against a test instance, but not yet
+    # released. Tag a LemmyKit release + switch this to exactVersion once the human
+    # on-device validation pass is done.
+    revision: 7caf0e8b26f6705fface415ae78f87c741c4cc21
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
     exactVersion: 2.0.0

@@ -1358,11 +1358,15 @@ class PostListViewController: UIViewController {
         config.text = descriptor.title
         config.secondaryText = descriptor.message
 
-        var primary = UIButton.Configuration.borderedProminent()
-        primary.title = descriptor.primary.title
-        primary.baseBackgroundColor = ThemeManager.currentAccentColor
-        config.button = primary
-        config.buttonProperties.primaryAction = action(for: descriptor.primary.action, failure: failure)
+        // `primary` is nil for the non-retriable `.notSupported` kind — render
+        // with no button at all rather than a "Try again" that can never help.
+        if let primary = descriptor.primary {
+            var primaryConfig = UIButton.Configuration.borderedProminent()
+            primaryConfig.title = primary.title
+            primaryConfig.baseBackgroundColor = ThemeManager.currentAccentColor
+            config.button = primaryConfig
+            config.buttonProperties.primaryAction = action(for: primary.action, failure: failure)
+        }
 
         if let secondary = descriptor.secondary {
             var secondaryConfig = UIButton.Configuration.plain()
@@ -1772,10 +1776,12 @@ class PostListViewController: UIViewController {
         }
         // Read live at action time (no caching in the VC) - see AccountScope's
         // doc comment.
-        guard viewModel.accountScope.capabilities.can(.hidePosts) else {
+        let capabilities = viewModel.accountScope.capabilities
+        guard capabilities.can(.hidePosts) else {
             presentCapabilityGate(
                 for: .hidePosts,
                 host: viewModel.accountScope.instanceActorId?.hostWithPort,
+                software: capabilities.software,
                 sourceView: nil
             )
             return

@@ -154,8 +154,9 @@ class PersonLoadingViewController: UIViewController {
     @discardableResult
     private func fetchPersonInfo() async -> Bool {
         let scope = accountService.scope(forAccountKeychainId: accountKeychainId)
-        guard scope.capabilities.can(.personProfiles) else {
-            showGatedState(host: scope.instanceActorId?.hostWithPort)
+        let capabilities = scope.capabilities
+        guard capabilities.can(.personProfiles) else {
+            showGatedState(host: scope.instanceActorId?.hostWithPort, software: capabilities.software)
             return false
         }
 
@@ -171,12 +172,12 @@ class PersonLoadingViewController: UIViewController {
     /// home instance doesn't support fetching person profiles yet. Hides the
     /// spinner/label stack - this state is terminal, so nothing else on this
     /// screen will transition afterward.
-    private func showGatedState(host: String?) {
+    private func showGatedState(host: String?, software: InstanceSoftware) {
         loadingIndicator.stopAnimating()
         stackView.isHidden = true
 
         var config = UIContentUnavailableConfiguration.empty()
-        let copy = CapabilityGateCopy.copy(for: .personProfiles, host: host)
+        let copy = CapabilityGateCopy.copy(for: .personProfiles, host: host, software: software)
         // "tray.slash" doesn't exist as an SF Symbol (verified against this SDK);
         // `clock.badge.questionmark` matches the Inbox gated state (Task 7) and
         // reads as "not yet available", matching the copy's framing.

@@ -124,7 +124,15 @@ public extension LemmyService {
                 )
                 return response.replies.map(InboxCommentNotification.init(reply:))
 
-            case .v4:
+            case .v4, .piefed:
+                // On `.piefed`, `listNotificationsNeutral(kind: .reply)` IS
+                // implemented: it calls PieFed's Lemmy-compat
+                // `GET /api/alpha/user/replies` and maps the result into the
+                // neutral shape (see `listNotificationsNeutralPiefed` in
+                // LemmyKit). A signed-in PieFed account exercises this path
+                // (live-validated in Phase 2) — it is not the v3-only
+                // `unsupportedByDialect` dead branch an earlier revision of
+                // this comment claimed.
                 let notifications = try await api.listNotificationsNeutral(
                     unreadOnly: unreadOnly,
                     pageCursor: Self.inboxCursor(forPage: page),
@@ -167,7 +175,10 @@ public extension LemmyService {
                 )
                 return response.mentions.map(InboxCommentNotification.init(mention:))
 
-            case .v4:
+            case .v4, .piefed:
+                // See the matching `.v4, .piefed` arm in `fetchReplies` above
+                // — same reasoning, except `.piefed` here calls
+                // `GET /api/alpha/user/mentions` instead of `.../user/replies`.
                 let notifications = try await api.listNotificationsNeutral(
                     unreadOnly: unreadOnly,
                     pageCursor: Self.inboxCursor(forPage: page),
@@ -326,7 +337,7 @@ public extension LemmyService {
                 throw LemmyServiceError(from: error)
             }
 
-        case .v4:
+        case .v4, .piefed:
             // v4 marks a private-message notification read by its unified
             // notification id, but the DM conversation store keys messages by
             // `PrivateMessageID` and `IncomingPrivateMessage` does not carry the
@@ -336,9 +347,18 @@ public extension LemmyService {
             // conversation model; that is a follow-up. The DM thread still clears
             // the unread dot locally (`setPrivateMessageRead`), and
             // `markAllInboxAsRead` clears private-message read state on the server
-            // in bulk. Skip the server push here rather than throwing.
+            // in bulk. Skip the server push here rather than throwing. PieFed
+            // shares this no-op arm for a different reason: the dialect CLIENT does
+            // have a dedicated `PiefedClient.markPrivateMessageAsRead` (`POST
+            // /api/alpha/private_message/mark_as_read`), but the NEUTRAL facade
+            // (`markNotificationAsReadNeutral`) doesn't call it — its only PieFed
+            // wire route is `comment/mark_as_read`, which addresses comment-reply
+            // notifications, not private messages. So per-message server
+            // read-sync is skipped on v4/PieFed alike (local read-state still
+            // applies); this is a real, signed-in-reachable gap, not an
+            // unreachable branch.
             logger.debug("""
-                Skipping per-message server mark-read on a v4 instance \
+                Skipping per-message server mark-read on a v4/PieFed instance \
                 (notification id not carried; markAllInboxAsRead covers bulk clear).
                 """)
         }
@@ -387,9 +407,14 @@ public extension LemmyService {
                 throw LemmyServiceError(from: error)
             }
 
-        case .v4:
+        case .v4, .piefed:
             // v4's unified inbox marks every kind read in one call — including
             // private messages, unlike v3's replies/mentions-only markAllAsRead.
+            // `.piefed` shares this arm because `markAllNotificationsAsReadNeutral`
+            // IS implemented for it: it calls PieFed's
+            // `POST /api/alpha/user/mark_all_as_read` (see
+            // `markAllNotificationsAsReadNeutralPiefed` in LemmyKit). A signed-in
+            // PieFed account exercises this path (live-validated in Phase 2).
             do {
                 try await api.markAllNotificationsAsReadNeutral()
             } catch {

@@ -8,19 +8,27 @@ import Foundation
 import SpudDataKit
 
 /// Localized title + message for the capability-gate sheet presented when the
-/// user attempts an action the home instance's API doesn't support yet (an
-/// older Lemmy version still on the v3 compat shim). Pure and total over
-/// `InstanceCapability` — the UI gating tasks (post/comment/community actions)
-/// call `copy(for:host:)` and hand the result to
-/// `UIViewController.presentCapabilityGate(for:host:sourceView:)`.
+/// user attempts an action the home instance's API doesn't support yet. Pure
+/// and total over `InstanceCapability` — the UI gating tasks (post/comment/
+/// community actions) call `copy(for:host:software:)` and hand the result to
+/// `UIViewController.presentCapabilityGate(for:host:software:sourceView:)`.
+///
+/// The message wording is software-aware: on Lemmy the gap is framed as "this
+/// instance is on an older version" (accurate — every gap Spud has today on
+/// Lemmy is a version-shim gap), but that framing is FALSE on PieFed (and any
+/// other non-Lemmy software this ever applies to) — a PieFed gap is a missing
+/// dialect implementation, not a version lag. `software` defaults to `.lemmy`
+/// so call sites that can't (yet) reach the account's resolved software keep
+/// today's wording unchanged.
 struct CapabilityGateCopy: Equatable {
     let title: String
     let message: String
 
     /// Builds the copy for a blocked `capability`. `host` is the instance's
     /// hostname (e.g. "lemmy.world"); when unknown, the message falls back to
-    /// a generic "This instance" noun.
-    static func copy(for capability: InstanceCapability, host: String?) -> CapabilityGateCopy {
+    /// a generic "This instance" noun. `software` selects the message framing
+    /// — see the type doc comment.
+    static func copy(for capability: InstanceCapability, host: String?, software: InstanceSoftware = .lemmy) -> CapabilityGateCopy {
         let title: String
         let verbPhrase: String
         switch capability {
@@ -91,17 +99,26 @@ struct CapabilityGateCopy: Equatable {
             )
         }
 
-        let message = String(
-            format: NSLocalizedString(
-                "%1$@ runs a newer version of Lemmy. Spud can't %2$@ there yet — support is coming in an update.",
-                comment: "Capability gate sheet body; %1$@ is the instance host (or a generic fallback noun), %2$@ the blocked action"
-            ),
-            host ?? NSLocalizedString(
-                "This instance",
-                comment: "Capability gate sheet body: fallback noun when the instance host is unknown"
-            ),
-            verbPhrase
+        let hostText = host ?? NSLocalizedString(
+            "This instance",
+            comment: "Capability gate sheet body: fallback noun when the instance host is unknown"
         )
+
+        // Lemmy: every gap Spud has today is a v3-compat-shim version lag, so
+        // naming "a newer version of Lemmy" is accurate and actionable. Any
+        // other software (PieFed today) gets neutral wording instead — its
+        // gaps are a missing dialect implementation, not a version lag, so
+        // blaming "a newer version of Lemmy" would be simply false there.
+        let messageFormat = software == .lemmy
+            ? NSLocalizedString(
+                "%1$@ runs a newer version of Lemmy. Spud can't %2$@ there yet — support is coming in an update.",
+                comment: "Capability gate sheet body (Lemmy); %1$@ is the instance host (or a generic fallback noun), %2$@ the blocked action"
+            )
+            : NSLocalizedString(
+                "%1$@ doesn't support this yet. Spud can't %2$@ there — support may come in a future update.",
+                comment: "Capability gate sheet body (non-Lemmy software); %1$@ is the instance host (or a generic fallback noun), %2$@ the blocked action"
+            )
+        let message = String(format: messageFormat, hostText, verbPhrase)
 
         return CapabilityGateCopy(title: title, message: message)
     }

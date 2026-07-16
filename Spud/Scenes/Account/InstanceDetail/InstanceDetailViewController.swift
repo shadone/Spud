@@ -65,6 +65,17 @@ final class InstanceDetailViewController: UIViewController {
     private var imageTasks: [Task<Void, Never>] = []
     private var observationTasks: [Task<Void, Never>] = []
 
+    /// The "Browse only" button, captured so `browseTapped()` can disable it
+    /// and swap in an activity indicator while its `detect(host:)` await is in
+    /// flight.
+    private weak var browseButton: UIButton?
+    /// Guards `browseTapped()` against re-entry while a previous tap's
+    /// `detect(host:)` await is still in flight. Checked synchronously at the
+    /// top of `browseTapped()` -- disabling `browseButton` alone isn't enough,
+    /// since a second tap already queued on the run loop before `isEnabled`
+    /// takes effect would otherwise still fire.
+    private var isBrowseInFlight = false
+
     private var adminsView: InstanceAdminsView!
     private var communitiesContainer: UIStackView!
 
@@ -617,6 +628,7 @@ final class InstanceDetailViewController: UIViewController {
         signIn.addAction(UIAction { [weak self] _ in self?.signInTapped() }, for: .touchUpInside)
         let browse = makeSecondaryButton(title: "Browse only", accent: false)
         browse.addAction(UIAction { [weak self] _ in self?.browseTapped() }, for: .touchUpInside)
+        browseButton = browse
         let secondary = UIStackView(arrangedSubviews: [signIn, browse])
         secondary.axis = .horizontal
         secondary.spacing = 10
@@ -725,9 +737,46 @@ final class InstanceDetailViewController: UIViewController {
     }
 
     private func browseTapped() {
-        guard let instance = row?.instance else { return }
-        accountService.signInAsSignedOut(atInstance: instance)
-        dismiss(animated: true)
+        // Re-entry guard: a fast double-tap while `detect(host:)` is still in
+        // flight would otherwise kick off a second signed-out account
+        // resolution + dismiss race. Checked before disabling the button
+        // (below) because a tap already queued on the run loop this turn would
+        // still land even if `isEnabled` were set first.
+        guard !isBrowseInFlight, let instance = row?.instance else { return }
+        isBrowseInFlight = true
+        setBrowseButtonBusy(true)
+
+        let nodeInfoService = nodeInfoService
+        let accountService = accountService
+        Task { @MainActor [weak self] in
+            // `AccountService.resolvedApiVersion` reads the NodeInfo cache
+            // SYNCHRONOUSLY when the browse account's `LemmyService` is later
+            // built, so this host's software must already be resolved by then.
+            // `viewDidLoad`'s metadata probe is best-effort and gets cancelled
+            // (via `deinit`) by the `dismiss` below if the user taps through
+            // before it lands, so await detection explicitly here too — the
+            // common case is an instant cache hit from that same probe, with
+            // no extra network fetch (`detect`/`metadata` share one host-keyed
+            // cache row and TTL).
+            _ = await nodeInfoService.detect(host: instance.host)
+            accountService.signInAsSignedOut(atInstance: instance)
+            guard let self else { return }
+            isBrowseInFlight = false
+            setBrowseButtonBusy(false)
+            dismiss(animated: true)
+        }
+    }
+
+    /// Toggles the "Browse only" button's activity indicator + enabled state
+    /// for the duration of `browseTapped()`'s NodeInfo detect await. Uses
+    /// `UIButton.Configuration`'s built-in `showsActivityIndicator` (keeps the
+    /// title, adds a spinner in the image slot) rather than a separate overlay
+    /// view.
+    private func setBrowseButtonBusy(_ busy: Bool) {
+        guard var config = browseButton?.configuration else { return }
+        config.showsActivityIndicator = busy
+        browseButton?.configuration = config
+        browseButton?.isEnabled = !busy
     }
 
     private func shareTapped() {

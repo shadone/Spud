@@ -801,15 +801,44 @@ public actor LemmyService: LemmyServiceType {
         return rawActorId.flatMap { InstanceActorId(from: $0) }?.hostWithPort
     }
 
-    /// The home instance's capability set, derived per call from the persisted
-    /// site version (fail-open on nil — see `InstanceCapabilities`).
+    /// The home instance's capability set, derived per call from its NodeInfo-
+    /// detected software and its persisted site version (fail-open on nil —
+    /// see `InstanceCapabilities`).
     // internal: shared with LemmyService+Inbox, LemmyService+Composer, LemmyService+Safety
     func instanceCapabilities() async -> InstanceCapabilities {
+        let software = await resolveInstanceSoftware()
+        guard software != .piefed else {
+            // PieFed's version string (e.g. "1.7.5") is not on the Lemmy
+            // version scale -- don't parse it as one. Mirrors
+            // `AccountService.instanceCapabilities(forAccountKeychainId:)`,
+            // and also skips the now-pointless `accountSiteVersion` fetch
+            // (`InstanceCapabilities.capabilities` ignores `version` for
+            // PieFed regardless, but there's no reason to read it at all).
+            return InstanceCapabilities.capabilities(software: .piefed, version: nil)
+        }
         let version = await appDatabase.accountSiteVersion(forKeychainId: accountIdentifierForLogging)
         return InstanceCapabilities.capabilities(
-            software: .lemmy,
+            software: software,
             version: version.flatMap(LemmyVersion.init(parsing:))
         )
+    }
+
+    /// Resolves the account's home instance software from the NodeInfo cache,
+    /// mirroring `AccountService.isPiefed` (the `@MainActor`-synchronous
+    /// counterpart used by `AccountService.instanceCapabilities`): a
+    /// host NodeInfo has cached as PieFed resolves `.piefed`; anything else —
+    /// including a host that was never NodeInfo-probed — fails open to
+    /// `.lemmy`, matching `InstanceCapabilities.capabilities`'s ungated
+    /// default. `LemmyService` is an actor, so this uses the `async`
+    /// `appDatabase` reads (`accountInstanceActorId`/`nodeInfoCachedSoftware`)
+    /// rather than `AccountService`'s `@MainActor`-bound sync variants.
+    private func resolveInstanceSoftware() async -> InstanceSoftware {
+        guard
+            let actorIdRaw = await appDatabase.accountInstanceActorId(forKeychainId: accountIdentifierForLogging),
+            let host = InstanceActorId(from: actorIdRaw)?.host,
+            let software = await appDatabase.nodeInfoCachedSoftware(forHost: host)
+        else { return .lemmy }
+        return software
     }
 
     /// Backstop gate: throws `LemmyServiceError.unsupportedByInstance` (and

@@ -461,7 +461,7 @@ final class InboxViewController: UIViewController {
             // state explains why, for every scope - it isn't specific to
             // whichever segment happened to be selected.
             var config = UIContentUnavailableConfiguration.empty()
-            let copy = CapabilityGateCopy.copy(for: .inbox, host: viewModel.gatedHost)
+            let copy = CapabilityGateCopy.copy(for: .inbox, host: viewModel.gatedHost, software: viewModel.capabilities.software)
             // "tray.slash" doesn't exist as an SF Symbol (verified against this
             // SDK); `clock.badge.questionmark` reads as "not yet" - matching the
             // copy's "isn't available yet ... coming in an update" framing -

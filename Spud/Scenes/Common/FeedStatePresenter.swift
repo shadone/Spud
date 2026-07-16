@@ -21,7 +21,10 @@ struct FeedErrorDescriptor: Equatable {
     let symbolName: String
     let title: String
     let message: String
-    let primary: ButtonSpec
+    /// `nil` for a non-retriable kind (`LoadFailure.Kind.notSupported`) — the
+    /// surface renders with no retry affordance in that case, since retrying
+    /// can never succeed until the instance/dialect gains the capability.
+    let primary: ButtonSpec?
     let secondary: ButtonSpec?
 }
 
@@ -117,6 +120,22 @@ enum FeedStatePresenter {
                     title: NSLocalizedString("Copy details", comment: "Feed malformed-response secondary action"),
                     action: .copyDetails
                 )
+            )
+
+        case .notSupported:
+            // Non-retriable: no primary/secondary action at all. Retrying can't
+            // help until the account's home instance/dialect gains the
+            // capability — offering "Try again" would just repeat the same
+            // rejection, so this is the one kind rendered without a button.
+            return FeedErrorDescriptor(
+                symbolName: "circle.slash",
+                title: NSLocalizedString("Not available on this instance", comment: "Feed not-supported-state title"),
+                message: NSLocalizedString(
+                    "This isn't available on your account's instance.",
+                    comment: "Feed not-supported-state message"
+                ),
+                primary: nil,
+                secondary: nil
             )
         }
     }

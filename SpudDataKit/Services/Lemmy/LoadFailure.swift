@@ -21,6 +21,13 @@ public struct LoadFailure: Error, Equatable {
         /// Got a response Spud couldn't read (decode/parse failure) — most
         /// likely a Spud bug.
         case malformedResponse
+        /// The account's home instance/dialect does not support this
+        /// operation (`LemmyServiceError.unsupportedByInstance` /
+        /// `LemmyApiError.unsupportedByDialect`). Non-retriable: the server
+        /// will not start supporting this on a retry, only once it upgrades
+        /// or Spud/LemmyKit adds the missing endpoint — `FeedStatePresenter`
+        /// renders this kind with no retry affordance.
+        case notSupported
     }
 
     public let kind: Kind
@@ -73,12 +80,7 @@ public struct LoadFailure: Error, Equatable {
                 // outbox-only error and shouldn't reach a read-path LoadFailure.
                 return LoadFailure(kind: .malformedResponse, diagnostics: diagnostics)
             case .unsupportedByInstance:
-                // Capability-gated screens (person profile, inbox, composer) show
-                // their own dedicated "not supported on this instance" UI (see
-                // `LemmyServiceError.unsupportedByInstance`); this generic
-                // three-kind classifier has no matching bucket, so fall back to
-                // the closest one — retrying can't help, same as `.unreachable`.
-                return LoadFailure(kind: .unreachable, diagnostics: diagnostics)
+                return LoadFailure(kind: .notSupported, diagnostics: diagnostics)
             }
 
         case is TimeoutError:
@@ -132,6 +134,9 @@ public struct LoadFailure: Error, Equatable {
                 return kind(for: urlError)
             }
             return .unreachable
+        case .unsupportedByDialect:
+            // Mirrors `.unsupportedByInstance` above (same non-retriable bucket).
+            return .notSupported
         }
     }
 }

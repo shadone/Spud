@@ -1848,6 +1848,15 @@ class PostDetailViewController: UIViewController {
             return
         }
 
+        // Presenting the composer is the user's intent to compose on this post.
+        // Start listening for the composer-success signal now (idempotent), before
+        // the send can complete, so a successfully-sent comment triggers the
+        // comment-tree re-fetch that makes it visible (the success mirror writes no
+        // `commentElement` row). Deliberately here — not in the view model's
+        // observation bring-up — so merely viewing a post never resolves (and thus
+        // starts/drains) the account's composer outbox.
+        viewModel.beginComposerSuccessObservationIfNeeded()
+
         let composer = ComposerViewController.makeSheet(
             target: target,
             accountKeychainId: keychainId,

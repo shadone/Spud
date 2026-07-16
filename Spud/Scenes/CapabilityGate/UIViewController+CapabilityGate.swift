@@ -10,13 +10,17 @@ import UIKit
 
 extension UIViewController {
     /// Presents an action sheet explaining that `capability` isn't supported
-    /// by the current instance's API version yet. Shared by every UI gating
-    /// site (post/comment/community actions) so the copy and layout stay in
-    /// one place. Fires the warning haptic like `presentSignInGate`; on iPad
-    /// the sheet anchors to `sourceView` via a popover.
-    func presentCapabilityGate(for capability: InstanceCapability, host: String?, sourceView: UIView?) {
+    /// by the current instance yet. Shared by every UI gating site (post/
+    /// comment/community actions) so the copy and layout stay in one place.
+    /// `software` is the account's resolved instance software (every call site
+    /// gates on `<scope>.capabilities.can(...)` first, so `<scope>.capabilities
+    /// .software` is already at hand) — it picks the Lemmy-version framing vs
+    /// software-neutral wording; see `CapabilityGateCopy`. Fires the warning
+    /// haptic like `presentSignInGate`; on iPad the sheet anchors to
+    /// `sourceView` via a popover.
+    func presentCapabilityGate(for capability: InstanceCapability, host: String?, software: InstanceSoftware, sourceView: UIView?) {
         Haptics.warning()
-        let copy = CapabilityGateCopy.copy(for: capability, host: host)
+        let copy = CapabilityGateCopy.copy(for: capability, host: host, software: software)
         let alert = UIAlertController(title: copy.title, message: copy.message, preferredStyle: .actionSheet)
         alert.addAction(UIAlertAction(
             title: NSLocalizedString("OK", comment: "Capability gate sheet: dismiss button"),

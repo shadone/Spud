@@ -390,7 +390,8 @@ final class DMThreadViewController: UIViewController {
     /// stacking with it, since nothing is ever fetched to populate `bubbles`.
     private func showGatedState() {
         let host = viewModel.accountScope.instanceActorId?.hostWithPort
-        let copy = CapabilityGateCopy.copy(for: .privateMessages, host: host)
+        let software = viewModel.accountScope.capabilities.software
+        let copy = CapabilityGateCopy.copy(for: .privateMessages, host: host, software: software)
         var config = UIContentUnavailableConfiguration.empty()
         // `clock.badge.questionmark` matches every other capability-gate state
         // (Inbox, Person profile) - see those for the SF Symbol rationale.

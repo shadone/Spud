@@ -15,7 +15,18 @@ public struct ComposerOutboxFailure: Sendable, Equatable {
 public struct ComposerOutboxSuccess: Sendable, Equatable {
     public let clientToken: String
     public let kind: OutboundKind
+    /// For a `.post` create, the NEW post's server id (so the pending-post
+    /// screen can swap to the real one); nil for `.comment` / `.directMessage`.
     public let serverPostId: Int64?
+    /// The server id of the post this composition BELONGS to, carried straight
+    /// from the outbound row (`OutboundContentRecord.postServerId`). Set for
+    /// `.comment` creates and edits (the post the comment is under); nil for
+    /// `.post` / `.directMessage`. Lets an open post-detail recognise a comment
+    /// success for ITS post and re-fetch the tree — the single-comment success
+    /// mirror inserts no `commentElement` row, so a freshly-sent comment stays
+    /// invisible to `observePostDetailComments` until a full `getComments`
+    /// rebuilds the elements.
+    public let postServerId: Int64?
 }
 
 public protocol ComposerOutboxServiceType: Actor {
@@ -239,7 +250,9 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
                )) == true
             {
                 try? await appDatabase.deleteOutbound(clientToken: token)
-                emitSuccess(ComposerOutboxSuccess(clientToken: token, kind: kind, serverPostId: nil))
+                emitSuccess(ComposerOutboxSuccess(
+                    clientToken: token, kind: kind, serverPostId: nil, postServerId: record.postServerId
+                ))
                 await diagnostics.record(
                     category: .composerOutbox,
                     level: .notice,
@@ -264,7 +277,9 @@ public actor ComposerOutboxService: ComposerOutboxServiceType {
             do {
                 let serverPostId = try await performer.perform(record)
                 try? await appDatabase.deleteOutbound(clientToken: token)
-                emitSuccess(ComposerOutboxSuccess(clientToken: token, kind: kind, serverPostId: serverPostId))
+                emitSuccess(ComposerOutboxSuccess(
+                    clientToken: token, kind: kind, serverPostId: serverPostId, postServerId: record.postServerId
+                ))
                 await diagnostics.record(
                     category: .composerOutbox,
                     level: .info,

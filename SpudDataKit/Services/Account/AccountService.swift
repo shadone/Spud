@@ -281,6 +281,41 @@ public class AccountService: AccountServiceType {
     /// path. See `lemmyService(forAccountKeychainId:)` for the self-healing use.
     private var lemmyServiceApiVersions: [String: LemmyKit.ApiVersion] = [:]
 
+    /// Memoizes `isPiefed(forKeychainId:)`'s NodeInfo-cache read
+    /// (`accountInstanceActorIdSync` + `nodeInfoCachedSoftwareSync` -- two of
+    /// the three sync DB reads `resolvedApiVersion(forKeychainId:)` used to do
+    /// on EVERY `lemmyService(forAccountKeychainId:)` call, cache hit or not),
+    /// keyed the same as `lemmyServiceApiVersions`. A host's NodeInfo-detected
+    /// software is effectively permanent for the life of the process -- unlike
+    /// the Lemmy site version, which genuinely flips mid-session (a real
+    /// v3->v4 upgrade) and so is deliberately re-read live on every call --
+    /// so caching it here trades that theoretical staleness for skipping a
+    /// repeat DB round trip on the hot path.
+    ///
+    /// **Only a resolved NodeInfo row is memoized.** `isPiefed(forKeychainId:)`
+    /// writes an entry here ONLY when `nodeInfoCachedSoftwareSync` actually
+    /// returned a software value for the host -- a host that hasn't been
+    /// NodeInfo-probed yet (or whose probe hasn't landed) resolves `false` for
+    /// that one call but is left unmemoized, so the very next call re-reads the
+    /// cache and picks up a probe that lands in between. This matters most for
+    /// browse (signed-out) accounts, whose `preflightHomeConnection` probe can
+    /// fail once (network blip, WAF) and retry later -- pinning `false` for the
+    /// rest of the process's lifetime would have silently disabled PieFed
+    /// dialect detection for that account until relaunch.
+    ///
+    /// **Staleness bound (once resolved):** if NodeInfo's cached software for
+    /// this host is corrected AFTER it was first memoized here (e.g. a
+    /// successfully-resolved-but-wrong probe followed by a later re-probe --
+    /// not expected in practice, since `preflightHomeConnection` probes before
+    /// an account is ever created), the correction is invisible to this account
+    /// until the memo is invalidated: logout, reauth, or `removeAccount`
+    /// (mirrors every place `lemmyServiceApiVersions[keychainId]` is cleared).
+    /// The apiVersion self-heal below also clears it, but cannot be TRIGGERED by
+    /// a software correction alone -- its mismatch check reads this same memo --
+    /// so it only helps when an independent site-version change re-resolves the
+    /// dialect.
+    private var lemmyServiceIsPiefed: [String: Bool] = [:]
+
     private var reminderServices: [String: ReminderService] = [:]
 
     /// Builds the (shared) `ReminderNotificationScheduling` behind every
@@ -386,6 +421,11 @@ public class AccountService: AccountServiceType {
     }
 
     public func instanceCapabilities(forAccountKeychainId accountKeychainId: String) -> InstanceCapabilities {
+        guard !isPiefed(forKeychainId: accountKeychainId) else {
+            // PieFed's version string (e.g. "1.7.5") is not on the Lemmy
+            // version scale -- don't parse it as one.
+            return InstanceCapabilities.capabilities(software: .piefed, version: nil)
+        }
         let version = appDatabase.accountSiteVersionSync(forKeychainId: accountKeychainId)
         return InstanceCapabilities.capabilities(
             software: .lemmy,
@@ -557,6 +597,9 @@ public class AccountService: AccountServiceType {
     /// version (so it was frozen at the v3 fail-open default). The version is
     /// re-resolved from the persisted site version on every call — a cheap sync
     /// DB read — so this stays correct without an explicit invalidation hook.
+    /// (The NodeInfo-detected-PieFed half of that resolution IS memoized per
+    /// keychainId, since software doesn't flip the way the Lemmy version does
+    /// — see `lemmyServiceIsPiefed`'s doc comment for the staleness bound.)
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
@@ -575,6 +618,9 @@ public class AccountService: AccountServiceType {
                 """)
             lemmyServices[keychainId] = nil
             lemmyServiceApiVersions[keychainId] = nil
+            // Also clear the memoized PieFed check so a full rebuild re-derives
+            // it from scratch too -- see `lemmyServiceIsPiefed`'s doc comment.
+            lemmyServiceIsPiefed[keychainId] = nil
         }
 
         let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
@@ -647,24 +693,82 @@ public class AccountService: AccountServiceType {
     }
 
     /// Derives which LemmyKit API version to dispatch through for the account
-    /// matching `keychainId`, from the site version last mirrored from getSite —
-    /// the same signal Phase 1's capability detection uses. A parsed Lemmy major
-    /// >= 1 is v4; anything older, or an unknown/unparseable version, fails open
-    /// to v3.
+    /// matching `keychainId`. Checks the account host's NodeInfo-detected
+    /// software FIRST: a host NodeInfo has cached as PieFed always resolves
+    /// `.piefed`, regardless of what `site.version` holds (a PieFed version
+    /// string is never on the Lemmy scale, so it must never reach the parse
+    /// below). Otherwise falls through to the existing Lemmy-version signal —
+    /// the site version last mirrored from getSite, the same signal Phase 1's
+    /// capability detection uses. A parsed Lemmy major >= 1 is v4; anything
+    /// older, or an unknown/unparseable version, fails open to v3.
     private func resolvedApiVersion(forKeychainId keychainId: String) -> LemmyKit.ApiVersion {
+        guard !isPiefed(forKeychainId: keychainId) else { return .piefed }
         let major = appDatabase
             .accountSiteVersionSync(forKeychainId: keychainId)
             .flatMap { LemmyVersion(parsing: $0)?.major } ?? 0
         return major >= 1 ? .v4 : .v3
     }
 
-    /// Blocks a home connection to non-Lemmy software; fail-open when the router
-    /// is absent (widget/tests) or the software could not be determined.
-    func preflightHomeConnection(host: String) async throws {
+    /// Whether NodeInfo has cached the account's home instance as PieFed —
+    /// the single signal both `resolvedApiVersion` and `instanceCapabilities`
+    /// key off. Memoized in `lemmyServiceIsPiefed` (see its doc comment for
+    /// the staleness bound this trades for) ONLY once a NodeInfo probe has
+    /// actually resolved for the host, so a repeat call for an already-seen
+    /// `keychainId` skips both DB reads below. On a cache miss: a synchronous
+    /// host-keyed cache read (no probe) — a host that hasn't been
+    /// NodeInfo-probed yet (e.g. an account added before the probe ran, or a
+    /// probe that hasn't landed yet) resolves `false` for this call and the
+    /// caller falls through to its existing Lemmy-version-based logic — the
+    /// same fail-open posture NodeInfo detection uses everywhere else — but
+    /// that `false` is deliberately NOT written to the memo, so a probe that
+    /// lands afterward is picked up on the very next call instead of being
+    /// masked for the rest of the process's lifetime.
+    private func isPiefed(forKeychainId keychainId: String) -> Bool {
+        if let cached = lemmyServiceIsPiefed[keychainId] {
+            return cached
+        }
+        guard
+            let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
+            let host = InstanceActorId(from: actorIdRaw)?.host,
+            let software = appDatabase.nodeInfoCachedSoftwareSync(forHost: host)
+        else {
+            // Deliberately NOT memoized: a host that hasn't been NodeInfo-probed
+            // yet (or whose probe hasn't landed) resolves `false` for THIS call
+            // only. Caching `false` here would pin "not PieFed" for the rest of
+            // the process's lifetime even after a later probe succeeds -- killing
+            // the self-heal this memo is supposed to preserve, for exactly the
+            // browse-account case (no-account-yet / probe-failed-once) it matters
+            // most for. Only a real, resolved NodeInfo row is worth caching.
+            return false
+        }
+        let resolved = software == .piefed
+        lemmyServiceIsPiefed[keychainId] = resolved
+        return resolved
+    }
+
+    /// Blocks a home connection Spud can't serve for `purpose`; fail-open when
+    /// the router is absent (widget/tests) or the software could not be
+    /// determined. `.register` additionally blocks software Spud can log in to
+    /// but can't create accounts on in-app (PieFed), while `.login` allows it.
+    func preflightHomeConnection(host: String, purpose: HomeConnectionPurpose) async throws {
         guard let platformRouter else { return }
-        if case let .block(software, displayName, version) = await platformRouter.evaluateHomeConnection(host: host) {
+        if case let .block(software, displayName, version) = await platformRouter.evaluateHomeConnection(host: host, purpose: purpose) {
             throw PlatformUnsupportedError(software: software, displayName: displayName, version: version, host: host)
         }
+    }
+
+    /// The `ApiVersion` to dispatch the pre-account login / reauth request
+    /// through, resolved from the NodeInfo software cache for `host`. Login
+    /// predates the account's `getSite`, so the Lemmy version isn't known yet:
+    /// a host NodeInfo has already cached as PieFed dispatches through `.piefed`
+    /// (whose login route is `/api/alpha/user/login`, not Lemmy's), while
+    /// everything else -- including a host that was never probed -- falls open
+    /// to `.v3`, the Lemmy compat surface both 0.19 and 1.0 accept for login.
+    /// The preflight's `detect(host:)` has just populated the cache, so by the
+    /// time this runs the PieFed signal (if any) is available. The account's
+    /// full v3/v4 resolution happens later in `resolvedApiVersion(forKeychainId:)`.
+    private func resolvedLoginApiVersion(forHost host: String) -> LemmyKit.ApiVersion {
+        appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed ? .piefed : .v3
     }
 
     public func login(
@@ -677,20 +781,22 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .login)
 
-        // Temporary unauthenticated api for the login request.
-        // The instance's API version isn't known until getSite has run; login,
-        // register, and password-reset predate that, so dispatch through v3 (the
-        // compat surface). TODO: probe the version once neutral auth is adopted here.
-        let api = makeApi(url, nil, .v3)
+        // Temporary unauthenticated api for the login request. The instance's
+        // full API version isn't known until getSite has run (login predates
+        // that), so dispatch through the host-resolved login version: `.piefed`
+        // when NodeInfo has cached the host as PieFed (its login route differs
+        // from Lemmy's), else `.v3`, the Lemmy compat surface both 0.19 and 1.0
+        // accept. `loginNeutral` returns the bare JWT for whichever dialect.
+        let api = makeApi(url, nil, resolvedLoginApiVersion(forHost: instance.host))
 
-        let response: Lemmy.LoginResponse
+        let jwt: String
         do {
-            response = try await api.login(
+            jwt = try await api.loginNeutral(
                 usernameOrEmail: username,
                 password: password,
-                totp2faToken: totp2faToken
+                totp: totp2faToken
             )
         } catch {
             let error = AccountServiceLoginError(from: error)
@@ -708,9 +814,6 @@ public class AccountService: AccountServiceType {
             throw error
         }
 
-        guard let jwt = response.jwt else {
-            throw AccountServiceLoginError.missingJwt
-        }
         let keychainId = try await storeSignedInCredential(LemmyCredential(jwt: jwt), atInstance: instance)
         // Fetch the new account's site info (which carries `MyUserInfo`, and so
         // the account holder's own Person row) right now. Without this the row
@@ -731,18 +834,19 @@ public class AccountService: AccountServiceType {
             throw AccountServiceLoginError.missingJwt
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .login)
 
-        // Same unauthenticated v3 login call as `login` (version isn't known until
-        // getSite runs; login predates that).
-        let api = makeApi(url, nil, .v3)
+        // Same unauthenticated login call as `login`, through the host-resolved
+        // login version (`.piefed` for a PieFed-cached host, else `.v3`); the
+        // full version isn't known until getSite runs, which login predates.
+        let api = makeApi(url, nil, resolvedLoginApiVersion(forHost: instance.host))
 
-        let response: Lemmy.LoginResponse
+        let jwt: String
         do {
-            response = try await api.login(
+            jwt = try await api.loginNeutral(
                 usernameOrEmail: username,
                 password: password,
-                totp2faToken: totp2faToken
+                totp: totp2faToken
             )
         } catch {
             let error = AccountServiceLoginError(from: error)
@@ -763,10 +867,6 @@ public class AccountService: AccountServiceType {
             throw error
         }
 
-        guard let jwt = response.jwt else {
-            throw AccountServiceLoginError.missingJwt
-        }
-
         // Reuse the EXISTING keychain id -- no ensureAccount, no new UUID, no
         // setDefaultAccount. This is what makes re-login in place, not a duplicate.
         writeCredential(LemmyCredential(jwt: jwt), forKeychainId: keychainId)
@@ -780,6 +880,7 @@ public class AccountService: AccountServiceType {
         // persists across re-auth; only the stale api must go.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         try? await appDatabase.setAccountSessionNeedsReauth(keychainId: keychainId, false)
         // Refresh site / my-user now (also clears the flag via the passive path).
         fetchInitialSiteInfo(forAccountKeychainId: keychainId)
@@ -804,7 +905,7 @@ public class AccountService: AccountServiceType {
             fatalError("Failed to create URL from instance actor id '\(instance.actorId)'")
         }
 
-        try await preflightHomeConnection(host: instance.host)
+        try await preflightHomeConnection(host: instance.host, purpose: .register)
 
         // Temporary unauthenticated api for the registration request.
         // The instance's API version isn't known until getSite has run; login,
@@ -929,10 +1030,11 @@ public class AccountService: AccountServiceType {
         let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
         Task { await reminderServiceToTearDown.removeAllReminders() }
 
-        // Drop the cached service (and its tracked apiVersion) so a stale
-        // authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion + piefed memo) so
+        // a stale authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         reminderServices[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
@@ -978,10 +1080,11 @@ public class AccountService: AccountServiceType {
         let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
         Task { await reminderServiceToTearDown.removeAllReminders() }
 
-        // Drop the cached service (and its tracked apiVersion) so a stale
-        // authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion + piefed memo) so
+        // a stale authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         reminderServices[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.

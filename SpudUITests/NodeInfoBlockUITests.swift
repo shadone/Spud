@@ -7,9 +7,11 @@
 import SBTUITestTunnelClient
 import XCTest
 
-/// Verifies that attempting to log in to a non-Lemmy instance (e.g. PieFed)
+/// Verifies that attempting to log in to a non-Lemmy instance (e.g. Mastodon)
 /// is blocked before any network call, showing an action sheet titled
 /// "<Software> isn't supported yet" with an "Open in Safari" button.
+/// (PieFed is intentionally NOT used here: its Lemmy-compatible dialect makes
+/// it a supported login target, so it no longer trips this block.)
 ///
 /// ## Seam strategy
 ///
@@ -43,7 +45,7 @@ class NodeInfoBlockUITests: XCTestCase {
             // cache record for a non-Lemmy host.
             AppLaunchArgument.seedNonLemmyLoginForUITests.rawValue,
         ]
-        app.launchEnvironment["SPUDNonLemmyLoginHost"] = "piefed.social"
+        app.launchEnvironment["SPUDNonLemmyLoginHost"] = "mastodon.social"
         app.launchTunnel(withOptions: launchOptions) {
             // Catch-all 500: any network probe that slips through fails loudly.
             _ = self.app.stubRequests(
@@ -53,9 +55,9 @@ class NodeInfoBlockUITests: XCTestCase {
         }
     }
 
-    /// Tapping "Log in" on a PieFed instance shows "PieFed isn't supported yet"
-    /// with an "Open in Safari" action and a "Cancel" button. No network call
-    /// is needed — the NodeInfo cache short-circuits the preflight check.
+    /// Tapping "Log in" on a Mastodon instance shows "Mastodon isn't supported
+    /// yet" with an "Open in Safari" action and a "Cancel" button. No network
+    /// call is needed — the NodeInfo cache short-circuits the preflight check.
     func test_nonLemmyLogin_showsBlockSheet() {
         let usernameField = app.textFields["login-username"]
         XCTAssertTrue(
