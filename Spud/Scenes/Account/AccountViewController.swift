@@ -295,9 +295,11 @@ class AccountViewController: UIViewController {
     }
 
     /// Presents the Edit Profile editor for the signed-in account, reached by
-    /// tapping the profile header. Gated on `.serverUserSettings` (Lemmy 1.0's
-    /// v3 compat shim has no `save_user_settings`) - read live at action time
-    /// (no caching in the VC), since a scope built just for this check is
+    /// tapping the profile header. Gated on `.serverUserSettings` — Spud now
+    /// speaks the native Lemmy v4 API for every Lemmy version, so this gate's
+    /// only live trigger today is PieFed (no server-side profile/settings
+    /// push yet; see docs/features/piefed.md) - read live at action time (no
+    /// caching in the VC), since a scope built just for this check is
     /// zero-cost until an accessor is read.
     private func openEditProfile(keychainId: String) {
         let scope = accountService.scope(forAccountKeychainId: keychainId)

@@ -292,16 +292,28 @@ public class AccountService: AccountServiceType {
     /// so caching it here trades that theoretical staleness for skipping a
     /// repeat DB round trip on the hot path.
     ///
-    /// **Staleness bound:** if NodeInfo's cached software for this host is
-    /// corrected AFTER this account's first `lemmyService` access (e.g. an
-    /// initial mis-probe followed by a later re-probe -- not expected in
-    /// practice, since `preflightHomeConnection` probes before an account is
-    /// ever created), the correction is invisible to this account until the
-    /// memo is invalidated: logout, reauth, or `removeAccount` (mirrors every
-    /// place `lemmyServiceApiVersions[keychainId]` is cleared). The apiVersion
-    /// self-heal below also clears it, but cannot be TRIGGERED by a software
-    /// correction alone -- its mismatch check reads this same memo -- so it only
-    /// helps when an independent site-version change re-resolves the dialect.
+    /// **Only a resolved NodeInfo row is memoized.** `isPiefed(forKeychainId:)`
+    /// writes an entry here ONLY when `nodeInfoCachedSoftwareSync` actually
+    /// returned a software value for the host -- a host that hasn't been
+    /// NodeInfo-probed yet (or whose probe hasn't landed) resolves `false` for
+    /// that one call but is left unmemoized, so the very next call re-reads the
+    /// cache and picks up a probe that lands in between. This matters most for
+    /// browse (signed-out) accounts, whose `preflightHomeConnection` probe can
+    /// fail once (network blip, WAF) and retry later -- pinning `false` for the
+    /// rest of the process's lifetime would have silently disabled PieFed
+    /// dialect detection for that account until relaunch.
+    ///
+    /// **Staleness bound (once resolved):** if NodeInfo's cached software for
+    /// this host is corrected AFTER it was first memoized here (e.g. a
+    /// successfully-resolved-but-wrong probe followed by a later re-probe --
+    /// not expected in practice, since `preflightHomeConnection` probes before
+    /// an account is ever created), the correction is invisible to this account
+    /// until the memo is invalidated: logout, reauth, or `removeAccount`
+    /// (mirrors every place `lemmyServiceApiVersions[keychainId]` is cleared).
+    /// The apiVersion self-heal below also clears it, but cannot be TRIGGERED by
+    /// a software correction alone -- its mismatch check reads this same memo --
+    /// so it only helps when an independent site-version change re-resolves the
+    /// dialect.
     private var lemmyServiceIsPiefed: [String: Bool] = [:]
 
     private var reminderServices: [String: ReminderService] = [:]
@@ -700,24 +712,36 @@ public class AccountService: AccountServiceType {
     /// Whether NodeInfo has cached the account's home instance as PieFed —
     /// the single signal both `resolvedApiVersion` and `instanceCapabilities`
     /// key off. Memoized in `lemmyServiceIsPiefed` (see its doc comment for
-    /// the staleness bound this trades for) after the first resolve, so a
-    /// repeat call for an already-seen `keychainId` skips both DB reads below.
-    /// On a cache miss: a synchronous host-keyed cache read (no probe) — a
-    /// host that hasn't been NodeInfo-probed yet (e.g. an account added before
-    /// the probe ran, or a probe that hasn't landed yet) resolves `false` and
-    /// the caller falls through to its existing Lemmy-version-based logic —
-    /// the same fail-open posture NodeInfo detection uses everywhere else.
+    /// the staleness bound this trades for) ONLY once a NodeInfo probe has
+    /// actually resolved for the host, so a repeat call for an already-seen
+    /// `keychainId` skips both DB reads below. On a cache miss: a synchronous
+    /// host-keyed cache read (no probe) — a host that hasn't been
+    /// NodeInfo-probed yet (e.g. an account added before the probe ran, or a
+    /// probe that hasn't landed yet) resolves `false` for this call and the
+    /// caller falls through to its existing Lemmy-version-based logic — the
+    /// same fail-open posture NodeInfo detection uses everywhere else — but
+    /// that `false` is deliberately NOT written to the memo, so a probe that
+    /// lands afterward is picked up on the very next call instead of being
+    /// masked for the rest of the process's lifetime.
     private func isPiefed(forKeychainId keychainId: String) -> Bool {
         if let cached = lemmyServiceIsPiefed[keychainId] {
             return cached
         }
-        let resolved: Bool = {
-            guard
-                let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
-                let host = InstanceActorId(from: actorIdRaw)?.host
-            else { return false }
-            return appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed
-        }()
+        guard
+            let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
+            let host = InstanceActorId(from: actorIdRaw)?.host,
+            let software = appDatabase.nodeInfoCachedSoftwareSync(forHost: host)
+        else {
+            // Deliberately NOT memoized: a host that hasn't been NodeInfo-probed
+            // yet (or whose probe hasn't landed) resolves `false` for THIS call
+            // only. Caching `false` here would pin "not PieFed" for the rest of
+            // the process's lifetime even after a later probe succeeds -- killing
+            // the self-heal this memo is supposed to preserve, for exactly the
+            // browse-account case (no-account-yet / probe-failed-once) it matters
+            // most for. Only a real, resolved NodeInfo row is worth caching.
+            return false
+        }
+        let resolved = software == .piefed
         lemmyServiceIsPiefed[keychainId] = resolved
         return resolved
     }

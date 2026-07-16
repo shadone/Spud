@@ -173,8 +173,9 @@ creating a PieFed account is still done on the web.
   settings to the server is withheld and shows the capability gate. Local preferences (sort,
   appearance, and the like) still apply on-device.
 - **Account content lists driven by server flags.** The account's server-side Saved / liked /
-  hidden / read *lists* are not surfaced for PieFed in this release (individual save / vote /
-  hide actions do work).
+  hidden / read *lists* remain reachable (their feed row still opens), but PieFed has no matching
+  endpoint, so each renders the non-retriable "Not available on this instance" state with no Retry
+  affordance (individual save / vote / hide actions do work).
 - **Blocks.** Blocking a person is not wired for PieFed yet.
 - **Per-message DM read receipts.** Opening a DM thread reads it locally, but PieFed has no
   per-message "mark this message read" round-trip in this release (the reply/mention inbox does

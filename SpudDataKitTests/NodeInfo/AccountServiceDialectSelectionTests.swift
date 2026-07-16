@@ -132,6 +132,42 @@ struct AccountServiceDialectSelectionTests {
         #expect(version == .v4)
     }
 
+    /// (Phase 2 review fix) A never-probed host must NOT memoize its
+    /// fall-through `false` as a permanent "not PieFed" verdict — a NodeInfo
+    /// probe that lands AFTER the first `lemmyService` access is picked up on
+    /// the very next access, not masked for the rest of the process's
+    /// lifetime. This is exactly the case that mattered for a browse account
+    /// whose home-connection NodeInfo probe failed (or hadn't landed) once and
+    /// then succeeded later: without this, `isPiefed(forKeychainId:)` would
+    /// have pinned `false` on the first, unresolved call and silently
+    /// disabled PieFed dialect detection for that account until relaunch.
+    @Test
+    func lemmyService_nodeInfoRowArrivesAfterFirstAccess_secondAccessPicksUpPiefed() async throws {
+        let sut = makeSUT()
+        let instance = try #require(InstanceActorId(from: "https://piefed-late-probe.example"))
+        let keychainId = try seedAccount(instance: instance, siteVersion: "0.19.11")
+
+        // First access: no NodeInfo row yet -- falls through to the
+        // Lemmy-version parse and resolves .v3. Must NOT memoize this as a
+        // resolved "not PieFed" verdict.
+        let first = try #require(sut.lemmyService(forAccountKeychainId: keychainId) as? LemmyService)
+        #expect(await first.api.apiVersion == .v3)
+
+        // A NodeInfo probe lands after the first access.
+        try appDatabase.seedNodeInfoCacheForUITests(
+            host: "piefed-late-probe.example",
+            softwareName: "piefed",
+            softwareVersion: "1.7.5"
+        )
+
+        let second = try #require(sut.lemmyService(forAccountKeychainId: keychainId) as? LemmyService)
+        let secondVersion = await second.api.apiVersion
+        #expect(
+            secondVersion == .piefed,
+            "a NodeInfo probe landing after an unresolved first access must be picked up, not masked by a pinned-false memo"
+        )
+    }
+
     /// A host NodeInfo has cached as Lemmy (not PieFed) also falls through to
     /// the Lemmy-version-based resolution — the NodeInfo check only ever
     /// short-circuits to `.piefed`, it never forces `.v3`/`.v4` either way.
