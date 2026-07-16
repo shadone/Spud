@@ -216,6 +216,32 @@ final class PostDetailViewModel {
     @ObservationIgnored
     private var outboundObservationTask: Task<Void, Never>?
 
+    /// Subscription to the account's composer success stream. Fires a comment
+    /// re-fetch when a comment is successfully created (or edited) on THIS post,
+    /// so a just-sent comment becomes visible without a manual pull-to-refresh.
+    ///
+    /// Started LAZILY, the first time the user presents the reply composer from
+    /// this post detail (see ``beginComposerSuccessObservationIfNeeded()``) — NOT
+    /// in ``startObservations()``. Reading `composerSuccessEvents()` resolves the
+    /// account's `ComposerOutboxService`, which starts (and drains) the outbox as
+    /// a side effect; gating it behind an explicit intent-to-compose keeps merely
+    /// viewing a post from ever kicking the outbox.
+    @ObservationIgnored
+    private var composerSuccessObservationTask: Task<Void, Never>?
+
+    /// True while a composer-success-triggered refresh is in flight. Coalesces a
+    /// burst of rapid sends: a further success while one is running sets
+    /// ``pendingComposerSuccessRefresh`` instead of starting a second concurrent
+    /// `getComments`.
+    @ObservationIgnored
+    private var isRefreshingAfterComposerSuccess = false
+
+    /// Set when a composer success arrives while a refresh is already running, so
+    /// exactly one trailing refresh runs afterwards (picking up a comment whose
+    /// success landed after the in-flight fetch was issued).
+    @ObservationIgnored
+    private var pendingComposerSuccessRefresh = false
+
     private var alertService: AlertServiceType {
         dependencies.alertService
     }
@@ -256,6 +282,7 @@ final class PostDetailViewModel {
         headerObservationTask?.cancel()
         commentObservationTask?.cancel()
         outboundObservationTask?.cancel()
+        composerSuccessObservationTask?.cancel()
     }
 
     // MARK: - Observation bring-up
@@ -314,6 +341,8 @@ final class PostDetailViewModel {
         commentObservationTask = nil
         outboundObservationTask?.cancel()
         outboundObservationTask = nil
+        composerSuccessObservationTask?.cancel()
+        composerSuccessObservationTask = nil
     }
 
     /// Starts (or restarts) the GRDB outbound-comment observation for this post +
@@ -334,6 +363,71 @@ final class PostDetailViewModel {
                 pendingOutboundComments = rows.filter { $0.status != OutboundStatus.draft.rawValue }
             }
         }
+    }
+
+    /// Starts the composer-success subscription the first time the user shows an
+    /// intent to compose on this post (the reply composer is presented). Idempotent
+    /// — the guard means repeated presents only subscribe once, and the live task
+    /// spans the view model's lifetime (cancelled in ``stopObservations()`` /
+    /// `deinit`). The view controller calls this at composer-present.
+    ///
+    /// When a comment is successfully created or edited on THIS post, the handler
+    /// re-fetches the comment tree so the new comment becomes visible. This closes
+    /// the gap left by the optimistic composing flow: the composer outbox deletes
+    /// the optimistic overlay on send success, and the single-comment success
+    /// mirror (`upsertComment(from:)`) inserts a bare `CommentRecord` with NO
+    /// `commentElement` row — so the just-sent comment is invisible to
+    /// `observePostDetailComments` (which renders only `commentElement` rows) until
+    /// a full `getComments` rebuilds the elements. The re-fetch
+    /// (``refreshComments()``, the same path pull-to-refresh uses) does exactly
+    /// that, and the paired ``refreshPostInfo()`` re-syncs the header comment count.
+    ///
+    /// Filtered to `.comment`-kind successes whose ``ComposerOutboxSuccess/postServerId``
+    /// matches this post, so unrelated composes (a post create, a DM, or a comment
+    /// on a different open post-detail) never trigger a refetch here.
+    ///
+    /// Subscribing at composer-PRESENT (not at submit) ensures we are already
+    /// listening before the send can complete, so a fast success is never missed;
+    /// and confining the subscription to an explicit intent-to-compose — rather
+    /// than ``startObservations()`` — keeps merely viewing a post from resolving
+    /// (and thereby starting/draining) the account's composer outbox.
+    func beginComposerSuccessObservationIfNeeded() {
+        guard composerSuccessObservationTask == nil else { return }
+        let serverPostId = Int64(serverPostId)
+        composerSuccessObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            for await success in await accountScope.composerSuccessEvents() {
+                if Task.isCancelled { break }
+                guard success.kind == .comment, success.postServerId == serverPostId else { continue }
+                await refreshAfterComposerSuccess()
+            }
+        }
+    }
+
+    /// Re-fetches this post's comments (and best-effort header counters) after a
+    /// comment success on this post. Reuses the pull-to-refresh seams
+    /// (``refreshComments()`` / ``refreshPostInfo()``) so it flows through the
+    /// same `getComments` rebuild + GRDB observations the manual refresh does —
+    /// without entering the ``fetchComments()`` cancel-and-replace state machine
+    /// (no skeleton flash on a background auto-refresh). Errors are swallowed:
+    /// the comment is already sent, and a failed auto-refresh simply leaves the
+    /// pre-fix behaviour (a manual pull-to-refresh still surfaces the comment).
+    ///
+    /// Coalesced: while a refresh is running, a further success sets a trailing
+    /// flag so exactly one more refresh runs afterwards, collapsing a burst of
+    /// rapid sends into at most one in-flight plus one queued `getComments`.
+    private func refreshAfterComposerSuccess() async {
+        guard !isRefreshingAfterComposerSuccess else {
+            pendingComposerSuccessRefresh = true
+            return
+        }
+        isRefreshingAfterComposerSuccess = true
+        defer { isRefreshingAfterComposerSuccess = false }
+        repeat {
+            pendingComposerSuccessRefresh = false
+            try? await refreshComments()
+            try? await refreshPostInfo()
+        } while pendingComposerSuccessRefresh
     }
 
     /// Starts (or restarts) the GRDB comment-tree observation for `postRowId` +
