@@ -27,14 +27,25 @@ public enum InstanceCapability: String, Sendable, CaseIterable, Codable {
 public struct InstanceCapabilities: Sendable, Equatable {
     private let unavailable: Set<InstanceCapability>
 
+    /// The software this capability set was derived for. Surfaced so a UI
+    /// gating call site that already read `capabilities` to decide whether to
+    /// gate (e.g. `scope.capabilities.can(.hidePosts)`) can also phrase the
+    /// resulting `CapabilityGateCopy` correctly (Lemmy vs software-neutral
+    /// wording — see `CapabilityGateCopy.copy(for:host:software:)`) without a
+    /// second lookup. Defaults to `.lemmy` for a directly-constructed set (the
+    /// common case in tests that only care about which capabilities are
+    /// withheld, not which software "caused" it).
+    public let software: InstanceSoftware
+
     /// Builds a capability set that withholds exactly `unavailable`; every other
     /// capability reads as available (fail-open). Pass `[]` (or use
     /// ``allAvailable``) for "everything supported". Exposed so a caller — or a
     /// test — can construct a specific gated set directly, independent of the
     /// version-derivation table below, which today gates nothing (see
     /// ``capabilities(software:version:)``).
-    public init(unavailable: Set<InstanceCapability>) {
+    public init(unavailable: Set<InstanceCapability>, software: InstanceSoftware = .lemmy) {
         self.unavailable = unavailable
+        self.software = software
     }
 
     public func can(_ capability: InstanceCapability) -> Bool {
@@ -81,9 +92,9 @@ public struct InstanceCapabilities: Sendable, Equatable {
     ) -> InstanceCapabilities {
         switch software {
         case .piefed:
-            InstanceCapabilities(unavailable: [.imageUpload, .serverUserSettings])
+            InstanceCapabilities(unavailable: [.imageUpload, .serverUserSettings], software: software)
         default:
-            .allAvailable
+            InstanceCapabilities(unavailable: [], software: software)
         }
     }
 }

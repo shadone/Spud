@@ -830,10 +830,12 @@ extension SearchViewController: PostContextMenuHost {
         }
         // Read live at action time (no caching in the VC) - see AccountScope's
         // doc comment.
-        guard viewModel.accountScope.capabilities.can(.hidePosts) else {
+        let capabilities = viewModel.accountScope.capabilities
+        guard capabilities.can(.hidePosts) else {
             presentCapabilityGate(
                 for: .hidePosts,
                 host: viewModel.accountScope.instanceActorId?.hostWithPort,
+                software: capabilities.software,
                 sourceView: nil
             )
             return

@@ -301,13 +301,15 @@ class AccountViewController: UIViewController {
     /// zero-cost until an accessor is read.
     private func openEditProfile(keychainId: String) {
         let scope = accountService.scope(forAccountKeychainId: keychainId)
-        guard scope.capabilities.can(.serverUserSettings) else {
+        let capabilities = scope.capabilities
+        guard capabilities.can(.serverUserSettings) else {
             // No success `Haptics.tap()` here: `presentCapabilityGate` fires its
             // own warning haptic, and a tap immediately before it reads as a
             // double buzz.
             presentCapabilityGate(
                 for: .serverUserSettings,
                 host: scope.instanceActorId?.hostWithPort,
+                software: capabilities.software,
                 sourceView: nil
             )
             return

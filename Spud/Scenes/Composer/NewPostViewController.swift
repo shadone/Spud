@@ -473,8 +473,9 @@ final class NewPostViewController: UIViewController {
     /// yet. Read live at action time (no caching in the VC).
     @objc
     private func attachImageTapped() {
-        guard viewModel.capabilities.can(.imageUpload) else {
-            presentCapabilityGate(for: .imageUpload, host: viewModel.instanceHost, sourceView: attachImageButton)
+        let capabilities = viewModel.capabilities
+        guard capabilities.can(.imageUpload) else {
+            presentCapabilityGate(for: .imageUpload, host: viewModel.instanceHost, software: capabilities.software, sourceView: attachImageButton)
             return
         }
         view.endEditing(true)
