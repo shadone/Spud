@@ -297,9 +297,11 @@ public class AccountService: AccountServiceType {
     /// initial mis-probe followed by a later re-probe -- not expected in
     /// practice, since `preflightHomeConnection` probes before an account is
     /// ever created), the correction is invisible to this account until the
-    /// memo is invalidated: logout, reauth, `removeAccount`, or the apiVersion
-    /// self-heal in `lemmyService(forAccountKeychainId:)` below (mirrors every
-    /// place `lemmyServiceApiVersions[keychainId]` is cleared).
+    /// memo is invalidated: logout, reauth, or `removeAccount` (mirrors every
+    /// place `lemmyServiceApiVersions[keychainId]` is cleared). The apiVersion
+    /// self-heal below also clears it, but cannot be TRIGGERED by a software
+    /// correction alone -- its mismatch check reads this same memo -- so it only
+    /// helps when an independent site-version change re-resolves the dialect.
     private var lemmyServiceIsPiefed: [String: Bool] = [:]
 
     private var reminderServices: [String: ReminderService] = [:]

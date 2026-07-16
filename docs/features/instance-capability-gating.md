@@ -42,7 +42,10 @@ subscribing, mark-read, hide, commenting, posting, the inbox, and DMs — is ava
 - **How a withheld capability presents.**
   - **Feature affordances (image upload, edit profile)** show the short explanatory
     **capability-gate sheet** ("… isn't available yet") at tap time — the affordance is shown,
-    not hidden ("explain, don't hide").
+    not hidden ("explain, don't hide"). The sheet's body copy is **software-aware**: on a
+    Lemmy account it keeps the version framing ("runs a newer version of Lemmy"); on PieFed
+    (or any other software) it uses neutral wording ("This isn't available on <host> yet.")
+    rather than misattributing the gap to a Lemmy version.
   - **A read surface** that hits an unsupported operation renders the inline **"Not available on
     this instance"** state ("This isn't available on your account's instance.") — the one
     error-state variant with **no Retry button**, since retrying can't help.
