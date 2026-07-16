@@ -807,6 +807,15 @@ public actor LemmyService: LemmyServiceType {
     // internal: shared with LemmyService+Inbox, LemmyService+Composer, LemmyService+Safety
     func instanceCapabilities() async -> InstanceCapabilities {
         let software = await resolveInstanceSoftware()
+        guard software != .piefed else {
+            // PieFed's version string (e.g. "1.7.5") is not on the Lemmy
+            // version scale -- don't parse it as one. Mirrors
+            // `AccountService.instanceCapabilities(forAccountKeychainId:)`,
+            // and also skips the now-pointless `accountSiteVersion` fetch
+            // (`InstanceCapabilities.capabilities` ignores `version` for
+            // PieFed regardless, but there's no reason to read it at all).
+            return InstanceCapabilities.capabilities(software: .piefed, version: nil)
+        }
         let version = await appDatabase.accountSiteVersion(forKeychainId: accountIdentifierForLogging)
         return InstanceCapabilities.capabilities(
             software: software,

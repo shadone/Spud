@@ -47,8 +47,10 @@ struct LemmyServiceSoftwareAwareCapabilityTests {
 
     /// Seeds instance -> site -> account rows for `host` (mirroring
     /// `LemmyServiceContentNotFoundTests`'s harness) and builds a `LemmyService`
-    /// over a transport that fails the test if ever reached.
-    private func makeService(appDatabase: AppDatabase, host: String) async throws -> LemmyService {
+    /// over a transport that fails the test if ever reached. `siteVersion`
+    /// seeds `site.version` directly (bypassing a real `getSite` fetch), so a
+    /// test can simulate a persisted version string without a network call.
+    private func makeService(appDatabase: AppDatabase, host: String, siteVersion: String? = nil) async throws -> LemmyService {
         // Captured into a local `let` before entering the `@Sendable` GRDB
         // closure: `Self.keychainId` is MainActor-isolated (this suite is
         // `@MainActor`), which a `@Sendable` closure cannot reference directly.
@@ -57,6 +59,7 @@ struct LemmyServiceSoftwareAwareCapabilityTests {
             var instance = InstanceRecord(actorId: "https://\(host)")
             try instance.insert(db)
             var site = SiteRecord(instanceId: instance.id!)
+            site.version = siteVersion
             try site.insert(db)
             var account = AccountRecord(
                 siteId: site.id!,
@@ -111,6 +114,30 @@ struct LemmyServiceSoftwareAwareCapabilityTests {
         let capabilities = await service.instanceCapabilities()
         for capability in InstanceCapability.allCases {
             #expect(capabilities.can(capability))
+        }
+    }
+
+    /// (Task 10, item 3) `instanceCapabilities()` must not parse a PieFed
+    /// account's persisted site version as a Lemmy version -- mirroring
+    /// `AccountService.instanceCapabilities(forAccountKeychainId:)`'s "don't
+    /// parse it on the Lemmy scale" guard. A persisted "1.7.5" is shaped like
+    /// a valid Lemmy 1.x version string; if it were fed into the Lemmy
+    /// derivation table it would still land on the same withheld set today
+    /// (that table currently ignores `version` outright), so this test's real
+    /// job is pinning the invariant against a FUTURE version-sensitive Lemmy
+    /// table change -- not catching a currently-observable bug.
+    @Test
+    func piefedSiteVersionNeverAffectsCapabilities() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let host = "piefed-version.example"
+        try appDatabase.seedNodeInfoCacheForUITests(host: host, softwareName: "piefed", softwareVersion: "1.7.5")
+        let service = try await makeService(appDatabase: appDatabase, host: host, siteVersion: "1.7.5")
+
+        let capabilities = await service.instanceCapabilities()
+        #expect(!capabilities.can(.imageUpload))
+        #expect(!capabilities.can(.serverUserSettings))
+        for capability in InstanceCapability.allCases where capability != .imageUpload && capability != .serverUserSettings {
+            #expect(capabilities.can(capability), "expected \(capability) available on PieFed regardless of site version")
         }
     }
 

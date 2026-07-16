@@ -281,6 +281,27 @@ public class AccountService: AccountServiceType {
     /// path. See `lemmyService(forAccountKeychainId:)` for the self-healing use.
     private var lemmyServiceApiVersions: [String: LemmyKit.ApiVersion] = [:]
 
+    /// Memoizes `isPiefed(forKeychainId:)`'s NodeInfo-cache read
+    /// (`accountInstanceActorIdSync` + `nodeInfoCachedSoftwareSync` -- two of
+    /// the three sync DB reads `resolvedApiVersion(forKeychainId:)` used to do
+    /// on EVERY `lemmyService(forAccountKeychainId:)` call, cache hit or not),
+    /// keyed the same as `lemmyServiceApiVersions`. A host's NodeInfo-detected
+    /// software is effectively permanent for the life of the process -- unlike
+    /// the Lemmy site version, which genuinely flips mid-session (a real
+    /// v3->v4 upgrade) and so is deliberately re-read live on every call --
+    /// so caching it here trades that theoretical staleness for skipping a
+    /// repeat DB round trip on the hot path.
+    ///
+    /// **Staleness bound:** if NodeInfo's cached software for this host is
+    /// corrected AFTER this account's first `lemmyService` access (e.g. an
+    /// initial mis-probe followed by a later re-probe -- not expected in
+    /// practice, since `preflightHomeConnection` probes before an account is
+    /// ever created), the correction is invisible to this account until the
+    /// memo is invalidated: logout, reauth, `removeAccount`, or the apiVersion
+    /// self-heal in `lemmyService(forAccountKeychainId:)` below (mirrors every
+    /// place `lemmyServiceApiVersions[keychainId]` is cleared).
+    private var lemmyServiceIsPiefed: [String: Bool] = [:]
+
     private var reminderServices: [String: ReminderService] = [:]
 
     /// Builds the (shared) `ReminderNotificationScheduling` behind every
@@ -562,6 +583,9 @@ public class AccountService: AccountServiceType {
     /// version (so it was frozen at the v3 fail-open default). The version is
     /// re-resolved from the persisted site version on every call — a cheap sync
     /// DB read — so this stays correct without an explicit invalidation hook.
+    /// (The NodeInfo-detected-PieFed half of that resolution IS memoized per
+    /// keychainId, since software doesn't flip the way the Lemmy version does
+    /// — see `lemmyServiceIsPiefed`'s doc comment for the staleness bound.)
     public func lemmyService(forAccountKeychainId keychainId: String) -> LemmyServiceType {
         assert(Thread.current.isMainThread)
 
@@ -580,6 +604,9 @@ public class AccountService: AccountServiceType {
                 """)
             lemmyServices[keychainId] = nil
             lemmyServiceApiVersions[keychainId] = nil
+            // Also clear the memoized PieFed check so a full rebuild re-derives
+            // it from scratch too -- see `lemmyServiceIsPiefed`'s doc comment.
+            lemmyServiceIsPiefed[keychainId] = nil
         }
 
         let snapshot: (isSignedOut: Bool, actorId: InstanceActorId)
@@ -670,17 +697,27 @@ public class AccountService: AccountServiceType {
 
     /// Whether NodeInfo has cached the account's home instance as PieFed —
     /// the single signal both `resolvedApiVersion` and `instanceCapabilities`
-    /// key off. A synchronous host-keyed cache read (no probe): a host that
-    /// hasn't been NodeInfo-probed yet (e.g. an account added before the probe
-    /// ran, or a probe that hasn't landed yet) reads as `false` here and the
-    /// caller falls through to its existing Lemmy-version-based logic — the
-    /// same fail-open posture NodeInfo detection uses everywhere else.
+    /// key off. Memoized in `lemmyServiceIsPiefed` (see its doc comment for
+    /// the staleness bound this trades for) after the first resolve, so a
+    /// repeat call for an already-seen `keychainId` skips both DB reads below.
+    /// On a cache miss: a synchronous host-keyed cache read (no probe) — a
+    /// host that hasn't been NodeInfo-probed yet (e.g. an account added before
+    /// the probe ran, or a probe that hasn't landed yet) resolves `false` and
+    /// the caller falls through to its existing Lemmy-version-based logic —
+    /// the same fail-open posture NodeInfo detection uses everywhere else.
     private func isPiefed(forKeychainId keychainId: String) -> Bool {
-        guard
-            let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
-            let host = InstanceActorId(from: actorIdRaw)?.host
-        else { return false }
-        return appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed
+        if let cached = lemmyServiceIsPiefed[keychainId] {
+            return cached
+        }
+        let resolved: Bool = {
+            guard
+                let actorIdRaw = appDatabase.accountInstanceActorIdSync(forKeychainId: keychainId),
+                let host = InstanceActorId(from: actorIdRaw)?.host
+            else { return false }
+            return appDatabase.nodeInfoCachedSoftwareSync(forHost: host) == .piefed
+        }()
+        lemmyServiceIsPiefed[keychainId] = resolved
+        return resolved
     }
 
     /// Blocks a home connection Spud can't serve for `purpose`; fail-open when
@@ -817,6 +854,7 @@ public class AccountService: AccountServiceType {
         // persists across re-auth; only the stale api must go.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         try? await appDatabase.setAccountSessionNeedsReauth(keychainId: keychainId, false)
         // Refresh site / my-user now (also clears the flag via the passive path).
         fetchInitialSiteInfo(forAccountKeychainId: keychainId)
@@ -966,10 +1004,11 @@ public class AccountService: AccountServiceType {
         let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
         Task { await reminderServiceToTearDown.removeAllReminders() }
 
-        // Drop the cached service (and its tracked apiVersion) so a stale
-        // authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion + piefed memo) so
+        // a stale authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         reminderServices[keychainId] = nil
 
         deleteCredential(forKeychainId: keychainId)
@@ -1015,10 +1054,11 @@ public class AccountService: AccountServiceType {
         let reminderServiceToTearDown = reminderService(forAccountKeychainId: keychainId)
         Task { await reminderServiceToTearDown.removeAllReminders() }
 
-        // Drop the cached service (and its tracked apiVersion) so a stale
-        // authenticated api isn't reused.
+        // Drop the cached service (and its tracked apiVersion + piefed memo) so
+        // a stale authenticated api isn't reused.
         lemmyServices[keychainId] = nil
         lemmyServiceApiVersions[keychainId] = nil
+        lemmyServiceIsPiefed[keychainId] = nil
         reminderServices[keychainId] = nil
 
         // Signed-out accounts have no keychain credential to clear.

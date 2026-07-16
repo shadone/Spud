@@ -81,6 +81,43 @@ struct AccountServiceDialectSelectionTests {
         #expect(version == .piefed)
     }
 
+    /// (Task 10, item 1) The PieFed detection is memoized per keychainId after
+    /// the first `lemmyService` access, so a second access must NOT re-read the
+    /// NodeInfo cache. `AppDatabase` is `final` (no protocol seam to inject a
+    /// counting spy through), so this is observed BEHAVIORALLY instead: mutate
+    /// the underlying `nodeInfoCache` row directly (bypassing the memo) between
+    /// two accesses. If the second access re-read the cache, the account would
+    /// flip to non-PieFed (and resolve via the Lemmy-version parse instead,
+    /// landing on `.v4` for "1.7.5") -- it stays `.piefed`, and the SAME cached
+    /// `LemmyService` instance is reused, proving no re-derivation happened.
+    @Test
+    func lemmyService_secondCall_servesMemoizedPiefedDetection_noNodeInfoCacheReRead() async throws {
+        let sut = makeSUT()
+        let instance = try #require(InstanceActorId(from: "https://piefed-memo.example"))
+        let keychainId = try seedAccount(instance: instance, siteVersion: "1.7.5")
+        try appDatabase.seedNodeInfoCacheForUITests(
+            host: "piefed-memo.example",
+            softwareName: "piefed",
+            softwareVersion: "1.7.5"
+        )
+
+        let first = try #require(sut.lemmyService(forAccountKeychainId: keychainId) as? LemmyService)
+        #expect(await first.api.apiVersion == .piefed)
+
+        // Correct the underlying row to "lemmy" behind the memo's back.
+        try await appDatabase.writer.write { db in
+            try db.execute(
+                sql: "UPDATE nodeInfoCache SET softwareName = ? WHERE host = ?",
+                arguments: ["lemmy", "piefed-memo.example"]
+            )
+        }
+
+        let second = try #require(sut.lemmyService(forAccountKeychainId: keychainId) as? LemmyService)
+        let secondVersion = await second.api.apiVersion
+        #expect(secondVersion == .piefed, "the memoized PieFed detection must be served without re-reading the NodeInfo cache")
+        #expect(second === first, "an unchanged resolved apiVersion must reuse the cached service, not rebuild it")
+    }
+
     /// A host with no NodeInfo cache row at all (never probed) is unaffected —
     /// falls through to the existing Lemmy-version-based resolution exactly as
     /// before this change.
