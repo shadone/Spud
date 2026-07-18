@@ -109,6 +109,52 @@ struct PipedInstanceResolverTests {
     func nonYoutubeUrlIsNil() {
         #expect(apiHost("https://example.com/article", .default) == nil)
     }
+
+    // MARK: Opt-in inline playback via the default cataloged Piped instance
+
+    /// The default config with only the opt-in inline-playback toggle flipped on
+    /// (no front-end configured -> the catalog default is the only Piped source).
+    private var inlinePlaybackOptIn: URLSanitizerConfig {
+        var c = URLSanitizerConfig.default
+        c.inlinePlaybackViaPiped = true
+        return c
+    }
+
+    @Test
+    func youtubeUrlUsesCatalogDefaultWhenOptedIn() {
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", inlinePlaybackOptIn) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func invidiousUrlUsesCatalogDefaultWhenOptedIn() {
+        #expect(apiHost("https://inv.nadeko.net/watch?v=0FZ9fW_52Mk", inlinePlaybackOptIn) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func watchShapeUrlUsesCatalogDefaultWhenOptedIn() {
+        #expect(apiHost("https://invidious.example.org/watch?v=dQw4w9WgXcQ", inlinePlaybackOptIn) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func optInFallsBackWhenFrontEndIsInvidious() {
+        // The user's front-end chain yields nothing (Invidious isn't Piped), so
+        // the opt-in catalog-default fallback applies.
+        var c = inlinePlaybackOptIn
+        c.redirectToFrontEnds = true
+        c.frontEnds = c.frontEnds.map {
+            $0.service == .youtube ? FrontEndConfig(service: .youtube, isEnabled: true, host: "yewtu.be") : $0
+        }
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", c) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func configuredPipedFrontEndStillWinsWhenOptedIn() {
+        // First preference is unchanged: a configured Piped front-end resolves
+        // the stream, the opt-in fallback never gets consulted.
+        var c = pipedFrontEnd
+        c.inlinePlaybackViaPiped = true
+        #expect(apiHost("https://www.youtube.com/watch?v=dQw4w9WgXcQ", c) != nil)
+    }
 }
 
 struct PipedVideoHostRecognitionTests {

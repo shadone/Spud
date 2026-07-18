@@ -518,6 +518,10 @@ final class PreferencesViewModel {
         mutateSanitizerConfig { $0.rewriteThirdPartyFrontEnds = value }
     }
 
+    func updateInlinePlaybackViaPiped(_ value: Bool) {
+        mutateSanitizerConfig { $0.inlinePlaybackViaPiped = value }
+    }
+
     func updateFrontEndEnabled(_ service: FrontEndService, _ value: Bool) {
         mutateSanitizerConfig { config in
             config.frontEnds = config.frontEnds.map { entry in

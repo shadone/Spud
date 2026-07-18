@@ -37,6 +37,12 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
     /// service being enabled. Canonical youtube.com/youtu.be rewriting ignores
     /// this flag.
     public var rewriteThirdPartyFrontEnds: Bool
+    /// Opt-in: resolve YouTube-family video posts' inline stream through the
+    /// default cataloged Piped instance when the user's YouTube front-end is
+    /// not Piped. A configured Piped front-end still takes precedence. Playback
+    /// traffic goes to Piped, never Google. Independent of ``isEnabled`` — the
+    /// master switch gates link rewriting, not playback resolution.
+    public var inlinePlaybackViaPiped: Bool
     public var frontEnds: [FrontEndConfig]
 
     public init(
@@ -47,6 +53,7 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         deAMP: Bool,
         redirectToFrontEnds: Bool,
         rewriteThirdPartyFrontEnds: Bool,
+        inlinePlaybackViaPiped: Bool = false,
         frontEnds: [FrontEndConfig]
     ) {
         self.isEnabled = isEnabled
@@ -56,6 +63,7 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         self.deAMP = deAMP
         self.redirectToFrontEnds = redirectToFrontEnds
         self.rewriteThirdPartyFrontEnds = rewriteThirdPartyFrontEnds
+        self.inlinePlaybackViaPiped = inlinePlaybackViaPiped
         self.frontEnds = frontEnds
     }
 
@@ -70,6 +78,8 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         frontEnds = try container.decode([FrontEndConfig].self, forKey: .frontEnds)
         // New in 2026-07: absent in configs written by older builds.
         rewriteThirdPartyFrontEnds = try container.decodeIfPresent(Bool.self, forKey: .rewriteThirdPartyFrontEnds) ?? false
+        // New in 2026-07: absent in configs written by older builds.
+        inlinePlaybackViaPiped = try container.decodeIfPresent(Bool.self, forKey: .inlinePlaybackViaPiped) ?? false
     }
 
     /// Safe steps on, front-end redirects off, hosts seeded from the catalog.
@@ -81,6 +91,7 @@ public struct URLSanitizerConfig: Codable, Equatable, Sendable {
         deAMP: true,
         redirectToFrontEnds: false,
         rewriteThirdPartyFrontEnds: false,
+        inlinePlaybackViaPiped: false,
         frontEnds: FrontEndCatalog.entries.map {
             FrontEndConfig(service: $0.service, isEnabled: false, host: $0.defaultHost)
         }

@@ -46,6 +46,14 @@ public enum YouTubeFrontEndCatalog {
         YouTubeFrontEndInstance(host: "piped.video", kind: .piped, apiHost: "pipedapi.kavin.rocks"),
     ]
 
+    /// The apiHost of the catalog's default Piped instance (the first `.piped`
+    /// entry), or nil if the catalog carries none. Backs the opt-in
+    /// `inlinePlaybackViaPiped` fallback for users whose YouTube front-end is
+    /// not a Piped instance.
+    public static var defaultPipedApiHost: String? {
+        instances.first { $0.kind == .piped }?.apiHost
+    }
+
     /// The catalog entry for `host` (`www.`/`m.` stripped, lowercased), or nil.
     public static func instance(forHost host: String) -> YouTubeFrontEndInstance? {
         let base = baseHost(host.lowercased())

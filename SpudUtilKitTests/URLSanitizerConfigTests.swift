@@ -58,6 +58,33 @@ struct URLSanitizerConfigTests {
     }
 
     @Test
+    func default_inlinePlaybackViaPipedOff() {
+        #expect(!(URLSanitizerConfig.default.inlinePlaybackViaPiped))
+    }
+
+    @Test
+    func decodesLegacyConfigWithoutInlinePlaybackFlag() throws {
+        // JSON written before inlinePlaybackViaPiped existed.
+        let legacy = #"""
+            {"isEnabled":true,"stripTrackingParams":true,"unwrapRedirectors":true,"upgradeToHTTPS":true,"deAMP":true,"redirectToFrontEnds":true,"rewriteThirdPartyFrontEnds":true,"frontEnds":[]}
+            """#.data(using: .utf8)!
+        let decoded = try JSONDecoder().decode(URLSanitizerConfig.self, from: legacy)
+        #expect(!(decoded.inlinePlaybackViaPiped))
+        #expect(decoded.rewriteThirdPartyFrontEnds)
+        #expect(decoded.isEnabled)
+    }
+
+    @Test
+    func inlinePlaybackFlagRoundTrips() throws {
+        var config = URLSanitizerConfig.default
+        config.inlinePlaybackViaPiped = true
+        let data = try JSONEncoder().encode(config)
+        let decoded = try JSONDecoder().decode(URLSanitizerConfig.self, from: data)
+        #expect(decoded.inlinePlaybackViaPiped)
+        #expect(decoded == config)
+    }
+
+    @Test
     func rewriteFlagRoundTrips() throws {
         var config = URLSanitizerConfig.default
         config.rewriteThirdPartyFrontEnds = true

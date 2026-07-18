@@ -179,10 +179,13 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - Inline video-host playback covers streamable, PeerTube, loops.video, and the YouTube family
   (via Piped). The whole YouTube family — youtube.com/youtu.be, Piped, Invidious front-ends, and the bare
   `/watch?v=<id>` shape on unknown hosts — is recognized as video (play badge and play
-  affordance), but plays inline only when the user's YouTube front-end is a Piped instance;
-  otherwise the original page opens in the browser (an Invidious link is never resolved via
-  the Invidious instance itself, and is never rerouted through Piped unless the user chose
-  Piped). Google's servers are never contacted for playback — if a
+  affordance), but plays inline only when the user's YouTube front-end is a Piped instance
+  or when the opt-in "Play YouTube Videos Inline" setting (Privacy settings, default off) is
+  on — the latter resolves the stream through the default cataloged Piped instance, with a
+  configured Piped front-end still taking precedence; otherwise the original page opens in
+  the browser (an Invidious link is never resolved via the Invidious instance itself, and is
+  never rerouted through Piped unless the user chose Piped or opted in to inline playback).
+  Google's servers are never contacted for playback — if a
   proxied stream can't be produced, the video opens in the browser instead. A post whose own
   link is a streamable, PeerTube, or loops.video video always plays inline. A streamable or PeerTube link written inside
   post or comment **body text** also plays inline when tapped in the post-detail screen — its

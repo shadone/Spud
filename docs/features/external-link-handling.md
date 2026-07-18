@@ -23,7 +23,9 @@ Settings → General → Links controls how external links from posts and commen
 - **YouTube plays inline via Piped when configured.** A YouTube link is classified as a video;
   tapping resolves it through the user's Piped front-end (never Google) and plays inline, or —
   when the front-end isn't Piped or resolution fails — opens in the browser (rewritten to the
-  chosen front-end). See [Media viewer and inline video](media-viewer.md).
+  chosen front-end). The opt-in "Play YouTube Videos Inline" toggle (below) adds the default
+  cataloged Piped instance as a fallback when no Piped front-end is configured. See
+  [Media viewer and inline video](media-viewer.md).
 
 ## Privacy & Link Cleaning
 
@@ -37,6 +39,10 @@ Settings → General → Links → "Privacy & Link Cleaning" (PreferencesPrivacy
 - **Redirect to Front-ends** — routes known sites to privacy-focused front-end instances (e.g. YouTube → Invidious, Twitter → Nitter). Each front-end service has an editable hostname, defaulting to a public instance; services can be individually disabled if an instance fails. Video links are recognized on any wrapper form (`youtu.be`, `/shorts`, `/live`, Invidious, Piped) and rewritten to a grammar-correct `/watch?v=<id>` on the chosen host. A separate "Rewrite Third-Party Front-ends" toggle controls whether links already on a front-end (e.g. Invidious) are re-pointed to your chosen host (e.g. open Invidious links in Piped); when off, only canonical `youtube.com`/`youtu.be` links are rewritten.
 
 The sanitized URL is then passed to the open-mode logic (In-App Safari or system browser).
+
+The same screen carries a separate "Video Playback" section:
+
+- **Play YouTube Videos Inline** (default off) — an explicit opt-in that plays YouTube-family video posts (youtube.com/youtu.be, Invidious front-ends, and the bare `/watch?v=<id>` shape) inline by resolving the stream through the default cataloged Piped instance (piped.video's API), even when no Piped front-end is configured. A configured Piped front-end still takes precedence; video traffic goes to Piped, never to Google; if a stream can't be fetched the post opens in the browser. It is off by default because it routes playback traffic to a third party (Piped) the user didn't otherwise choose — that must be consensual. Unlike the cleaning steps above, it is independent of the "Clean Outgoing Links" master toggle (that switch gates link rewriting, not playback resolution).
 
 ## Post & Comment Links
 
@@ -113,6 +119,29 @@ See [sharing.md](sharing.md) for the full context of these actions.
 - **Given** Redirect to Front-ends is on and Rewrite Third-Party Front-ends is off
 - **When** the user opens an `yewtu.be/watch?v=<id>` link
 - **Then** it opens unchanged (only canonical youtube.com/youtu.be links are rewritten)
+
+### Play YouTube Videos Inline on — a YouTube post plays inline without a Piped front-end
+
+- **Given** Play YouTube Videos Inline is on
+- **And** no Piped YouTube front-end is configured
+- **When** the user taps a youtube.com, Invidious, or bare `/watch?v=<id>` video post
+- **Then** the stream is resolved through the default cataloged Piped instance and plays inline
+- **And** no request is made to Google — the video traffic goes to Piped
+- **And** if the stream can't be fetched, the post opens in the browser instead
+
+### Play YouTube Videos Inline off (default) — YouTube posts open in the browser
+
+- **Given** Play YouTube Videos Inline is off
+- **And** the user's YouTube front-end is not a Piped instance
+- **When** the user taps a YouTube-family video post
+- **Then** the original page opens in the browser — playback is never rerouted through a Piped instance the user didn't choose
+
+### A configured Piped front-end takes precedence over the opt-in default
+
+- **Given** Play YouTube Videos Inline is on
+- **And** Redirect to Front-ends is on with the YouTube front-end set to a Piped instance
+- **When** the user taps a YouTube video post
+- **Then** the stream is resolved through the chosen front-end's API, not the catalog default
 
 ## Not supported / out of scope
 

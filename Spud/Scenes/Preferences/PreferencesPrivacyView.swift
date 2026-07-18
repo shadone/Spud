@@ -73,6 +73,18 @@ struct PreferencesPrivacyView: View {
                 Text("Public front-end instances change often. If one stops working, edit its host or turn it off. \"Rewrite Third-Party Front-ends\" also re-points links already on a front-end (e.g. Invidious) to your chosen host.")
             }
             .disabled(!viewModel.urlSanitizerConfig.isEnabled)
+
+            // Deliberately NOT gated on the "Clean Outgoing Links" master switch:
+            // that switch governs link rewriting, not playback resolution.
+            Section {
+                Toggle("Play YouTube Videos Inline", isOn: toggle(viewModel.urlSanitizerConfig.inlinePlaybackViaPiped) {
+                    viewModel.updateInlinePlaybackViaPiped($0)
+                })
+            } header: {
+                Text("Video Playback")
+            } footer: {
+                Text("Plays YouTube and Invidious video posts in the app by fetching the stream through Piped (piped.video's API). Video traffic goes to Piped, never to Google; if a stream can't be fetched, the post opens in the browser. Not needed if your YouTube front-end is already a Piped instance — those always play inline.")
+            }
         }
         .navigationTitle("Privacy")
     }

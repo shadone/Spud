@@ -72,4 +72,11 @@ struct YouTubeReferenceTests {
         #expect(YouTubeFrontEndCatalog.instance(forHost: "www.yewtu.be")?.kind == .invidious)
         #expect(YouTubeFrontEndCatalog.instance(forHost: "m.piped.video")?.kind == .piped)
     }
+
+    @Test
+    func catalogDefaultPipedApiHost() {
+        // The catalog's default Piped instance backs the opt-in inline-playback
+        // fallback; it must be the first .piped entry's apiHost.
+        #expect(YouTubeFrontEndCatalog.defaultPipedApiHost == "pipedapi.kavin.rocks")
+    }
 }
