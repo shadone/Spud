@@ -1831,6 +1831,35 @@ class PostListViewController: UIViewController {
         presentShareSheet(for: url)
     }
 
+    /// Presents the "Share as Image" editor for the post. Mirrors
+    /// ``sharePost(serverPostId:)``'s permalink resolution (same
+    /// warning-haptic bail when no URL can be formed, or the row isn't
+    /// currently loaded) but hands the result to the share-as-image editor
+    /// instead of the system share sheet.
+    private func shareAsImage(serverPostId: Int64) {
+        guard let row = viewModel.row(forServerPostId: serverPostId) else {
+            Haptics.warning()
+            return
+        }
+        let instanceActorId = viewModel.instanceActorId
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
+            originalPostUrl: row.originalPostUrl,
+            serverPostId: serverPostId,
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let sheet = ShareAsImageViewController.makeSheet(
+            content: ShareCardContent(postRow: row, permalink: url),
+            imageService: imageService,
+            preferencesService: preferencesService
+        )
+        present(sheet, animated: true)
+    }
+
     private func postSelected(serverPostId: Int64) {
         guard let window = view.window as? MainWindow else { fatalError() }
         window.display(
@@ -1958,6 +1987,10 @@ extension PostListViewController: PostContextMenuHost {
 
     func postShare(serverPostId: Int64) {
         sharePost(serverPostId: serverPostId)
+    }
+
+    func postShareAsImage(serverPostId: Int64) {
+        shareAsImage(serverPostId: serverPostId)
     }
 
     func postCrossPost(serverPostId: Int64) {

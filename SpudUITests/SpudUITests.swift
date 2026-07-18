@@ -319,6 +319,30 @@ class SpudUITests: XCTestCase {
         )
     }
 
+    /// The feed's post context menu (`PostContextMenuBuilder`'s `shareGroup`)
+    /// offers "Share as Image" immediately after "Share" (Task 6 of the
+    /// share-as-image initiative). This is a cheap, stub-free existence check:
+    /// it does NOT tap the action, since the editor's live media/render
+    /// pipeline is out of scope for this stub-driven suite — it only proves
+    /// the menu item reaches the real UIKit context-menu surface, not just
+    /// `PostContextMenuBuilderTests`' synthetic `UIMenu` tree.
+    func test_PostContextMenu_offersShareAsImage() {
+        let firstCell = app.cell(containing: "Nunc scelerisque tortor eget ligula pretium tempor")
+        XCTAssertTrue(firstCell.waitForExistence(timeout: 10), "Feed should load")
+
+        firstCell.press(forDuration: 1.2)
+
+        let shareAsImageAction = app.buttons["Share as Image"]
+        XCTAssertTrue(
+            shareAsImageAction.waitForExistence(timeout: 5),
+            "Post context menu should offer 'Share as Image'"
+        )
+
+        // Dismiss without tapping the action: tap the status-bar/navbar area,
+        // above where the pressed first cell's preview + menu open.
+        app.coordinate(withNormalizedOffset: CGVector(dx: 0.5, dy: 0.03)).tap()
+    }
+
     /// Search's post-result rows must carry the SAME shared long-press context
     /// menu as the feed (Task 2 of the search-context-menus initiative:
     /// `SearchViewController` conforms to `PostContextMenuHost` and attaches

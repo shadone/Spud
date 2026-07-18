@@ -44,6 +44,10 @@ protocol PostContextMenuHost: PostSaveDispatching, PostReminderDispatching {
 
     func postReply(serverPostId: Int64)
     func postShare(serverPostId: Int64)
+    /// Presents the "Share as Image" editor for the post. Placed immediately
+    /// after "Share" in the menu (see ``PostContextMenuBuilder/menu(forServerPostId:host:upvoteIcon:downvoteIcon:)``'s
+    /// `shareGroup`).
+    func postShareAsImage(serverPostId: Int64)
     func postCrossPost(serverPostId: Int64)
     func postVisitCommunity(serverPostId: Int64)
     func postViewAuthor(serverPostId: Int64)
@@ -145,6 +149,11 @@ enum PostContextMenuBuilder {
             image: UIImage(systemName: "square.and.arrow.up")
         ) { [weak host] _ in host?.postShare(serverPostId: serverPostId) }
 
+        let shareAsImageAction = UIAction(
+            title: NSLocalizedString("Share as Image", comment: "Context-menu action to share a post as a designed image card"),
+            image: UIImage(systemName: "photo")
+        ) { [weak host] _ in host?.postShareAsImage(serverPostId: serverPostId) }
+
         let crossPostAction = UIAction(
             title: NSLocalizedString("Cross-post", comment: "Context-menu action to re-share a post to another community"),
             image: UIImage(systemName: "arrow.triangle.branch")
@@ -191,7 +200,7 @@ enum PostContextMenuBuilder {
             voteChildren.append(remindMe)
         }
         let voteGroup = UIMenu(options: .displayInline, children: voteChildren)
-        let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, crossPostAction])
+        let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, shareAsImageAction, crossPostAction])
 
         var navChildren: [UIMenuElement] = [visitCommunityAction, viewAuthorAction]
         if let crossPostMenu = host.postCrossPostSiblingsSubmenu(serverPostId: serverPostId) {

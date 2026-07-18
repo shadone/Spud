@@ -1446,6 +1446,35 @@ class PostDetailViewController: UIViewController {
         presentShareSheet(for: url, sourceItem: overflowBarButtonItem)
     }
 
+    /// Presents the "Share as Image" editor for the current post. Mirrors
+    /// ``sharePost()``'s permalink resolution (same warning-haptic bail when
+    /// no URL can be formed, or the header row hasn't loaded) but hands the
+    /// result to the share-as-image editor instead of the system share sheet.
+    // internal: shared with PostDetailViewController+OverflowMenu
+    func sharePostAsImage() {
+        guard let headerRow = viewModel.headerRow else {
+            Haptics.warning()
+            return
+        }
+        let instanceActorId = viewModel.instanceActorId
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
+            originalPostUrl: headerRow.originalPostUrl,
+            serverPostId: Int64(viewModel.serverPostId),
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let sheet = ShareAsImageViewController.makeSheet(
+            content: ShareCardContent(headerRow: headerRow, permalink: url),
+            imageService: imageService,
+            preferencesService: preferencesService
+        )
+        present(sheet, animated: true)
+    }
+
     /// Shares the comment identified by `serverCommentId`. Prefers the
     /// comment's `ap_id` permalink; falls back to `<instance>/comment/<id>`.
     private func shareComment(serverCommentId: Int64) {
@@ -1462,6 +1491,46 @@ class PostDetailViewController: UIViewController {
             return
         }
         presentShareSheet(for: url)
+    }
+
+    /// Presents the "Share as Image" editor for the comment `serverCommentId`,
+    /// with its ancestor chain up to the post root. Mirrors
+    /// ``shareComment(serverCommentId:)``'s row lookup and permalink
+    /// resolution. Filters "load more" placeholder rows
+    /// (``PostDetailCommentRow/serverCommentId`` nil) out of the ancestor
+    /// chain BEFORE handing it to the content builder — a placeholder carries
+    /// no body/creator and must never render as a chain row.
+    private func shareCommentAsImage(serverCommentId: Int64) {
+        guard let row = viewModel.commentRowsByElementId.values
+            .first(where: { $0.serverCommentId == serverCommentId })
+        else {
+            Haptics.warning()
+            return
+        }
+        let instanceActorId = viewModel.instanceActorId
+        guard let url = LinkURL.forComment(
+            instance: preferencesService.shareLinkInstance,
+            originalCommentUrl: row.originalCommentUrl,
+            serverCommentId: serverCommentId,
+            instanceActorId: instanceActorId
+        ) else {
+            Haptics.warning()
+            return
+        }
+        let ancestors = ShareCardAncestry.ancestors(of: row.id, in: viewModel.orderedComments)
+            .filter { $0.serverCommentId != nil }
+        Haptics.tap()
+        let sheet = ShareAsImageViewController.makeSheet(
+            content: ShareCardContent(
+                comment: row,
+                ancestors: ancestors,
+                header: viewModel.headerRow,
+                permalink: url
+            ),
+            imageService: imageService,
+            preferencesService: preferencesService
+        )
+        present(sheet, animated: true)
     }
 
     /// Routes a tapped body-text link. Thin wrapper over the shared
@@ -2333,7 +2402,13 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.shareComment(serverCommentId: serverCommentId)
                 }
-                var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction]
+                let shareAsImageAction = UIAction(
+                    title: NSLocalizedString("Share as Image", comment: "Context-menu action to share a comment as a designed image card"),
+                    image: UIImage(systemName: "photo")
+                ) { [weak self] _ in
+                    self?.shareCommentAsImage(serverCommentId: serverCommentId)
+                }
+                var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction, shareAsImageAction]
                 // "Remind Me…" scoped to this comment's thread (Phase 3) -
                 // mirrors the post overflow menu's placement (right after the
                 // primary interaction actions, before ownership/moderation).
@@ -2413,7 +2488,13 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.sharePost()
                 }
-                var children: [UIMenuElement] = [shareAction]
+                let shareAsImageAction = UIAction(
+                    title: NSLocalizedString("Share as Image", comment: "Context-menu action to share a post as a designed image card"),
+                    image: UIImage(systemName: "photo")
+                ) { [weak self] _ in
+                    self?.sharePostAsImage()
+                }
+                var children: [UIMenuElement] = [shareAction, shareAsImageAction]
                 if !isOwnPost {
                     let reportAction = UIAction(
                         title: NSLocalizedString("Report", comment: "Context-menu action to report a post"),

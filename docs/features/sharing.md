@@ -2,13 +2,15 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Post detail and comments](post-detail-and-comments.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Post detail and comments](post-detail-and-comments.md), [Share as Image](share-as-image.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
 Share a post's or comment's link through the system share sheet, and open a post in an
 in-app Safari view. The shared URL prefers the content's federation permalink so it
-resolves on any instance, falling back to a URL built from your home instance.
+resolves on any instance, falling back to a URL built from your home instance. A post or
+comment can also be turned into a designed, shareable image card instead of a bare link —
+see [Share as Image](share-as-image.md).
 
 ## Behavior and rules
 
@@ -48,7 +50,6 @@ resolves on any instance, falling back to a URL built from your home instance.
 
 ## Not supported / out of scope
 
-- **No share-as-image.** Sharing carries the URL only; there is no render-the-post-as-an-image option.
 - **No community-URL share action** from the post-detail surface (only post and comment URLs are shared here).
 - The Safari button always opens in-app and does not follow the external-link preference; only links tapped inside content follow that preference.
 - Configuring a share swipe slot is part of [swipe-actions.md](swipe-actions.md), not this feature.
