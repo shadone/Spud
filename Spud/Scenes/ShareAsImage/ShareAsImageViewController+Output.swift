@@ -19,9 +19,23 @@ import UniformTypeIdentifiers
 extension ShareAsImageViewController {
     // MARK: - Share
 
+    /// Renders a fresh card and hands it to the system share sheet.
+    ///
+    /// Guarded against re-entrancy by ``ShareAsImageViewModel/beginExport()``:
+    /// a second tap while a render is already in flight is a synchronous no-op
+    /// (checked before the `Task` is even spawned), so a rapid double-tap can't
+    /// race two renders or present two share sheets. The output bar is disabled
+    /// with the tapped button spinning for the duration — see
+    /// ``setOutputBarBusy(_:activeButton:)``.
     func shareTapped() {
+        guard viewModel.beginExport() else { return }
+        setOutputBarBusy(true, activeButton: shareButton)
         Task { [weak self] in
             guard let self else { return }
+            defer {
+                viewModel.endExport()
+                setOutputBarBusy(false, activeButton: shareButton)
+            }
             await ensureMediaResolved()
             let image = renderCurrentImage()
             viewModel.persist()
@@ -49,7 +63,17 @@ extension ShareAsImageViewController {
 
     // MARK: - Save to Photos
 
+    /// Renders a fresh card and writes it to Photos.
+    ///
+    /// Unlike Share/Copy, the export guard is released in the
+    /// `UIImageWriteToSavedPhotosAlbum` completion handler
+    /// (``image(_:didFinishSavingWithError:contextInfo:)``), not at the end of
+    /// this `Task` — the actual Photos write is asynchronous beyond the task's
+    /// own body, and it's specifically a rapid double-tap here that was writing
+    /// the photo twice, so the button stays busy for the full round trip.
     func saveTapped() {
+        guard viewModel.beginExport() else { return }
+        setOutputBarBusy(true, activeButton: saveButton)
         Task { [weak self] in
             guard let self else { return }
             await ensureMediaResolved()
@@ -66,6 +90,8 @@ extension ShareAsImageViewController {
 
     @objc
     func image(_: UIImage, didFinishSavingWithError error: Error?, contextInfo _: UnsafeRawPointer) {
+        viewModel.endExport()
+        setOutputBarBusy(false, activeButton: saveButton)
         if error != nil {
             Haptics.warning()
             showToast("Couldn't save to Photos")
@@ -77,9 +103,17 @@ extension ShareAsImageViewController {
 
     // MARK: - Copy
 
+    /// Renders a fresh card and copies it (+ the permalink) to the pasteboard.
+    /// See ``shareTapped()`` for the re-entrancy guard.
     func copyTapped() {
+        guard viewModel.beginExport() else { return }
+        setOutputBarBusy(true, activeButton: copyButton)
         Task { [weak self] in
             guard let self else { return }
+            defer {
+                viewModel.endExport()
+                setOutputBarBusy(false, activeButton: copyButton)
+            }
             await ensureMediaResolved()
             let image = renderCurrentImage()
             viewModel.persist()
@@ -95,6 +129,23 @@ extension ShareAsImageViewController {
             Haptics.success()
             showToast("Copied")
         }
+    }
+
+    // MARK: - Output bar busy state
+
+    /// Disables the whole output bar and swaps `activeButton`'s content for a
+    /// spinner (`UIButton.Configuration.showsActivityIndicator`) while an
+    /// export is in flight — mirrors
+    /// `InstanceDetailViewController.setBrowseButtonBusy`. Purely the visual
+    /// half of the guard; ``ShareAsImageViewModel/beginExport()`` is what
+    /// actually blocks a second tap from starting a second render.
+    private func setOutputBarBusy(_ busy: Bool, activeButton: UIButton) {
+        for button in [shareButton, saveButton, copyButton] {
+            button.isEnabled = !busy
+        }
+        guard var config = activeButton.configuration else { return }
+        config.showsActivityIndicator = busy
+        activeButton.configuration = config
     }
 
     // MARK: - Export helpers

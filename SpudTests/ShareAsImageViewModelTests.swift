@@ -235,6 +235,32 @@ struct ShareAsImageViewModelTests {
         #expect(viewModel.isAltTextAuto == true)
     }
 
+    // MARK: - Export re-entrancy guard
+
+    /// Covers the guard the output bar's Share/Save/Copy actions rely on
+    /// (``ShareAsImageViewController+Output``): a second `beginExport()` while
+    /// one is already in flight must be ignored, and the flag must flip back
+    /// once `endExport()` runs so a later tap can start a fresh export.
+    @Test
+    func beginExport_guardsAgainstReEntrancy_thenResetsAfterEndExport() {
+        let viewModel = makeViewModel(content: postContent())
+        #expect(viewModel.isExporting == false)
+
+        #expect(viewModel.beginExport() == true)
+        #expect(viewModel.isExporting == true)
+
+        // A second invocation while the first export is still in flight — the
+        // rapid-double-tap case — must be a no-op, not start a second render.
+        #expect(viewModel.beginExport() == false)
+        #expect(viewModel.isExporting == true)
+
+        viewModel.endExport()
+        #expect(viewModel.isExporting == false)
+
+        // Once ended, a fresh export can begin again.
+        #expect(viewModel.beginExport() == true)
+    }
+
     // MARK: - Persistence (each output action calls persist())
 
     @Test

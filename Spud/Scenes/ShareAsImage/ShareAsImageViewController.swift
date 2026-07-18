@@ -37,9 +37,13 @@ final class ShareAsImageViewController: UIViewController {
     private let nsfwRevealPill = UIButton(type: .system)
     private let trayView = ShareAsImageTrayView()
 
+    // Output-bar buttons are internal (not `private`) rather than file-private
+    // because `ShareAsImageViewController+Output.swift` — a separate file — both
+    // wires their taps and, for the re-entrancy guard, disables/spinners all
+    // three from a single helper (`setOutputBarBusy`).
     let shareButton = UIButton(type: .system)
-    private let saveButton = UIButton(type: .system)
-    private let copyButton = UIButton(type: .system)
+    let saveButton = UIButton(type: .system)
+    let copyButton = UIButton(type: .system)
 
     private var postCard: ShareCardView?
     private var chainCard: ShareChainCardView?

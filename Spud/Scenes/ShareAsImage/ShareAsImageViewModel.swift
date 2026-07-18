@@ -41,6 +41,13 @@ final class ShareAsImageViewModel {
     /// only to the card currently being edited.
     private(set) var altTextOverride: String?
 
+    /// `true` while a Share/Save/Copy export (``ShareAsImageViewController+Output``)
+    /// is in flight. Drives the output bar's disabled + spinner state and, via
+    /// ``beginExport()``, guards the actions against re-entrancy: without this a
+    /// rapid double-tap could render + write the image twice (double Photos save,
+    /// doubled "Copied" toast).
+    private(set) var isExporting = false
+
     init(content: ShareCardContent, preferencesService: PreferencesServiceType) {
         self.content = content
         self.preferencesService = preferencesService
@@ -150,6 +157,26 @@ final class ShareAsImageViewModel {
     /// Restores the auto-generated alt text (clears any override).
     func resetAltTextToAuto() {
         altTextOverride = nil
+    }
+
+    // MARK: - Export in-flight guard
+
+    /// Marks an export in flight. Returns `false` (and leaves the existing
+    /// export untouched) if one is already running, so the caller — an output
+    /// bar action — can treat a second tap while busy as a no-op rather than
+    /// starting a second render/write in parallel with the first.
+    @discardableResult
+    func beginExport() -> Bool {
+        guard !isExporting else { return false }
+        isExporting = true
+        return true
+    }
+
+    /// Clears the in-flight flag once an export completes or fails. Callers
+    /// must call this on every exit path (success, thrown error, or an early
+    /// `return`) — typically via `defer`.
+    func endExport() {
+        isExporting = false
     }
 
     // MARK: - Persistence
