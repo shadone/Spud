@@ -18,7 +18,10 @@ final class FunStatsViewModel {
     private let now: @Sendable () -> Date
     private let calendar: Calendar
     private let locale: Locale
-    private var observationTask: Task<Void, Never>?
+
+    /// `@ObservationIgnored` keeps this off the @Observable tracking
+    /// machinery so the nonisolated `deinit` can cancel it safely.
+    @ObservationIgnored private var observationTask: Task<Void, Never>?
 
     private(set) var summary: FunStatsSummary?
 
@@ -34,6 +37,10 @@ final class FunStatsViewModel {
         self.now = now
         self.calendar = calendar
         self.locale = locale
+    }
+
+    deinit {
+        observationTask?.cancel()
     }
 
     /// Starts (or restarts) the live `FunStatsSummary` observation. Call from
