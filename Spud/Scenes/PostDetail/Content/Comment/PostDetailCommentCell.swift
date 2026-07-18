@@ -390,6 +390,15 @@ class PostDetailCommentCell: UITableViewCell {
     /// menu delegate can resolve the URL from the interaction's view.
     private var linkPreviewTapURLs: [ObjectIdentifier: URL] = [:]
 
+    /// The body link previews the cards currently reflect (`nil` = none built).
+    /// Used to skip rebuilding the cards when a reconfigure leaves the links
+    /// unchanged (e.g. a vote, or a neighboring comment's collapse), which would
+    /// otherwise tear the cards down, repaint them, and re-fetch each embed —
+    /// a flicker. Reset by `clearLinkPreviews()` (so `prepareForReuse` and the
+    /// hidden-body path both invalidate it). Mirrors `PostDetailHeaderCell`'s
+    /// `configuredLinkPreviews`.
+    private var configuredLinkPreviews: [CommentLinkPreview]?
+
     /// Text-scale baked into the current `bodyView`. Compared on each configure;
     /// when it changes a new `MarkdownBodyView` is built and swapped into the
     /// stack view so fonts reflect the updated preference.
@@ -534,9 +543,22 @@ class PostDetailCommentCell: UITableViewCell {
     /// URL through `linkTapped` (not the displayed URL); a long press shows a
     /// system context menu via `UIContextMenuInteraction`.
     private func configureLinkPreviews(_ viewModel: PostDetailCommentViewModel) {
-        clearLinkPreviews()
+        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty, let imageService else {
+            // No cards in this presentation (collapsed / folded / "load more" /
+            // moderation placeholder, or a body without links) — clear any built
+            // ones; `clearLinkPreviews` resets the tracker so a later show rebuilds.
+            clearLinkPreviews()
+            return
+        }
 
-        guard !bodyView.isHidden, !viewModel.linkPreviews.isEmpty, let imageService else { return }
+        // Rebuild the cards only when the links changed. A vote or a neighboring
+        // comment's collapse reconfigures this cell with the same links;
+        // rebuilding tears the cards down, repaints them, and re-fetches each
+        // embed — a flicker.
+        guard viewModel.linkPreviews != configuredLinkPreviews else { return }
+
+        clearLinkPreviews()
+        configuredLinkPreviews = viewModel.linkPreviews
 
         let token = UUID()
         linkEmbedToken = token
@@ -566,6 +588,9 @@ class PostDetailCommentCell: UITableViewCell {
         }
         linkPreviewTapURLs.removeAll()
         linkPreviewsStackView.isHidden = true
+        // Cards are gone; invalidate the skip-guard so the next visible
+        // configure rebuilds them even when the links are unchanged.
+        configuredLinkPreviews = nil
     }
 
     // MARK: Shared body/depth helpers

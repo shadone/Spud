@@ -20,6 +20,11 @@ public final class MarkdownBodyView: UIView {
     private var footnoteDefinitionRows: [String: UIView] = [:]
     private var footnoteReferenceRows: [String: UIView] = [:]
 
+    /// The blocks currently rendered, compared in `setBlocks` so an equal
+    /// reconfigure is a no-op. Arrays served by `MarkdownBlockCache` share
+    /// storage, so the comparison usually hits the identity fast path.
+    private var currentBlocks: [MarkdownBlock] = []
+
     /// Host-supplied async image provider. Set this BEFORE `setBlocks(_:)` so
     /// the image blocks pick it up as they are built.
     public var imageLoader: MarkdownImageLoader? {
@@ -80,8 +85,15 @@ public final class MarkdownBodyView: UIView {
         fatalError()
     }
 
-    /// Replaces the rendered content with `blocks`.
+    /// Replaces the rendered content with `blocks`. A no-op when `blocks` equals
+    /// the currently rendered blocks: hosts reconfigure their cells in place on
+    /// unrelated state changes (a vote, a neighboring comment's collapse), and a
+    /// rebuild would reset every image block to its loading placeholder for at
+    /// least one frame — a visible flash. As with the first call, `imageLoader`
+    /// must be set before `setBlocks(_:)` so rebuilt image blocks pick it up.
     public func setBlocks(_ blocks: [MarkdownBlock]) {
+        guard blocks != currentBlocks else { return }
+        currentBlocks = blocks
         stack.arrangedSubviews.forEach { $0.removeFromSuperview() }
         for view in renderer.views(for: blocks) {
             stack.addArrangedSubview(view)
