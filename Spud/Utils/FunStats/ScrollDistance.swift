@@ -23,7 +23,8 @@ enum ScrollDistance {
         let formatter = NumberFormatter()
         formatter.locale = locale
         formatter.numberStyle = .decimal
-        if meters < 1000 {
+        let roundedMeters = meters.rounded()
+        if roundedMeters < 1000 {
             formatter.maximumFractionDigits = 0
             let number = formatter.string(from: NSNumber(value: meters)) ?? "0"
             return "\(number) m"

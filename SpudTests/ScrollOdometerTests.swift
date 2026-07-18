@@ -61,4 +61,21 @@ struct ScrollOdometerTests {
         sut.update(offsetY: 500, contentHeight: content, viewportHeight: viewport)
         #expect(sut.take() == 0) // first post-reset update is baseline only
     }
+
+    @Test
+    func contentShorterThanViewport_neverAccumulates() {
+        var sut = ScrollOdometer()
+        sut.update(offsetY: 0, contentHeight: 400, viewportHeight: 800)
+        sut.update(offsetY: -20, contentHeight: 400, viewportHeight: 800)
+        sut.update(offsetY: 10, contentHeight: 400, viewportHeight: 800)
+        #expect(sut.take() == 0)
+    }
+
+    @Test
+    func jumpExactlyOneViewport_isCounted() {
+        var sut = ScrollOdometer()
+        sut.update(offsetY: 0, contentHeight: content, viewportHeight: viewport)
+        sut.update(offsetY: viewport, contentHeight: content, viewportHeight: viewport)
+        #expect(sut.take() == 800)
+    }
 }

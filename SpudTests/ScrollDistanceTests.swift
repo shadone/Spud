@@ -21,4 +21,16 @@ struct ScrollDistanceTests {
         let text = ScrollDistance.displayString(meters: 12345, locale: Locale(identifier: "en_US"))
         #expect(text == "12.3 km")
     }
+
+    @Test
+    func displayString_roundingBoundary_999_4_meters() {
+        let text = ScrollDistance.displayString(meters: 999.4, locale: Locale(identifier: "en_US"))
+        #expect(text == "999 m")
+    }
+
+    @Test
+    func displayString_roundingBoundary_999_5_meters() {
+        let text = ScrollDistance.displayString(meters: 999.5, locale: Locale(identifier: "en_US"))
+        #expect(text == "1 km")
+    }
 }
