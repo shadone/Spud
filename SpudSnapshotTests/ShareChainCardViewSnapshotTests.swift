@@ -24,8 +24,6 @@ import XCTest
 /// still render even with every author masked.
 @MainActor
 final class ShareChainCardViewSnapshotTests: XCTestCase {
-    private let width: CGFloat = 372
-
     /// A fixed instant (2026-07-12 16:03 GMT), formatting to
     /// "Jul 12, 2026 at 4:03 PM" under the injected `en_US_POSIX`/`GMT` seam.
     private let fixedDate: Date = {
@@ -160,36 +158,14 @@ final class ShareChainCardViewSnapshotTests: XCTestCase {
             locale: Locale(identifier: "en_US_POSIX"),
             timeZone: TimeZone(identifier: "GMT")!
         )
-        let size = fit(card)
+        let size = ShareCardSnapshotSupport.fit(card)
         let style: UIUserInterfaceStyle = options.appearance == .dark ? .dark : .light
         assertSnapshot(
             matching: card,
-            as: .image(size: size, traits: traits(style)),
+            as: .image(size: size, traits: ShareCardSnapshotSupport.traits(style)),
             file: #file,
             testName: testName,
             line: line
         )
-    }
-
-    private func fit(_ view: ShareChainCardView) -> CGSize {
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.widthAnchor.constraint(equalToConstant: width).isActive = true
-        let height = view.systemLayoutSizeFitting(
-            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        ).height
-        let size = CGSize(width: width, height: height)
-        view.frame = CGRect(origin: .zero, size: size)
-        view.layoutIfNeeded()
-        return size
-    }
-
-    private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
-        UITraitCollection(traitsFrom: [
-            UITraitCollection(userInterfaceStyle: style),
-            UITraitCollection(displayScale: 2),
-            SnapshotDeterminism.contentSizeTrait,
-        ])
     }
 }

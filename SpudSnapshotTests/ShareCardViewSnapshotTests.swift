@@ -23,8 +23,6 @@ import XCTest
 /// — only the "via Spud" mark toggles.
 @MainActor
 final class ShareCardViewSnapshotTests: XCTestCase {
-    private let width: CGFloat = 372
-
     /// A fixed instant (2026-07-12 16:03 GMT). Combined with the card's
     /// injected `en_US_POSIX`/`GMT` seam it always formats to
     /// "Jul 12, 2026 at 4:03 PM".
@@ -129,6 +127,49 @@ final class ShareCardViewSnapshotTests: XCTestCase {
         )
     }
 
+    // MARK: - Theme independence (no reference image)
+
+    func test_fixedPalette_isThemeIndependent_lightAndDarkTraitsAreByteIdentical() throws {
+        // The card's colors come from ``ShareCardPalette`` (a fixed two-surface
+        // palette keyed on `options.appearance`), never the trait environment.
+        // So the SAME card config rendered under a light vs a dark
+        // `UITraitCollection` must produce byte-identical PNGs — locking the
+        // fixed-palette guarantee against someone reintroducing a dynamic color
+        // (e.g. `.label`), which would resolve differently per trait and fail
+        // here. A pure in-test byte comparison: no `assertSnapshot`, no
+        // reference image.
+        let options = options(.light)
+        let lightData = try renderPNGData(options: options, style: .light)
+        let darkData = try renderPNGData(options: options, style: .dark)
+        XCTAssertEqual(lightData, darkData)
+    }
+
+    /// Renders the post card to PNG bytes under a forced interface style: both
+    /// the view subtree (`overrideUserInterfaceStyle`) and the ambient
+    /// `UITraitCollection.current` (via `performAsCurrent`) are pinned to
+    /// `style`, so any trait-dependent color resolution would diverge between
+    /// the two calls.
+    private func renderPNGData(options: ShareCardOptions, style: UIUserInterfaceStyle) throws -> Data {
+        let card = ShareCardView(
+            content: postContent(),
+            options: options,
+            locale: Locale(identifier: "en_US_POSIX"),
+            timeZone: TimeZone(identifier: "GMT")!
+        )
+        card.overrideUserInterfaceStyle = style
+        let size = ShareCardSnapshotSupport.fit(card)
+        let format = UIGraphicsImageRendererFormat.preferred()
+        format.scale = 2
+        format.opaque = false
+        var image: UIImage?
+        ShareCardSnapshotSupport.traits(style).performAsCurrent {
+            image = UIGraphicsImageRenderer(size: size, format: format).image { context in
+                card.layer.render(in: context.cgContext)
+            }
+        }
+        return try XCTUnwrap(image?.pngData())
+    }
+
     // MARK: - Fixtures
 
     private var mediaURL: URL {
@@ -203,37 +244,15 @@ final class ShareCardViewSnapshotTests: XCTestCase {
         if let media {
             card.setMediaImage(media)
         }
-        let size = fit(card)
+        let size = ShareCardSnapshotSupport.fit(card)
         let style: UIUserInterfaceStyle = options.appearance == .dark ? .dark : .light
         assertSnapshot(
             matching: card,
-            as: .image(size: size, traits: traits(style)),
+            as: .image(size: size, traits: ShareCardSnapshotSupport.traits(style)),
             file: #file,
             testName: testName,
             line: line
         )
-    }
-
-    private func fit(_ view: ShareCardView) -> CGSize {
-        view.translatesAutoresizingMaskIntoConstraints = false
-        view.widthAnchor.constraint(equalToConstant: width).isActive = true
-        let height = view.systemLayoutSizeFitting(
-            CGSize(width: width, height: UIView.layoutFittingCompressedSize.height),
-            withHorizontalFittingPriority: .required,
-            verticalFittingPriority: .fittingSizeLevel
-        ).height
-        let size = CGSize(width: width, height: height)
-        view.frame = CGRect(origin: .zero, size: size)
-        view.layoutIfNeeded()
-        return size
-    }
-
-    private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
-        UITraitCollection(traitsFrom: [
-            UITraitCollection(userInterfaceStyle: style),
-            UITraitCollection(displayScale: 2),
-            SnapshotDeterminism.contentSizeTrait,
-        ])
     }
 
     private func solidImage(_ color: UIColor, size: CGSize) -> UIImage {
