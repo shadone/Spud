@@ -192,6 +192,17 @@ protocol PreferencesServiceType: AnyObject {
     /// enclosing class's blanket `@MainActor` would otherwise require it.
     nonisolated var reminderNotificationsEnabled: Bool { get set }
     var reminderNotificationsEnabledStream: AsyncStream<Bool> { get }
+
+    // MARK: Share as Image
+
+    /// Last-used ``ShareCardOptions`` for the "Share as Image" editor: opened
+    /// with these values, saved again on Share/Save/Copy/Done. Default
+    /// `.init()`. `nsfwRevealed` is stripped by that type's own `Codable`
+    /// implementation (see its doc comment), so a revealed NSFW card is
+    /// never the default the next time the editor opens - even for the same
+    /// post.
+    var shareAsImageOptions: ShareCardOptions { get set }
+    var shareAsImageOptionsStream: AsyncStream<ShareCardOptions> { get }
 }
 
 @MainActor
@@ -426,6 +437,15 @@ class PreferencesService: PreferencesServiceType {
         _reminderNotificationsEnabledBacking.projectedValue
     }
 
+    // MARK: Share as Image
+
+    @UserDefaultsBacked
+    var shareAsImageOptions: ShareCardOptions
+
+    var shareAsImageOptionsStream: AsyncStream<ShareCardOptions> {
+        $shareAsImageOptions
+    }
+
     /// Designated initializer. Injects the `UserDefaults` store that backs every
     /// `@UserDefaultsBacked` property so tests can run against a private,
     /// disposable suite instead of `.standard`. Each assignment must preserve the
@@ -479,6 +499,7 @@ class PreferencesService: PreferencesServiceType {
             storage: storage
         )
         _reminderNotificationsEnabledBacking = .init(wrappedValue: true, key: "reminderNotificationsEnabled", storage: storage)
+        _shareAsImageOptions = .init(wrappedValue: .init(), key: "shareAsImageOptions", storage: storage)
 
         if let migrated = URLSanitizerConfig.migratingFromLegacyXcancel(
             legacyEnabled: rewriteTwitterLinksToXcancel,
