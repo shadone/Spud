@@ -117,6 +117,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Acknowledgements](acknowledgements.md) | `iphone`, `ipad` | shipped |
 | [Diagnostics and backup](diagnostics-and-backup.md) | `iphone`, `ipad` | shipped |
 | [Diagnostics logging](diagnostics-logging.md) | `iphone`, `ipad` | shipped — durable GRDB event log (survives relaunch) + two-tab viewer (Event Log with filter/search/detail/export; System Log OSLog tail with level/category filter + time window) |
+| [Fun stats (usage odometer)](fun-stats.md) | `iphone`, `ipad` | shipped — device-wide, local-only, account-free playful usage screen under About: scroll-distance hero with real-world landmark comparisons, taps, posts read/seen, images, links, sessions, time in app, streaks, most active hour, votes/comments/posts/searches; opt-out toggle in Privacy (default on) + destructive Reset Stats; no backfill, no sync, no sharing |
 | [iPad split-view handoff](ipad-split-view.md) | `ipad`, `iphone` | shipped — Posts two-column split + feed-switcher title popover; Communities two-column reading split; Activity two-column split (timeline primary + Summary detail pinned); adaptive layouts (Discover grid, capped banners, sheet detents) at regular width |
 | [Empty, error, and loading states](empty-error-loading-states.md) | `iphone`, `ipad` | shipped |
 | [Removed and unavailable posts](removed-unavailable-content.md) | `iphone`, `ipad` | shipped — neutral feed badge + placeholder screen for gone posts; cause-specific copy (ambiguous / removed / deleted); moderator + author bypass; automatic recovery on re-fetch; deep-link resolves to placeholder not spinner |
@@ -224,6 +225,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] App icon variants — switching is wired; alternate art is placeholder (grid's "not wired" was stale)
 - [x] Acknowledgements; backup export (raw SQLite database via share sheet)
 - [x] Diagnostic logging — durable GRDB event log (migration v26) recording outbox lifecycle (incl. `op.permanentRollback` on a rolled-back vote, `op.permanentPark` on a parked content send), site-info failures with instance host (`site.fetchFailed`, bounded by give-up), scheduler give-up (`site.giveUp` notice, carries `failureCount`), scheduler ticks, unread refresh, offline downloads, Spotlight reindex, and app lifecycle; pruned to ≤10k rows / ≤14 days; two-tab viewer (Event Log: filter by category + level, search, per-entry detail, export, clear; System Log: OSLog tail with level/category filter + time window); survives relaunch (diagnostics-logging.md)
+- [x] Fun stats screen (About) — device-wide scroll odometer, taps, sessions, streaks; local-only, opt-out + reset (fun-stats.md)
 
 **Platform**
 - [x] iPad split-view handoff — Posts two-column split + feed-switcher title popover (compact: left-edge swipe), Communities two-column reading split, Activity two-column split (timeline primary + Summary detail pinned), collapse/expand with state preservation; adaptive layouts at regular width: Discover multi-column grid + width-capped directory, sheet detents (composer / new-post), capped banners (Edit Profile / Account tab)
