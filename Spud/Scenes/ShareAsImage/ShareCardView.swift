@@ -159,7 +159,7 @@ final class ShareCardView: UIView {
     /// subview, then fires ``onLayoutChange``.
     func apply(options: ShareCardOptions) {
         self.options = options
-        let palette: ShareCardPalette = options.appearance == .dark ? .dark : .light
+        let palette = options.appearance.palette
 
         backgroundColor = palette.panel
         layer.borderColor = palette.edge.cgColor
