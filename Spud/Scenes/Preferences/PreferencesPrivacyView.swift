@@ -83,7 +83,7 @@ struct PreferencesPrivacyView: View {
             } header: {
                 Text("Video Playback")
             } footer: {
-                Text("Plays YouTube and Invidious video posts in the app by fetching the stream through Piped (piped.video's API). Video traffic goes to Piped, never to Google; if a stream can't be fetched, the post opens in the browser. Not needed if your YouTube front-end is already a Piped instance — those always play inline.")
+                Text("Plays YouTube and Invidious video posts in the app by fetching the stream through Piped (piped.video's API). Video traffic goes to Piped, never to Google; if a stream can't be fetched, the post opens in the browser. Not needed if Redirect to Front-ends already routes YouTube through a Piped instance — those videos play inline without this setting.")
             }
         }
         .navigationTitle("Privacy")
