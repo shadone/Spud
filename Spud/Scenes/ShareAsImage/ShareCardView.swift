@@ -114,11 +114,39 @@ final class ShareCardView: UIView {
         contentStack.setCustomSpacing(18, after: statsView)
     }
 
+    /// The dim applied to a toggled-off section in ``applyForEditor(options:)``
+    /// so it reads as a "ghost" the editor's tap overlay can restore.
+    static let editorGhostAlpha: CGFloat = 0.3
+
     /// Injects a media image directly (bypassing ``imageLoader``). The test
     /// seam; the editor also uses it once its async fetch resolves.
     func setMediaImage(_ image: UIImage?) {
         hasMediaImage = image != nil
         mediaView.setMediaImage(image)
+    }
+
+    /// The editor's variant of ``apply(options:)``: it keeps the hide-toggleable
+    /// sections (community/creator header, media, and — when the body treatment
+    /// is `.titleOnly` — the body) VISIBLE but dimmed, so a tap on the dimmed
+    /// "ghost" can toggle the section back on. Direct manipulation would
+    /// otherwise be one-way: once a section collapses there is nothing left on
+    /// the card to tap. The export path uses the real ``apply(options:)`` (true
+    /// hiding), never this — a hidden section is genuinely absent from the PNG.
+    func applyForEditor(options: ShareCardOptions) {
+        var shown = options
+        shown.showCommunityAndCreator = true
+        shown.showMedia = true
+        let bodyGhosted = options.bodyTreatment == .titleOnly
+        if bodyGhosted {
+            // Render a dimmed truncated preview as the restore affordance rather
+            // than an empty gap where the title-only body would be.
+            shown.bodyTreatment = .truncate
+        }
+        apply(options: shown)
+
+        headerView.alpha = options.showCommunityAndCreator ? 1 : Self.editorGhostAlpha
+        mediaView.alpha = options.showMedia ? 1 : Self.editorGhostAlpha
+        bodyView.alpha = bodyGhosted ? Self.editorGhostAlpha : 1
     }
 
     /// Reconfigures the whole card for a new options set — the editor's live

@@ -28,6 +28,9 @@ final class ShareChainCardView: UIView {
     /// The card's fixed design width.
     static let designWidth = ShareCardMetrics.width
 
+    /// The dim applied to a toggled-off section in ``applyForEditor(options:)``.
+    static let editorGhostAlpha: CGFloat = 0.3
+
     let postHeaderView = ShareChainPostHeaderView()
     let footerView = ShareCardFooterView()
 
@@ -36,7 +39,9 @@ final class ShareChainCardView: UIView {
     private let locale: Locale
     private let timeZone: TimeZone
 
-    private let rowsStack: UIStackView = {
+    /// The ancestor/destination chain rows, exposed so the editor's tap overlay
+    /// can map a tap on the chain to the redact-identities toggle.
+    let rowsStack: UIStackView = {
         let stack = UIStackView()
         stack.axis = .vertical
         stack.spacing = 14
@@ -121,6 +126,17 @@ final class ShareChainCardView: UIView {
         applyFooter(palette: palette)
 
         setNeedsLayout()
+    }
+
+    /// The editor's variant of ``apply(options:)``: keeps the post-context
+    /// header VISIBLE but dimmed when `includePostInChain` is off, so a tap on
+    /// the "ghost" can restore it (direct manipulation would otherwise be
+    /// one-way). The export path uses the real ``apply(options:)``.
+    func applyForEditor(options: ShareCardOptions) {
+        var shown = options
+        shown.includePostInChain = true
+        apply(options: shown)
+        postHeaderView.alpha = options.includePostInChain ? 1 : Self.editorGhostAlpha
     }
 
     // MARK: - Sections
