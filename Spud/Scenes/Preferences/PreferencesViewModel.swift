@@ -144,6 +144,9 @@ final class PreferencesViewModel {
     var hideReadPosts: Bool
     var hideReadPostsMode: HideReadPostsFilter.Mode
 
+    /// Whether device-wide fun usage stats are collected. Default `true`.
+    var funStatsCollectionEnabled: Bool
+
     var storageSize: String
     var storageFileUrl: URL
 
@@ -215,6 +218,7 @@ final class PreferencesViewModel {
         markPostsReadOnScroll = dependencies.preferencesService.markPostsReadOnScroll
         hideReadPosts = dependencies.preferencesService.hideReadPosts
         hideReadPostsMode = dependencies.preferencesService.hideReadPostsMode
+        funStatsCollectionEnabled = dependencies.preferencesService.funStatsCollectionEnabled
 
         postSwipeActions = dependencies.preferencesService.postSwipeActions
         commentSwipeActions = dependencies.preferencesService.commentSwipeActions
@@ -350,6 +354,12 @@ final class PreferencesViewModel {
         })
 
         preferenceObservationTasks.append(Task { @MainActor [weak self] in
+            for await value in preferencesService.funStatsCollectionEnabledStream {
+                self?.funStatsCollectionEnabled = value
+            }
+        })
+
+        preferenceObservationTasks.append(Task { @MainActor [weak self] in
             for await value in preferencesService.hideReadPostsStream {
                 self?.hideReadPosts = value
             }
@@ -413,6 +423,7 @@ final class PreferencesViewModel {
         markPostsReadOnScroll = false
         hideReadPosts = false
         hideReadPostsMode = .onRefresh
+        funStatsCollectionEnabled = true
         postSwipeActions = .defaultPosts
         commentSwipeActions = .defaultComments
         storageSize = "128 MB"
@@ -638,6 +649,12 @@ final class PreferencesViewModel {
         guard value != markPostsReadOnScroll else { return }
         markPostsReadOnScroll = value
         preferencesService?.markPostsReadOnScroll = value
+    }
+
+    func updateFunStatsCollectionEnabled(_ value: Bool) {
+        guard value != funStatsCollectionEnabled else { return }
+        funStatsCollectionEnabled = value
+        preferencesService?.funStatsCollectionEnabled = value
     }
 
     func updateHideReadPosts(_ value: Bool) {

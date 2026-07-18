@@ -18,6 +18,10 @@ struct PreferencesPrivacyView: View {
         .init { value } set: { set($0) }
     }
 
+    private var funStatsCollectionEnabled: Binding<Bool> {
+        .init { viewModel.funStatsCollectionEnabled } set: { viewModel.updateFunStatsCollectionEnabled($0) }
+    }
+
     var body: some View {
         Form {
             Section {
@@ -84,6 +88,12 @@ struct PreferencesPrivacyView: View {
                 Text("Video Playback")
             } footer: {
                 Text("Plays YouTube and Invidious video posts in the app by fetching the stream through Piped (piped.video's API). Video traffic goes to Piped, never to Google; if a stream can't be fetched, the post opens in the browser. Not needed if Redirect to Front-ends already routes YouTube through a Piped instance — those videos play inline without this setting.")
+            }
+
+            Section {
+                Toggle("Collect Fun Stats", isOn: funStatsCollectionEnabled)
+            } footer: {
+                Text("Playful usage numbers like scroll distance and taps, shown under About. Everything stays on this device.")
             }
         }
         .navigationTitle("Privacy")
