@@ -10,15 +10,20 @@ import UIKit
 /// Helper for presenting the system share sheet for posts and comments.
 /// URL construction lives in `LinkURL`.
 extension UIViewController {
-    /// Presents the system share sheet for `url`, anchoring the popover to
-    /// `sourceView` (or `sourceItem`) on iPad, and firing a light haptic.
+    /// Presents the system share sheet for arbitrary `items` (e.g. a URL, or a
+    /// share-as-image PNG file URL plus a permalink), anchoring the popover to
+    /// `sourceItem` (preferred), then `sourceView`, then the view's center as a
+    /// fallback on iPad.
+    ///
+    /// Deliberately does NOT fire a haptic: callers own their own feedback story
+    /// (the ``presentShareSheet(for:sourceView:sourceItem:)`` convenience fires
+    /// the light share haptic; the media viewer, which had none, keeps none).
     func presentShareSheet(
-        for url: URL,
+        items: [Any],
         sourceView: UIView? = nil,
         sourceItem: UIBarButtonItem? = nil
     ) {
-        Haptics.tap()
-        let activityVC = UIActivityViewController(activityItems: [url], applicationActivities: nil)
+        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
         if let sourceItem {
             activityVC.popoverPresentationController?.barButtonItem = sourceItem
         } else if let sourceView {
@@ -34,5 +39,16 @@ extension UIViewController {
             )
         }
         present(activityVC, animated: true)
+    }
+
+    /// Presents the system share sheet for `url`, anchoring the popover to
+    /// `sourceView` (or `sourceItem`) on iPad, and firing a light haptic.
+    func presentShareSheet(
+        for url: URL,
+        sourceView: UIView? = nil,
+        sourceItem: UIBarButtonItem? = nil
+    ) {
+        Haptics.tap()
+        presentShareSheet(items: [url], sourceView: sourceView, sourceItem: sourceItem)
     }
 }

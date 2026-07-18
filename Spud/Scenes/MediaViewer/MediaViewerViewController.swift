@@ -575,10 +575,9 @@ final class MediaViewerViewController: UIViewController {
     }
 
     private func presentActivity(items: [Any]) {
-        let activityVC = UIActivityViewController(activityItems: items, applicationActivities: nil)
-        activityVC.popoverPresentationController?.sourceView = shareButton
-        activityVC.popoverPresentationController?.sourceRect = shareButton.bounds
-        present(activityVC, animated: true)
+        // Shares the sheet anchored to the share button (its original behavior);
+        // the shared helper fires no haptic, so this path stays haptic-free.
+        presentShareSheet(items: items, sourceView: shareButton)
     }
 
     /// What `saveToPhotos` should write: a still frame, or the original GIF
