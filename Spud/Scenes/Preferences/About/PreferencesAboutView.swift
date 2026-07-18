@@ -107,6 +107,21 @@ struct PreferencesAboutView: View {
                 }
             }
 
+            if let appDatabase = viewModel.logsAppDatabase, let statsService = viewModel.statsService {
+                Section {
+                    NavigationLink {
+                        FunStatsView(
+                            viewModel: FunStatsViewModel(
+                                appDatabase: appDatabase,
+                                statsService: statsService
+                            )
+                        )
+                    } label: {
+                        Label("Fun Stats", systemImage: "gauge.with.needle")
+                    }
+                }
+            }
+
             Section {
                 HStack {
                     Text("Size")

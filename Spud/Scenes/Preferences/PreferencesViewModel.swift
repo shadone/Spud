@@ -20,7 +20,8 @@ final class PreferencesViewModel {
         HasAppDatabase &
         HasDiagnosticLog &
         HasExplorerService &
-        HasPreferencesService
+        HasPreferencesService &
+        HasStatsService
     typealias NestedDependencies =
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
@@ -52,11 +53,18 @@ final class PreferencesViewModel {
         dependencies?.own.diagnosticLog
     }
 
-    /// The shared app database, passed through to the Logs screen.
+    /// The shared app database, passed through to the Logs and Fun Stats
+    /// screens.
     ///
     /// Nil only in the preview init (no service dependencies).
     var logsAppDatabase: AppDatabase? {
         appDatabase
+    }
+
+    /// The fun-stats recording/reset service, passed through to the Fun Stats
+    /// screen. Nil only in the preview init (no service dependencies).
+    var statsService: StatsServicing? {
+        dependencies?.own.statsService
     }
 
     /// The account these preferences apply to. Used to scope the blocked-list
