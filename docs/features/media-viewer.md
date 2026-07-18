@@ -176,8 +176,8 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
   source thumbnail.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
-- Inline video-host playback covers streamable, PeerTube, loops.video, and YouTube-via-Piped.
-  The whole YouTube family — youtube.com/youtu.be, Piped, Invidious front-ends, and the bare
+- Inline video-host playback covers streamable, PeerTube, loops.video, and the YouTube family
+  (via Piped). The whole YouTube family — youtube.com/youtu.be, Piped, Invidious front-ends, and the bare
   `/watch?v=<id>` shape on unknown hosts — is recognized as video (play badge and play
   affordance), but plays inline only when the user's YouTube front-end is a Piped instance;
   otherwise the original page opens in the browser (an Invidious link is never resolved via
