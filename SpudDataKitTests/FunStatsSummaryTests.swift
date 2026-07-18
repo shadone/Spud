@@ -65,6 +65,17 @@ struct FunStatsSummaryTests {
     }
 
     @Test
+    func mostActiveHour_tieBrokenByEarliestHour() async throws {
+        let db = try AppDatabase.inMemory()
+        try await db.incrementFunStats([
+            FunStatDelta(day: "2026-07-18", hour: 21, key: "tapCount", value: 7),
+            FunStatDelta(day: "2026-07-18", hour: 9, key: "tapCount", value: 7),
+        ])
+        let summary = try db.funStatsSummarySync(calendar: Self.utc, now: { Self.now })
+        #expect(summary.mostActiveHour == 9)
+    }
+
+    @Test
     func observeFunStatsSummary_emitsOnChange() async throws {
         let db = try AppDatabase.inMemory()
         var iterator = db.observeFunStatsSummary(calendar: Self.utc, now: { Self.now }).makeAsyncIterator()
