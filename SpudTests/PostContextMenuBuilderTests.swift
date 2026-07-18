@@ -22,6 +22,7 @@ import UIKit
 final class FakePostContextMenuHost: UIViewController, PostContextMenuHost {
     var row: PostListRow
     private(set) var votedPostIds: [Int64] = []
+    private(set) var shareAsImageServerPostIds: [Int64] = []
 
     private let appDatabaseBacking: AppDatabase
     private let accountScopeBacking: AccountScope
@@ -75,6 +76,10 @@ final class FakePostContextMenuHost: UIViewController, PostContextMenuHost {
 
     func postReply(serverPostId _: Int64) { }
     func postShare(serverPostId _: Int64) { }
+    func postShareAsImage(serverPostId: Int64) {
+        shareAsImageServerPostIds.append(serverPostId)
+    }
+
     func postCrossPost(serverPostId _: Int64) { }
     func postVisitCommunity(serverPostId _: Int64) { }
     func postViewAuthor(serverPostId _: Int64) { }
@@ -164,6 +169,11 @@ struct PostContextMenuBuilderTests {
         #expect(titles.contains("Save"))
         #expect(titles.contains("Reply"))
         #expect(titles.contains("Share"))
+        #expect(titles.contains("Share as Image"))
+        // "Share as Image" sits immediately after "Share" in the share group.
+        if let shareIndex = titles.firstIndex(of: "Share") {
+            #expect(titles[titles.index(after: shareIndex)] == "Share as Image")
+        }
         #expect(titles.contains("Cross-post"))
         #expect(titles.contains("Visit c/news"))
         #expect(titles.contains("View u/alice"))
@@ -198,6 +208,14 @@ struct PostContextMenuBuilderTests {
         // The fake records the vote call synchronously via the Task; yield once.
         await Task.yield()
         #expect(host.votedPostIds.contains(7))
+    }
+
+    @Test
+    func shareAsImageInvokesHost() {
+        let host = FakePostContextMenuHost(row: .fixture())
+        let menu = PostContextMenuBuilder.menu(forServerPostId: 9, host: host, upvoteIcon: nil, downvoteIcon: nil)
+        performAction(titled: "Share as Image", in: menu)
+        #expect(host.shareAsImageServerPostIds == [9])
     }
 
     private func performAction(titled title: String, in menu: UIMenu) {

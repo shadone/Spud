@@ -771,6 +771,34 @@ extension SearchViewController: PostContextMenuHost {
         presentShareSheet(for: url)
     }
 
+    /// Presents the "Share as Image" editor for the post. Mirrors
+    /// ``postShare(serverPostId:)``'s permalink resolution (same
+    /// warning-haptic bail when no URL can be formed, or the row isn't
+    /// currently loaded) but hands the result to the share-as-image editor
+    /// instead of the system share sheet.
+    func postShareAsImage(serverPostId: Int64) {
+        guard let row = postContextRow(forServerPostId: serverPostId) else {
+            Haptics.warning()
+            return
+        }
+        guard let url = LinkURL.forPost(
+            instance: preferencesService.shareLinkInstance,
+            originalPostUrl: row.originalPostUrl,
+            serverPostId: serverPostId,
+            instanceActorId: appDatabase.accountInstanceActorIdSync(forKeychainId: accountKeychainId)
+        ) else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let sheet = ShareAsImageViewController.makeSheet(
+            content: ShareCardContent(postRow: row, permalink: url),
+            imageService: imageService,
+            preferencesService: preferencesService
+        )
+        present(sheet, animated: true)
+    }
+
     func postCrossPost(serverPostId: Int64) {
         guard !viewModel.accountScope.isSignedOut else {
             presentSignInGate(title: NSLocalizedString("Sign in to post", comment: "Sign-in gate title when a signed-out user tries to cross-post"))

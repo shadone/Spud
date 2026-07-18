@@ -122,6 +122,12 @@ extension PostDetailViewController {
         ) { [weak self] _ in
             self?.sharePost()
         }
+        let shareAsImageAction = UIAction(
+            title: NSLocalizedString("Share as Image", comment: "Overflow-menu action to share a post as a designed image card"),
+            image: UIImage(systemName: "photo")
+        ) { [weak self] _ in
+            self?.sharePostAsImage()
+        }
         let crossPostAction = UIAction(
             title: NSLocalizedString("Cross-post", comment: "Overflow-menu action to re-share a post to another community"),
             image: UIImage(systemName: "arrow.triangle.branch")
@@ -134,7 +140,7 @@ extension PostDetailViewController {
         ) { [weak self] _ in
             self?.presentTextSelection()
         }
-        var primaryChildren: [UIMenuElement] = [addCommentAction, saveAction, shareAction, crossPostAction, selectTextAction]
+        var primaryChildren: [UIMenuElement] = [addCommentAction, saveAction, shareAction, shareAsImageAction, crossPostAction, selectTextAction]
         if let target = remindMeMenuTarget() {
             primaryChildren.append(makeRemindMeMenu(for: target))
         }
