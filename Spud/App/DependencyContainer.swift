@@ -26,7 +26,8 @@ struct DependencyContainer:
     HasExplorerService,
     HasReachabilityMonitor,
     HasDiagnosticLog,
-    HasMetaCommunityService
+    HasMetaCommunityService,
+    HasStatsService
 {
     let appDatabase: AppDatabase
     let siteService: SiteServiceType
@@ -45,6 +46,7 @@ struct DependencyContainer:
     let reachabilityMonitor: ReachabilityMonitoring
     let diagnosticLog: DiagnosticLogging
     let metaCommunityService: MetaCommunityServiceType
+    let statsService: StatsServicing
 
     // MARK: Functions
 
@@ -70,6 +72,7 @@ struct DependencyContainer:
         // genuine open failure, preserving the previous crash-on-unavailable-DB
         // behavior.)
         appDatabase = .shared
+        statsService = StatsService(appDatabase: appDatabase)
 
         diagnosticLog = DiagnosticLog(appDatabase: appDatabase)
         reachabilityMonitor = ReachabilityMonitor()
@@ -130,5 +133,32 @@ struct DependencyContainer:
             autoRefresh: preferencesService.explorerAutoRefreshEnabled,
             maxAge: preferencesService.explorerRefreshInterval.timeInterval
         )
+
+        // Fun stats: install the global recording facade and keep the
+        // service's enabled flag bound to the preference. Skipped under
+        // XCTest so hosted unit tests never record into the shared DB.
+        if ProcessInfo.processInfo.environment["XCTestConfigurationFilePath"] == nil {
+            FunStats.install(statsService)
+            let statsService = statsService
+            let preferencesService = preferencesService
+            Task {
+                for await isEnabled in preferencesService.funStatsCollectionEnabledStream {
+                    await statsService.setEnabled(isEnabled)
+                }
+            }
+        } else {
+            // `SceneDelegate` calls `statsService.appDidBecomeActive()` /
+            // `appWillResignActive()` directly (not through the `FunStats`
+            // facade, which IS gated by leaving it uninstalled above) because
+            // it needs the concrete `StatsServicing` reference from
+            // `dependencies`, not the fire-and-forget facade. That bypasses
+            // the facade's XCTest gate, so app-hosted test runs (SpudTests,
+            // SpudUITests) would otherwise still buffer sessionCount /
+            // foregroundSeconds via those lifecycle calls and flush them into
+            // the shared simulator DB. Explicitly disabling the service here
+            // closes that hole without touching `SceneDelegate`.
+            let statsService = statsService
+            Task { await statsService.setEnabled(false) }
+        }
     }
 }

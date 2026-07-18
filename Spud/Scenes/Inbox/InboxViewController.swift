@@ -56,6 +56,9 @@ final class InboxViewController: UIViewController {
     private var scopeObservationTask: Task<Void, Never>?
     private var dataObservationTask: Task<Void, Never>?
 
+    /// Fun stats: accumulates user scroll distance; reported in batches.
+    private var scrollOdometer = ScrollOdometer()
+
     private enum Section: Hashable { case items }
 
     private enum Item: Hashable {
@@ -222,6 +225,11 @@ final class InboxViewController: UIViewController {
         if viewModel.isSignedIn, isMovingToParent == false {
             viewModel.loadAll()
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        reportScrollDistanceIfNeeded(force: true)
     }
 
     // MARK: Observation
@@ -614,6 +622,13 @@ extension InboxViewController: UITableViewDelegate {
     /// conversation rows, so without this gate a programmatic contentSize change
     /// near the bottom could re-fire and burst-page deep into history.
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        scrollOdometer.update(
+            offsetY: scrollView.contentOffset.y,
+            contentHeight: scrollView.contentSize.height,
+            viewportHeight: scrollView.bounds.height
+        )
+        reportScrollDistanceIfNeeded()
+
         guard viewModel.scope == .messages else { return }
         guard scrollView.isDragging || scrollView.isDecelerating else { return }
         let position = scrollView.contentOffset.y + scrollView.bounds.height
@@ -622,6 +637,19 @@ extension InboxViewController: UITableViewDelegate {
         if position / totalHeight > 0.9 {
             Task { [weak self] in await self?.viewModel.loadMore() }
         }
+    }
+
+    /// Fun stats: reports accumulated scroll distance in batches (threshold
+    /// 1000pt) so we don't spawn a `Task` per scroll tick. `force: true`
+    /// flushes any sub-threshold remainder (e.g. on `viewWillDisappear`).
+    private func reportScrollDistanceIfNeeded(force: Bool = false) {
+        let points = scrollOdometer.take()
+        guard points > 0, force || points >= 1000 else {
+            // Under threshold: put it back rather than losing it.
+            if points > 0 { scrollOdometer.credit(points) }
+            return
+        }
+        FunStats.record(.scrollDistancePoints, amount: points)
     }
 
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {

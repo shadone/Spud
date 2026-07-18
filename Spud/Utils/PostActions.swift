@@ -62,6 +62,7 @@ extension PostVoteDispatching {
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
         postActionWillDispatch(.vote)
+        FunStats.record(.votesCast)
         do {
             try await postActionsAccountScope.lemmyService
                 .vote(serverPostId: Lemmy.PostID(serverPostId), vote: action)

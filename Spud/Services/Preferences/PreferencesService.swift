@@ -137,6 +137,12 @@ protocol PreferencesServiceType: AnyObject {
     var markPostsReadOnScroll: Bool { get set }
     var markPostsReadOnScrollStream: AsyncStream<Bool> { get }
 
+    /// Whether device-wide fun usage stats (scroll distance, taps, sessions,
+    /// ...) are collected. Local-only; default `true`. Turning it off stops
+    /// collection immediately but keeps already-recorded data.
+    var funStatsCollectionEnabled: Bool { get set }
+    var funStatsCollectionEnabledStream: AsyncStream<Bool> { get }
+
     /// Whether already-read posts are hidden from the feed. Default `false`.
     var hideReadPosts: Bool { get set }
     var hideReadPostsStream: AsyncStream<Bool> { get }
@@ -376,6 +382,13 @@ class PreferencesService: PreferencesServiceType {
     }
 
     @UserDefaultsBacked
+    var funStatsCollectionEnabled: Bool
+
+    var funStatsCollectionEnabledStream: AsyncStream<Bool> {
+        $funStatsCollectionEnabled
+    }
+
+    @UserDefaultsBacked
     var hideReadPosts: Bool
 
     var hideReadPostsStream: AsyncStream<Bool> {
@@ -484,6 +497,7 @@ class PreferencesService: PreferencesServiceType {
         _hasAcknowledgedNsfwAge = .init(wrappedValue: false, key: "hasAcknowledgedNsfwAge", storage: storage)
         _markPostsRead = .init(wrappedValue: true, key: "markPostsRead", storage: storage)
         _markPostsReadOnScroll = .init(wrappedValue: false, key: "markPostsReadOnScroll", storage: storage)
+        _funStatsCollectionEnabled = .init(wrappedValue: true, key: "funStatsCollectionEnabled", storage: storage)
         _hideReadPosts = .init(wrappedValue: false, key: "hideReadPosts", storage: storage)
         _hideReadPostsMode = .init(wrappedValue: .onRefresh, key: "hideReadPostsMode", storage: storage)
         _explorerAutoRefreshEnabled = .init(wrappedValue: true, key: "explorerAutoRefreshEnabled", storage: storage)

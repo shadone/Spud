@@ -370,6 +370,10 @@ final class NewPostViewModel {
             return
         }
 
+        // Only the genuinely-new-post path counts toward `postsPosted`: the
+        // `editPostServerId` branch above resubmits an EXISTING post's edited
+        // content (the same post, not a new one) and is deliberately not hooked.
+        FunStats.record(.postsPosted)
         await accountScope.lemmyService.submitDraft(clientToken: token)
         clientToken = nil
         submissionState = .queued(clientToken: token)

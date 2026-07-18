@@ -91,6 +91,7 @@ class AppService: AppServiceType {
     }
 
     func open(url: URL, on viewController: UIViewController) async {
+        FunStats.record(.linksOpened)
         assert(url.spud == nil)
 
         let url = resolvedExternalURL(url)

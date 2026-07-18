@@ -70,6 +70,30 @@ private struct LogsHostView: View {
     }
 }
 
+// MARK: - Fun Stats host
+
+/// Settings → About → Fun Stats screen.
+///
+/// Owns the `FunStatsViewModel` in `@State`, built once via the
+/// `init(appDatabase:statsService:)` wrapper (mirroring `DiagnosticLogView`'s
+/// own-your-view-model pattern) rather than letting the caller construct a
+/// fresh `FunStatsViewModel` inline in the `NavigationLink` destination — an
+/// inline `let` there would be rebuilt (and re-`start()`ed from scratch) on
+/// every parent re-render. `FunStatsView(viewModel:)` itself is untouched so
+/// tests/snapshots can keep constructing it directly with an injected view
+/// model.
+private struct FunStatsHostView: View {
+    @State private var viewModel: FunStatsViewModel
+
+    init(appDatabase: AppDatabase, statsService: StatsServicing) {
+        _viewModel = State(initialValue: FunStatsViewModel(appDatabase: appDatabase, statsService: statsService))
+    }
+
+    var body: some View {
+        FunStatsView(viewModel: viewModel)
+    }
+}
+
 // MARK: - About view
 
 struct PreferencesAboutView: View {
@@ -104,6 +128,16 @@ struct PreferencesAboutView: View {
                     )
                 } label: {
                     Text("Logs")
+                }
+            }
+
+            if let appDatabase = viewModel.logsAppDatabase, let statsService = viewModel.statsService {
+                Section {
+                    NavigationLink {
+                        FunStatsHostView(appDatabase: appDatabase, statsService: statsService)
+                    } label: {
+                        Label("Fun Stats", systemImage: "gauge.with.needle")
+                    }
                 }
             }
 

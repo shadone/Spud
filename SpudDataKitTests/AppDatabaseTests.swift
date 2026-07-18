@@ -41,6 +41,7 @@ struct AppDatabaseTests {
                 "explorerInstance",
                 "favoritedCommunity",
                 "feed",
+                "funStat",
                 "instance",
                 "instanceMetaCommunity",
                 "mutedCommunity",

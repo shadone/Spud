@@ -606,6 +606,7 @@ final class PostListViewModel {
     /// non-fatal (the `try?` mirrors the pre-move write); the view controller
     /// keeps the dwell tracker / timer and only the write moved here.
     func recordSeen(serverPostId: Int64, snapshot: PostInteractionSnapshot) async {
+        FunStats.record(.postsSeen)
         try? await appDatabase.recordPostSeen(
             accountKeychainId: accountKeychainId,
             serverPostId: serverPostId,

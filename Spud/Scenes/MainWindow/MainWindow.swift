@@ -169,6 +169,18 @@ class MainWindow: UIWindow {
         fatalError("init(coder:) has not been implemented")
     }
 
+    override func sendEvent(_ event: UIEvent) {
+        super.sendEvent(event)
+        // Fun stats: count completed touches (taps, drag lifts) device-wide.
+        // One increment per touch that ended this event; no-op when the
+        // FunStats facade is not installed (tests) or collection is off.
+        guard event.type == .touches, let touches = event.allTouches else { return }
+        let ended = touches.filter { $0.phase == .ended }.count
+        if ended > 0 {
+            FunStats.record(.tapCount, amount: Double(ended))
+        }
+    }
+
     /// UI tests stub the feed for discuss.tchncs.de and expect to land on it at
     /// launch. The production auto-bootstrap that used to create that account is
     /// gone (onboarding now gates a fresh install), so a launch argument

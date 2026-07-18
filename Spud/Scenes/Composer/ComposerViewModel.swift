@@ -237,6 +237,13 @@ final class ComposerViewModel {
                 submissionState = .failed(message: NSLocalizedString("Couldn't save your comment.", comment: "Composer enqueue failure"))
                 return
             }
+            // Only the genuinely-new-comment path counts toward `commentsPosted`:
+            // the `.editComment` target resubmits an EXISTING comment's edited
+            // content (the same comment, not a new one) and is deliberately not
+            // hooked, mirroring `NewPostViewModel`'s edit-exclusion.
+            if target.editCommentServerId == nil {
+                FunStats.record(.commentsPosted)
+            }
             await accountScope.lemmyService.submitDraft(clientToken: token)
             clientToken = nil
             submissionState = .finished

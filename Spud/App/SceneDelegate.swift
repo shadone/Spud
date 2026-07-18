@@ -66,6 +66,13 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
             AppCoordinator.shared.setActiveWindow(window)
         }
         privacyScreen?.sceneDidBecomeActive()
+
+        // Fun stats: count a new session (if the app was away longer than the
+        // session gap) and start the foreground-time stopwatch.
+        let statsService = AppCoordinator.shared.dependencies.statsService
+        Task {
+            await statsService.appDidBecomeActive()
+        }
     }
 
     func sceneWillResignActive(_ scene: UIScene) {
@@ -73,6 +80,12 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         // This may occur due to temporary interruptions (ex. an incoming phone call).
         // Cover NSFW content before iOS snapshots the app for the app switcher.
         privacyScreen?.sceneWillResignActive()
+
+        // Fun stats: bank the elapsed foreground time and flush.
+        let statsService = AppCoordinator.shared.dependencies.statsService
+        Task {
+            await statsService.appWillResignActive()
+        }
     }
 
     func sceneWillEnterForeground(_ scene: UIScene) {

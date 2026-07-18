@@ -91,6 +91,9 @@ class ActivityViewController: UIViewController {
 
     private var observationTask: Task<Void, Never>?
     private var summaryObservationTask: Task<Void, Never>?
+
+    /// Fun stats: accumulates user scroll distance; reported in batches.
+    private var scrollOdometer = ScrollOdometer()
     private var displayPrefsObservationTasks: [Task<Void, Never>] = []
 
     /// Posts whose NSFW thumbnail the user revealed this session (by server post
@@ -346,6 +349,11 @@ class ActivityViewController: UIViewController {
             viewModel.stop()
             summaryViewModel.stop()
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        reportScrollDistanceIfNeeded(force: true)
     }
 
     override func viewDidLayoutSubviews() {
@@ -894,12 +902,32 @@ extension ActivityViewController: UITableViewDelegate {
     }
 
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        scrollOdometer.update(
+            offsetY: scrollView.contentOffset.y,
+            contentHeight: scrollView.contentSize.height,
+            viewportHeight: scrollView.bounds.height
+        )
+        reportScrollDistanceIfNeeded()
+
         let offsetY = scrollView.contentOffset.y
         let contentHeight = scrollView.contentSize.height
         let frameHeight = scrollView.frame.height
         if contentHeight > frameHeight, offsetY > contentHeight - frameHeight - 200 {
             viewModel.loadMore()
         }
+    }
+
+    /// Fun stats: reports accumulated scroll distance in batches (threshold
+    /// 1000pt) so we don't spawn a `Task` per scroll tick. `force: true`
+    /// flushes any sub-threshold remainder (e.g. on `viewWillDisappear`).
+    private func reportScrollDistanceIfNeeded(force: Bool = false) {
+        let points = scrollOdometer.take()
+        guard points > 0, force || points >= 1000 else {
+            // Under threshold: put it back rather than losing it.
+            if points > 0 { scrollOdometer.credit(points) }
+            return
+        }
+        FunStats.record(.scrollDistancePoints, amount: points)
     }
 }
 

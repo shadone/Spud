@@ -41,6 +41,7 @@ class AccountViewController: UIViewController {
         HasPreferencesService &
         HasReachabilityMonitor &
         HasSiteService &
+        HasStatsService &
         HasVoid
     typealias Dependencies = NestedDependencies & OwnDependencies
     private let dependencies: (own: OwnDependencies, nested: NestedDependencies)

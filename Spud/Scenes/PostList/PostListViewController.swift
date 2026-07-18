@@ -130,6 +130,9 @@ class PostListViewController: UIViewController {
     /// `ScrollToTopUndo`; wired in the `UITableViewDelegate` extension below.
     private var scrollUndo = ScrollToTopUndo()
 
+    /// Fun stats: accumulates user scroll distance; reported in batches.
+    private var scrollOdometer = ScrollOdometer()
+
     /// The rows actually rendered, after the hide-read filter. Drives the empty
     /// state so an all-read feed shows the designed empty state when hiding. The
     /// full ordered snapshot + the `serverPostId` lookup live on the view model
@@ -692,6 +695,11 @@ class PostListViewController: UIViewController {
         flushSeen()
     }
 
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        reportScrollDistanceIfNeeded(force: true)
+    }
+
     /// True when the post is NSFW and the user has revealed its thumbnail this session.
     private func isRevealedNsfw(_ serverPostId: Int64) -> Bool {
         (viewModel.row(forServerPostId: serverPostId)?.isNsfw ?? false) && revealedNsfwPostIds.contains(serverPostId)
@@ -1181,6 +1189,7 @@ class PostListViewController: UIViewController {
 
     @objc
     private func refreshTriggered() {
+        FunStats.record(.pullToRefreshCount)
         // Pull-to-refresh re-pulls the feed from the top via a fresh feed key,
         // keeping the current posts on screen until the new content swaps in.
         viewModel.didClickReload()
@@ -1195,6 +1204,10 @@ class PostListViewController: UIViewController {
         if hadArmedUndo {
             ToastPresenter.shared.dismiss()
         }
+        // The feed is being swapped wholesale; reset the odometer baseline so
+        // the swap cannot fabricate a jump delta (the jump guard would drop it
+        // anyway, but this makes the intent explicit).
+        scrollOdometer.reset()
 
         viewModel.prepareForReload()
         // A pull-to-refresh keeps the existing posts on screen — the refresh
@@ -2035,6 +2048,13 @@ extension PostListViewController: PostContextMenuHost {
 
 extension PostListViewController: UITableViewDelegate {
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        scrollOdometer.update(
+            offsetY: scrollView.contentOffset.y,
+            contentHeight: scrollView.contentSize.height,
+            viewportHeight: scrollView.bounds.height
+        )
+        reportScrollDistanceIfNeeded()
+
         let position = scrollView.contentOffset.y + scrollView.bounds.height
         let totalHeight = scrollView.contentSize.height
         guard totalHeight > 0 else { return }
@@ -2042,6 +2062,19 @@ extension PostListViewController: UITableViewDelegate {
         if verticalFraction > 0.9 {
             viewModel.didScrollToBottom()
         }
+    }
+
+    /// Fun stats: reports accumulated scroll distance in batches (threshold
+    /// 1000pt) so we don't spawn a `Task` per scroll tick. `force: true`
+    /// flushes any sub-threshold remainder (e.g. on `viewWillDisappear`).
+    private func reportScrollDistanceIfNeeded(force: Bool = false) {
+        let points = scrollOdometer.take()
+        guard points > 0, force || points >= 1000 else {
+            // Under threshold: put it back rather than losing it.
+            if points > 0 { scrollOdometer.credit(points) }
+            return
+        }
+        FunStats.record(.scrollDistancePoints, amount: points)
     }
 
     func scrollViewShouldScrollToTop(_ scrollView: UIScrollView) -> Bool {
