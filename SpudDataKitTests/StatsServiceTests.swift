@@ -28,7 +28,9 @@ private final class FakeClock: @unchecked Sendable {
 struct StatsServiceTests {
     private static func makeService(
         db: AppDatabase,
-        clock: FakeClock
+        clock: FakeClock,
+        // Never auto-flush by default; most tests call flush() explicitly.
+        flushDelay: Duration = .seconds(3600)
     ) -> StatsService {
         var utc = Calendar(identifier: .gregorian)
         utc.timeZone = TimeZone(identifier: "UTC")!
@@ -36,7 +38,7 @@ struct StatsServiceTests {
             appDatabase: db,
             now: { clock.now },
             calendar: utc,
-            flushDelay: .seconds(3600), // never auto-flush in tests; flush() explicitly
+            flushDelay: flushDelay,
             sessionGap: 300
         )
     }
@@ -150,6 +152,26 @@ struct StatsServiceTests {
         #expect(try await Self.total(db, .foregroundSeconds) == 90)
         // sessionCount landed in the same flush
         #expect(try await Self.total(db, .sessionCount) == 1)
+    }
+
+    @Test
+    func record_autoFlushesAfterDelay() async throws {
+        let db = try AppDatabase.inMemory()
+        let clock = FakeClock(Date(timeIntervalSince1970: 1_784_410_500))
+        let sut = Self.makeService(db: db, clock: clock, flushDelay: .milliseconds(50))
+
+        await sut.record(.tapCount, amount: 2)
+        // No explicit flush(): exercises the production scheduleFlush()/timerFlush()
+        // path. Poll with a generous timeout instead of a fixed sleep so the test
+        // stays deterministic without being tied to the exact flush delay.
+        let deadline = Date().addingTimeInterval(5)
+        var total: Double = 0
+        while Date() < deadline {
+            total = try await Self.total(db, .tapCount)
+            if total == 2 { break }
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(total == 2)
     }
 
     @Test

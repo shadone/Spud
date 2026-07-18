@@ -54,6 +54,15 @@ public actor StatsService: StatsServicing {
     private var buffer: [FunStatBucket: [FunStatKey: Double]] = [:]
     private var flushTask: Task<Void, Never>?
 
+    /// Bumped by `resetAllStats()` only. Actor re-entrancy means a `performFlush()`
+    /// already suspended on the DB write can still be in flight when a reset runs;
+    /// without this guard the writer could enqueue the reset's `clearFunStats()`
+    /// before that in-flight `incrementFunStats()`, so pre-reset deltas land after
+    /// the clear and silently survive a user-facing "Reset Stats". `performFlush()`
+    /// snapshots this before its write await and, if it changed by the time the
+    /// write returns, issues a compensating clear so reset always wins.
+    private var generation = 0
+
     private var becameActiveAt: Date?
     private var lastResignActiveAt: Date?
 
@@ -94,6 +103,9 @@ public actor StatsService: StatsServicing {
     }
 
     public func resetAllStats() async {
+        // Bump first so a `performFlush()` already suspended on its DB write
+        // (see `generation`'s doc) observes the reset when it resumes.
+        generation += 1
         buffer.removeAll()
         flushTask?.cancel()
         flushTask = nil
@@ -151,12 +163,22 @@ public actor StatsService: StatsServicing {
             }
         }
         buffer.removeAll()
+        // Snapshot before the write suspends this task: actor re-entrancy lets
+        // resetAllStats() run while we're awaiting the DB writer, and depending
+        // on task-hop timing its clearFunStats() could otherwise be enqueued
+        // before this increment, letting pre-reset deltas land after the clear.
+        let gen = generation
         // Best-effort: a stats write failure must never affect the app. The
         // buffered deltas are simply lost.
         do {
             try await appDatabase.incrementFunStats(deltas)
         } catch {
             logger.error("fun stats flush failed: \(String(describing: error), privacy: .public)")
+        }
+        if generation != gen {
+            // A reset interleaved with this write. Make reset win by
+            // compensating with a clear, even though our increment already landed.
+            try? await appDatabase.clearFunStats()
         }
     }
 }
