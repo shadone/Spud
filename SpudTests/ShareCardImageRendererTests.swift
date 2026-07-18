@@ -69,33 +69,33 @@ struct ShareCardImageRendererTests {
     // MARK: - writePNG: metadata
 
     @Test
-    func writePNG_embedsAltTextInPngDescription() throws {
+    func writePNG_embedsAltTextInPngDescription() async throws {
         let altText = "Lemmy post in c/linux@lemmy.ml: \"Hello\", 12 points."
-        let url = try ShareCardImageRenderer.writePNG(swatch(), altText: altText, suggestedName: "post")
+        let url = try await ShareCardImageRenderer.writePNG(swatch(), altText: altText, suggestedName: "post")
         let properties = try readProperties(of: url)
         let png = properties[kCGImagePropertyPNGDictionary] as? [CFString: Any]
         #expect(png?[kCGImagePropertyPNGDescription] as? String == altText)
     }
 
     @Test
-    func writePNG_embedsAltTextInIptcCaption() throws {
+    func writePNG_embedsAltTextInIptcCaption() async throws {
         let altText = "Comment by u/bob@lemmy.ml: \"Nice\", 3 points."
-        let url = try ShareCardImageRenderer.writePNG(swatch(), altText: altText, suggestedName: "comment")
+        let url = try await ShareCardImageRenderer.writePNG(swatch(), altText: altText, suggestedName: "comment")
         let properties = try readProperties(of: url)
         let iptc = properties[kCGImagePropertyIPTCDictionary] as? [CFString: Any]
         #expect(iptc?[kCGImagePropertyIPTCCaptionAbstract] as? String == altText)
     }
 
     @Test
-    func writePNG_producesPngExtension() throws {
-        let url = try ShareCardImageRenderer.writePNG(swatch(), altText: "alt", suggestedName: "anything")
+    func writePNG_producesPngExtension() async throws {
+        let url = try await ShareCardImageRenderer.writePNG(swatch(), altText: "alt", suggestedName: "anything")
         #expect(url.pathExtension == "png")
         #expect(FileManager.default.fileExists(atPath: url.path))
     }
 
     @Test
-    func writePNG_sanitizesSuggestedNameIntoTheFilename() throws {
-        let url = try ShareCardImageRenderer.writePNG(
+    func writePNG_sanitizesSuggestedNameIntoTheFilename() async throws {
+        let url = try await ShareCardImageRenderer.writePNG(
             swatch(),
             altText: "alt",
             suggestedName: "danger/ous:name"
@@ -103,6 +103,63 @@ struct ShareCardImageRendererTests {
         let stem = url.deletingPathExtension().lastPathComponent
         #expect(!stem.contains("/"))
         #expect(!stem.contains(":"))
+    }
+
+    // MARK: - writePNG: stale-export sweep
+
+    /// Calling `writePNG` sweeps sibling export subdirectories older than
+    /// ``ShareCardImageRenderer/staleExportAge`` while leaving fresh ones (and
+    /// the one it just wrote) intact.
+    @Test
+    func writePNG_sweepsStaleSiblingExportDirectories() async throws {
+        let fileManager = FileManager.default
+        let root = ShareCardImageRenderer.shareRootDirectory
+
+        // A stale export dir, backdated well past the 24h threshold.
+        let stale = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: stale, withIntermediateDirectories: true)
+        let staleDate = Date(timeIntervalSinceNow: -48 * 60 * 60)
+        try fileManager.setAttributes([.modificationDate: staleDate], ofItemAtPath: stale.path)
+
+        // A fresh export dir (just created).
+        let fresh = root.appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: fresh, withIntermediateDirectories: true)
+
+        let written = try await ShareCardImageRenderer.writePNG(swatch(), altText: "alt", suggestedName: "sweep")
+
+        #expect(!fileManager.fileExists(atPath: stale.path)) // swept
+        #expect(fileManager.fileExists(atPath: fresh.path)) // survives
+        #expect(fileManager.fileExists(atPath: written.path)) // the new export survives
+
+        // Clean up what this test created.
+        try? fileManager.removeItem(at: fresh)
+        try? fileManager.removeItem(at: written.deletingLastPathComponent())
+    }
+
+    /// The sweep is age-gated in both directions: a directory younger than the
+    /// threshold survives, and the same directory backdated past the threshold is
+    /// removed. Uses the real clock (never a future `now`) so it can't delete a
+    /// concurrent test's fresh export dir under Swift Testing's parallelism —
+    /// only its own backdated directory is ever eligible.
+    @Test
+    func sweepStaleExports_isAgeGatedBothWays() throws {
+        let fileManager = FileManager.default
+        let dir = ShareCardImageRenderer.shareRootDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        try fileManager.createDirectory(at: dir, withIntermediateDirectories: true)
+
+        // Fresh (1h old): a real-clock sweep leaves it.
+        try fileManager.setAttributes([.modificationDate: Date(timeIntervalSinceNow: -60 * 60)], ofItemAtPath: dir.path)
+        ShareCardImageRenderer.sweepStaleExports()
+        #expect(fileManager.fileExists(atPath: dir.path))
+
+        // Backdated past the threshold: the same sweep now removes it.
+        try fileManager.setAttributes(
+            [.modificationDate: Date(timeIntervalSinceNow: -48 * 60 * 60)],
+            ofItemAtPath: dir.path
+        )
+        ShareCardImageRenderer.sweepStaleExports()
+        #expect(!fileManager.fileExists(atPath: dir.path))
     }
 
     // MARK: - sanitizedFileName

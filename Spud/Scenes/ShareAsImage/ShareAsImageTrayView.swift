@@ -127,16 +127,17 @@ final class ShareAsImageTrayView: UIView {
         altTextButton.addAction(UIAction { [weak self] _ in self?.onTapAltText?() }, for: .touchUpInside)
     }
 
-    /// Syncs the controls to the current options. `isComment` reveals the depth
-    /// stepper; `maxChainDepth` bounds the ± buttons.
-    func configure(options: ShareCardOptions, isComment: Bool, maxChainDepth: Int) {
+    /// Syncs the controls to the current options. `showsDepthStepper` reveals the
+    /// depth stepper (false for post cards AND root comments — anything with no
+    /// ancestors to step through); `maxChainDepth` bounds the ± buttons.
+    func configure(options: ShareCardOptions, showsDepthStepper: Bool, maxChainDepth: Int) {
         appearanceControl.selectedSegmentIndex = options.appearance == .dark ? 1 : 0
         canvasControl.selectedSegmentIndex = switch options.canvas {
         case .native: 0
         case .square: 1
         case .story: 2
         }
-        depthRow.isHidden = !isComment
+        depthRow.isHidden = !showsDepthStepper
         depthLabel.text = "Depth \(options.chainDepth)"
         depthLabel.accessibilityLabel = "Ancestor comments: \(options.chainDepth)"
         depthMinusButton.isEnabled = options.chainDepth > 0

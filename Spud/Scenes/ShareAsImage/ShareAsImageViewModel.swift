@@ -71,6 +71,15 @@ final class ShareAsImageViewModel {
         Self.maxDepth(for: content)
     }
 
+    /// Whether the tray shows the chain-depth stepper. Gated on there being at
+    /// least one ancestor to step through (``maxChainDepth`` > 0) — not merely
+    /// on ``isComment``: a post card AND a root comment (a shared comment with
+    /// no ancestors) both have `maxChainDepth == 0`, and showing a dead
+    /// "Depth 0" stepper with both buttons disabled for the latter was a bug.
+    var showsDepthStepper: Bool {
+        maxChainDepth > 0
+    }
+
     /// The alt text that will travel with the exported PNG and label the preview
     /// for VoiceOver: the user's override when set, else the auto-generated text
     /// derived from the current options (so it stays in sync as toggles change).
@@ -181,20 +190,24 @@ final class ShareAsImageViewModel {
 
     // MARK: - Export configuration
 
-    /// The options to render the EXPORT card with, given whether the media image
-    /// actually resolved (`resolvedMedia`).
+    /// The options to render the EXPORT card with, given a caller-supplied
+    /// options snapshot and whether the media image actually resolved
+    /// (`resolvedMedia`).
     ///
-    /// Offline-first guardrail: when the card would show media (``options``
+    /// Takes `options` explicitly (rather than reading ``options`` live) so the
+    /// export renders from the snapshot captured when the output action fired —
+    /// a tray/preview toggle during the media await can't retro-change what gets
+    /// exported.
+    ///
+    /// Offline-first guardrail: when the card would show media (`options`
     /// `.showMedia` on, and the post carries a media URL) but the fetch never
     /// resolved an image, this drops the media section (`showMedia = false`) for
     /// the export — otherwise the fresh export card renders the "Loading media…"
     /// placeholder + shimmer band and bakes it permanently into the PNG (Spud is
     /// offline-first, so a failed/absent media fetch is a real path). Returns
-    /// ``options`` unchanged when there is no media URL, or when the image did
-    /// resolve. Pure and side-effect-free: it never mutates ``options`` (the
-    /// user's live preview is untouched) — the caller renders a throwaway card
-    /// from the returned copy.
-    func exportOptions(resolvedMedia: Bool) -> ShareCardOptions {
+    /// `options` unchanged when there is no media URL, or when the image did
+    /// resolve. Pure and side-effect-free.
+    func exportOptions(_ options: ShareCardOptions, resolvedMedia: Bool) -> ShareCardOptions {
         guard options.showMedia,
               !resolvedMedia,
               content.post?.mediaUrl != nil
