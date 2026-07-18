@@ -179,6 +179,31 @@ final class ShareAsImageViewModel {
         isExporting = false
     }
 
+    // MARK: - Export configuration
+
+    /// The options to render the EXPORT card with, given whether the media image
+    /// actually resolved (`resolvedMedia`).
+    ///
+    /// Offline-first guardrail: when the card would show media (``options``
+    /// `.showMedia` on, and the post carries a media URL) but the fetch never
+    /// resolved an image, this drops the media section (`showMedia = false`) for
+    /// the export — otherwise the fresh export card renders the "Loading media…"
+    /// placeholder + shimmer band and bakes it permanently into the PNG (Spud is
+    /// offline-first, so a failed/absent media fetch is a real path). Returns
+    /// ``options`` unchanged when there is no media URL, or when the image did
+    /// resolve. Pure and side-effect-free: it never mutates ``options`` (the
+    /// user's live preview is untouched) — the caller renders a throwaway card
+    /// from the returned copy.
+    func exportOptions(resolvedMedia: Bool) -> ShareCardOptions {
+        guard options.showMedia,
+              !resolvedMedia,
+              content.post?.mediaUrl != nil
+        else { return options }
+        var exported = options
+        exported.showMedia = false
+        return exported
+    }
+
     // MARK: - Persistence
 
     /// Writes the current options back as the last-used configuration. Called on

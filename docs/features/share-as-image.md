@@ -80,10 +80,14 @@ device's theme, accent color, or text-size setting.
   toggles the whole community-and-creator header; the creator/author lockup toggles
   redaction; the media block toggles the image; the body toggles through full → truncated →
   title-only → full; the stats row toggles the score/comment cluster; the footer toggles the
-  "via Spud" mark; a chain card's post-context header toggles on/off the same way. A toggled-off
-  section stays visible but dimmed in the editor (never fully removed) so there's always
-  something to tap to restore it — the export never includes a dimmed section, only what's
-  genuinely enabled.
+  "via Spud" mark; a chain card's post-context header toggles on/off the same way. Sections that
+  would otherwise vanish entirely — the community/creator header, the media block, the body when
+  set to title-only, and a chain card's post-context header — stay visible but dimmed in the
+  editor (never fully removed) so there's always something to tap to restore them. The stats
+  cluster and the "via Spud" mark instead hide outright (the timestamp and permalink beside them
+  always remain), but their tap regions stay active in the same place, so they're still one tap
+  from coming back. The export never includes a dimmed or hidden section — only what's genuinely
+  enabled.
 - **Tray.** Below the preview: Light/Dark appearance, Native/Square/Story canvas, a chain-depth
   stepper (comment cards only, showing "Depth N" with − / + controls clamped to the ancestors
   actually available), and an Alt Text button.
@@ -141,7 +145,9 @@ action's same condition), a warning haptic fires and the editor never opens.
 ### Redact identities
 
 - **Given** the share-as-image editor open on a post or comment card
-- **When** I tap the creator (or, on a chain card, any author lockup)
+- **When** I tap the creator on a post card, or anywhere on the comment chain on a chain card
+  (the whole chain is one combined tap region — redaction is global, so there is no per-author
+  target)
 - **Then** every person on the card is replaced with a striped placeholder and a
   "u/•••••••" handle
 - **And** the community lockup is unaffected — it is never redacted

@@ -93,6 +93,11 @@ final class ShareCardView: UIView {
 
         titleLabel.numberOfLines = 0
 
+        // The card's fixed 26pt padding must stay fixed: without this, UIKit
+        // inflates the layout margins by the safe-area inset whenever the card
+        // sits under a bar (the editor's full-bleed scroll view, or a snapshot
+        // host window), silently growing the top padding by the 54pt status bar.
+        insetsLayoutMarginsFromSafeArea = false
         directionalLayoutMargins = NSDirectionalEdgeInsets(
             top: ShareCardMetrics.padding,
             leading: ShareCardMetrics.padding,

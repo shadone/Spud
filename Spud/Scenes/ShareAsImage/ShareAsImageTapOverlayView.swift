@@ -73,8 +73,10 @@ final class ShareAsImageTapOverlayView: UIView {
             element.accessibilityValue = region.accessibilityValue
             element.accessibilityHint = region.accessibilityHint
             element.accessibilityTraits = .button
-            // Frame is resolved lazily in `accessibilityElements` so it reflects
-            // the overlay's current on-screen (scaled) geometry.
+            // Set the frame eagerly in the overlay's own (unscaled) container
+            // space; `accessibilityFrameInContainerSpace` provides the geometry
+            // tracking, converting it to the overlay's current on-screen (scaled)
+            // frame — so it stays correct as the editor scales the preview.
             element.accessibilityFrameInContainerSpace = region.rect
             return element
         }

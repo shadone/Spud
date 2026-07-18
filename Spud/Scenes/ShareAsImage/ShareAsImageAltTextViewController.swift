@@ -98,8 +98,8 @@ final class ShareAsImageAltTextViewController: UIViewController {
             ),
         ])
 
-        // The auto button is presented in the toolbar area of the nav item so it
-        // sits distinctly from Cancel/Done.
+        // "Auto" is a second right bar button, sitting next to Done (and
+        // distinctly from Cancel on the left).
         navigationItem.rightBarButtonItems = [navigationItem.rightBarButtonItem!, autoButton]
         updateAutoButtonState()
     }

@@ -18,7 +18,7 @@ import Testing
 struct ShareAsImageViewModelTests {
     // MARK: - Fixtures
 
-    private func postContent(body: String? = "A short body.") -> ShareCardContent {
+    private func postContent(body: String? = "A short body.", media: URL? = nil) -> ShareCardContent {
         let summary = ShareCardContent.PostSummary(
             title: "A title",
             bodyPlain: body,
@@ -30,11 +30,15 @@ struct ShareAsImageViewModelTests {
             commentCount: 612,
             published: Date(timeIntervalSince1970: 1_752_336_180),
             permalink: URL(string: "https://lemmy.ml/post/1284920")!,
-            mediaUrl: nil,
+            mediaUrl: media,
             mediaAspectIsWide: false,
             isNsfw: false
         )
         return ShareCardContent(post: summary, chain: [], kind: .post)
+    }
+
+    private var mediaURL: URL {
+        URL(string: "https://lemmy.ml/pictrs/image/abcdef.png")!
     }
 
     /// A comment chain with `ancestorCount` ancestors above the shared comment.
@@ -259,6 +263,39 @@ struct ShareAsImageViewModelTests {
 
         // Once ended, a fresh export can begin again.
         #expect(viewModel.beginExport() == true)
+    }
+
+    // MARK: - Export options (media fallback)
+
+    /// Guards the offline-first export path (``ShareAsImageViewController+Output``):
+    /// when the card would show media but the image never resolved, the export
+    /// must drop the media section so the fresh export card never bakes the
+    /// "Loading media…" placeholder + shimmer band into the PNG.
+    @Test
+    func exportOptions_dropsMediaWhenUnresolved() {
+        let viewModel = makeViewModel(content: postContent(media: mediaURL))
+        #expect(viewModel.options.showMedia == true)
+
+        let exported = viewModel.exportOptions(resolvedMedia: false)
+        #expect(exported.showMedia == false)
+        // The user's live options are untouched — only the returned copy changes.
+        #expect(viewModel.options.showMedia == true)
+    }
+
+    @Test
+    func exportOptions_keepsMediaWhenResolved() {
+        let viewModel = makeViewModel(content: postContent(media: mediaURL))
+        let exported = viewModel.exportOptions(resolvedMedia: true)
+        #expect(exported.showMedia == true)
+        #expect(exported == viewModel.options)
+    }
+
+    @Test
+    func exportOptions_unchangedWhenNoMediaUrl() {
+        // No media URL: an unresolved fetch is irrelevant, so options pass through.
+        let viewModel = makeViewModel(content: postContent(media: nil))
+        let exported = viewModel.exportOptions(resolvedMedia: false)
+        #expect(exported == viewModel.options)
     }
 
     // MARK: - Persistence (each output action calls persist())

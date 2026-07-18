@@ -148,12 +148,16 @@ extension ShareCardContent {
 
     /// Builds comment-chain content: `ancestors` (root-most first, e.g. from
     /// ``ShareCardAncestry/ancestors(of:in:)``) followed by `comment` itself,
-    /// marked the chain's destination. `header` is the optional post-header
-    /// context (`nil` omits it — see ``includePostInChain``, applied by the
-    /// caller before this builder runs, not stored on the content). Both
-    /// `comment` and `header` come from `PostDetailViewModel` state already
-    /// in memory; `permalink` is precomputed by the entry point
-    /// (`LinkURL.forComment`).
+    /// marked the chain's destination. `header` is the post-header context: the
+    /// entry point passes it whenever it has one (it always does today), so the
+    /// chain card ALWAYS carries the post summary in its content — whether that
+    /// header actually RENDERS is gated by the card VIEW on
+    /// `options.includePostInChain`, not by omitting it here. The content must
+    /// keep the header regardless so the editor's dimmed ghost can restore it
+    /// after a toggle-off. A `nil` `header` means the entry point had no post
+    /// context to attach at all. Both `comment` and `header` come from
+    /// `PostDetailViewModel` state already in memory; `permalink` is precomputed
+    /// by the entry point (`LinkURL.forComment`).
     init(
         comment: PostDetailCommentRow,
         ancestors: [PostDetailCommentRow],

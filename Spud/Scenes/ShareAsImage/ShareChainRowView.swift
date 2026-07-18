@@ -69,7 +69,6 @@ final class ShareChainRowView: UIView {
         headerRow.alignment = .center
 
         sharedTag.font = ShareCardFonts.chainSharedTag
-        sharedTag.textColor = ShareCardPalette.teal
 
         bodyLabel.numberOfLines = 0
 

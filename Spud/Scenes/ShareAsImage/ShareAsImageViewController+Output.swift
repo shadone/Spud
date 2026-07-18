@@ -164,8 +164,12 @@ extension ShareAsImageViewController {
     }
 
     /// Fetches the media image if the card shows media and it isn't cached yet,
-    /// so the export renders with the image rather than a shimmer. Failures fall
-    /// through — the card just renders without media.
+    /// so the export renders with the image rather than a shimmer. On failure
+    /// ``loadedMediaImage`` stays `nil` and ``renderCurrentImage()`` renders the
+    /// card genuinely WITHOUT media — ``ShareAsImageViewModel/exportOptions(resolvedMedia:)``
+    /// drops the media section for the export — so the "Loading media…"
+    /// placeholder is never baked into the PNG. Spud is offline-first, so a
+    /// failed/absent fetch here is a real path.
     private func ensureMediaResolved() async {
         guard content.kind == .post,
               viewModel.options.showMedia,
@@ -176,18 +180,22 @@ extension ShareAsImageViewController {
     }
 
     /// Builds a fresh card from the current content/options — never the live
-    /// preview — and renders it per the selected canvas.
+    /// preview — and renders it per the selected canvas. When the media never
+    /// resolved, the export options drop the media section (see
+    /// ``ShareAsImageViewModel/exportOptions(resolvedMedia:)``) so a failed fetch
+    /// never bakes the loading placeholder into the PNG.
     private func renderCurrentImage() -> UIImage {
+        let options = viewModel.exportOptions(resolvedMedia: loadedMediaImage != nil)
         let card: UIView
         switch content.kind {
         case .post:
-            let postCard = ShareCardView(content: content, options: viewModel.options)
+            let postCard = ShareCardView(content: content, options: options)
             postCard.setMediaImage(loadedMediaImage)
             card = postCard
         case .comment:
-            card = ShareChainCardView(content: content, options: viewModel.options)
+            card = ShareChainCardView(content: content, options: options)
         }
-        return ShareCardImageRenderer.render(cardView: card, options: viewModel.options)
+        return ShareCardImageRenderer.render(cardView: card, options: options)
     }
 
     private func presentFailure() {

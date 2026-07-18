@@ -87,6 +87,17 @@ final class ShareCardViewSnapshotTests: XCTestCase {
         )
     }
 
+    func test_mediaLoading_light() {
+        // A media URL but NO injected image: the media block renders its
+        // deterministic loading state (flat chip fill + "Loading media…"). The
+        // moving shimmer highlight is parked off the left edge in its model
+        // state, so an off-screen render captures a stable first frame.
+        assert(
+            content: postContent(mediaUrl: mediaURL),
+            options: options(.light)
+        )
+    }
+
     func test_nsfwSpoilered_light() {
         assert(
             content: postContent(mediaUrl: mediaURL, isNsfw: true),
