@@ -65,6 +65,20 @@ struct FunStatsSummaryTests {
     }
 
     @Test
+    func mostActiveHour_ignoresScrollDistance() async throws {
+        // scrollDistancePoints values (thousands per active minute) dwarf
+        // event counts just like foregroundSeconds; they must not skew the
+        // "most active hour" histogram either.
+        let db = try AppDatabase.inMemory()
+        try await db.incrementFunStats([
+            FunStatDelta(day: "2026-07-18", hour: 3, key: "scrollDistancePoints", value: 90000),
+            FunStatDelta(day: "2026-07-18", hour: 21, key: "tapCount", value: 1),
+        ])
+        let summary = try db.funStatsSummarySync(calendar: Self.utc, now: { Self.now })
+        #expect(summary.mostActiveHour == 21)
+    }
+
+    @Test
     func mostActiveHour_tieBrokenByEarliestHour() async throws {
         let db = try AppDatabase.inMemory()
         try await db.incrementFunStats([

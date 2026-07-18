@@ -171,6 +171,10 @@ final class FunStatsViewModel {
         guard let date = parser.date(from: firstDay) else { return nil }
         let formatter = DateFormatter()
         formatter.locale = locale
+        // Format in the same zone the day string was parsed in — otherwise a
+        // UTC-injected `calendar` (tests/snapshots) can shift the displayed
+        // date by a day relative to the machine's local time zone.
+        formatter.timeZone = calendar.timeZone
         formatter.dateStyle = .long
         formatter.timeStyle = .none
         return "Counting since \(formatter.string(from: date))"
@@ -191,6 +195,10 @@ final class FunStatsViewModel {
         guard let hour else { return "-" }
         let formatter = DateFormatter()
         formatter.locale = locale
+        // Format in the same zone the hour was built in (below) — otherwise a
+        // UTC-injected `calendar` (tests/snapshots) can shift the displayed
+        // hour relative to the machine's local time zone.
+        formatter.timeZone = calendar.timeZone
         formatter.setLocalizedDateFormatFromTemplate("j")
         var components = DateComponents()
         components.hour = hour

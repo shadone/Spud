@@ -1,3 +1,9 @@
+//
+// Copyright (c) 2026, Denis Dzyubenko <denis@ddenis.info>
+//
+// SPDX-License-Identifier: BSD-2-Clause
+//
+
 import Foundation
 import GRDB
 
@@ -23,15 +29,15 @@ public extension AppDatabase {
         let firstDay = try String.fetchOne(db, sql: "SELECT min(day) FROM funStat")
         let activeDays = try String.fetchAll(db, sql: "SELECT DISTINCT day FROM funStat ORDER BY day")
 
-        // Duration-type counters would dwarf event counts, so the rhythm
-        // histogram sums event-shaped keys only.
+        // Magnitude-type counters — durations and distances — are excluded so
+        // they don't drown event counts in the rhythm histogram.
         let mostActiveHour = try Int.fetchOne(
             db,
             sql: """
-                SELECT hour FROM funStat WHERE key <> ?
+                SELECT hour FROM funStat WHERE key NOT IN (?, ?)
                 GROUP BY hour ORDER BY sum(value) DESC, hour ASC LIMIT 1
                 """,
-            arguments: [FunStatKey.foregroundSeconds.rawValue]
+            arguments: [FunStatKey.foregroundSeconds.rawValue, FunStatKey.scrollDistancePoints.rawValue]
         )
 
         let todayBucket = FunStatBucket.make(date: today, calendar: calendar)
