@@ -18,8 +18,12 @@ enum PipedInstanceResolver {
         case .frontEnd(.piped):
             // Already on a cataloged Piped instance.
             return YouTubeFrontEndCatalog.instance(forHost: ref.sourceHost)?.apiHost
-        case .youtube:
-            // Canonical youtube.com/youtu.be: use the user's YouTube front-end iff it is Piped.
+        case .youtube, .frontEnd(.invidious), .frontEndShape:
+            // Canonical youtube.com/youtu.be, Invidious front-ends, and the bare
+            // /watch?v= shape (best-effort Invidious): use the user's YouTube
+            // front-end iff it is Piped. Never resolve via the Invidious instance
+            // itself, and never reroute through Piped when the user hasn't chosen
+            // Piped — nil means playback opens the original page in the browser.
             guard config.redirectToFrontEnds else { return nil }
             let setting = config.setting(for: .youtube)
             guard setting.isEnabled,
@@ -29,8 +33,6 @@ enum PipedInstanceResolver {
                 return nil
             }
             return instance.apiHost
-        case .frontEnd(.invidious), .frontEndShape:
-            return nil
         }
     }
 }

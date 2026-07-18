@@ -7,13 +7,17 @@
 import Foundation
 import SpudUtilKit
 
-/// Recognizes YouTube / Piped video URLs and resolves them to a Piped-PROXIED
+/// Recognizes YouTube-family video URLs and resolves them to a Piped-PROXIED
 /// stream (never a direct googlevideo URL), honoring the user's front-end choice.
 ///
-/// Recognition is preference-free (so every YouTube post classifies as video); the
-/// preference gates resolution — a raw youtube.com link resolves only when the
-/// user's YouTube front-end is a Piped instance (see ``PipedInstanceResolver``),
-/// otherwise resolution throws and playback falls back to the browser.
+/// Recognition is preference-free and covers the whole YouTube family — canonical
+/// youtube.com/youtu.be, Piped and Invidious front-ends, and the bare
+/// `/watch?v=<id>` shape on unknown hosts (best-effort Invidious) — so every
+/// YouTube-family post classifies as video. The preference gates resolution:
+/// a link plays inline only when the user's YouTube front-end is a Piped instance
+/// (see ``PipedInstanceResolver``); otherwise resolution throws and playback
+/// falls back to opening the original page URL in the browser (this is how
+/// Invidious links behave unless the user has chosen Piped).
 ///
 /// `VideoHost` is qualified as `SpudDataKit.VideoHost` because `import SpudUtilKit`
 /// also brings a same-named enum into scope.
@@ -39,12 +43,7 @@ public struct PipedVideoHost: SpudDataKit.VideoHost {
 
     public func recognize(_ url: URL) -> VideoHostMatch? {
         guard let ref = YouTubeReference.extract(from: url) else { return nil }
-        switch ref.sourceKind {
-        case .youtube, .frontEnd(.piped):
-            return VideoHostMatch(kind: .piped, identifier: ref.videoId, pageUrl: url)
-        case .frontEnd(.invidious), .frontEndShape:
-            return nil
-        }
+        return VideoHostMatch(kind: .piped, identifier: ref.videoId, pageUrl: url)
     }
 
     public func resolve(_ match: VideoHostMatch) async throws -> ResolvedVideo {

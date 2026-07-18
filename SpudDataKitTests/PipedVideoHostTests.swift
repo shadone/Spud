@@ -77,6 +77,35 @@ struct PipedInstanceResolverTests {
     }
 
     @Test
+    func invidiousUrlUsesUsersPipedFrontEnd() {
+        // An Invidious link resolves through the user's chosen Piped front-end,
+        // never via the Invidious instance itself.
+        #expect(apiHost("https://inv.nadeko.net/watch?v=0FZ9fW_52Mk", pipedFrontEnd) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func watchShapeUrlUsesUsersPipedFrontEnd() {
+        // Same for an uncataloged host matched by the /watch?v= shape.
+        #expect(apiHost("https://invidious.example.org/watch?v=dQw4w9WgXcQ", pipedFrontEnd) == "pipedapi.kavin.rocks")
+    }
+
+    @Test
+    func invidiousUrlIsNilWhenRedirectDisabled() {
+        // Default: redirectToFrontEnds off -> browser fallback for Invidious links.
+        #expect(apiHost("https://inv.nadeko.net/watch?v=0FZ9fW_52Mk", .default) == nil)
+    }
+
+    @Test
+    func invidiousUrlIsNilWhenFrontEndIsInvidious() {
+        var c = URLSanitizerConfig.default
+        c.redirectToFrontEnds = true
+        c.frontEnds = c.frontEnds.map {
+            $0.service == .youtube ? FrontEndConfig(service: .youtube, isEnabled: true, host: "yewtu.be") : $0
+        }
+        #expect(apiHost("https://yewtu.be/watch?v=dQw4w9WgXcQ", c) == nil)
+    }
+
+    @Test
     func nonYoutubeUrlIsNil() {
         #expect(apiHost("https://example.com/article", .default) == nil)
     }
@@ -102,9 +131,28 @@ struct PipedVideoHostRecognitionTests {
     }
 
     @Test
-    func doesNotClaimInvidiousOrNonVideo() {
-        #expect(match("https://yewtu.be/watch?v=dQw4w9WgXcQ") == nil)
+    func recognizesCatalogedInvidious() {
+        // Recognition covers the whole YouTube family, so an Invidious post
+        // badges as video; whether it plays inline is resolution's concern.
+        #expect(match("https://yewtu.be/watch?v=dQw4w9WgXcQ")?.identifier == "dQw4w9WgXcQ")
+        #expect(match("https://yewtu.be/watch?v=dQw4w9WgXcQ")?.kind == .piped)
+        // Real-world case: sopuli.xyz/post/48757711 links inv.nadeko.net.
+        #expect(match("https://inv.nadeko.net/watch?v=0FZ9fW_52Mk")?.identifier == "0FZ9fW_52Mk")
+        #expect(match("https://inv.nadeko.net/watch?v=0FZ9fW_52Mk")?.kind == .piped)
+    }
+
+    @Test
+    func recognizesWatchShapeOnUnknownHost() {
+        // An uncataloged host matched only by the /watch?v=<id> shape
+        // (best-effort Invidious) is recognized too.
+        #expect(match("https://invidious.example.org/watch?v=dQw4w9WgXcQ")?.identifier == "dQw4w9WgXcQ")
+    }
+
+    @Test
+    func doesNotClaimNonVideo() {
         #expect(match("https://example.com/article") == nil)
+        // The 11-char YouTube id gate still rejects a /watch?v= with a bad id.
+        #expect(match("https://example.com/watch?v=tooShort") == nil)
     }
 }
 

@@ -210,6 +210,21 @@ struct PostContentDetectorTests {
     }
 
     @Test
+    func invidiousUrl_isDetectedAsVideo() {
+        // Real-world case: sopuli.xyz/post/48757711 links inv.nadeko.net. An
+        // Invidious front-end link badges as video just like a youtube.com link
+        // to the same video; inline playback is gated separately by the user's
+        // Piped front-end preference.
+        let url = "https://inv.nadeko.net/watch?v=0FZ9fW_52Mk"
+        let type = contentType(url: url)
+        guard case let .video(video) = type else {
+            Issue.record("Invidious URL should be a video, got \(type)")
+            return
+        }
+        #expect(video.videoUrl.absoluteString == url)
+    }
+
+    @Test
     func unrecognizedLink_staysExternalLink() {
         let type = contentType(url: "https://example.com/some/article")
         guard case .externalLink = type else {
