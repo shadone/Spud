@@ -986,6 +986,22 @@ extension AppDatabase {
             }
         }
 
+        migrator.registerMigration("v39_funStat") { db in
+            // Device-wide "fun stats" odometer counters (scroll distance, taps,
+            // posts read, sessions, ...). One row per (local day, local hour,
+            // counter key), accumulated by upsert. Deliberately account-free
+            // and never pruned: lifetime totals are SUM(value), streaks come
+            // from DISTINCT day, most-active-hour from GROUP BY hour. Growth
+            // is bounded by keys x active hours (a few dozen rows per day).
+            try db.create(table: "funStat") { t in
+                t.column("day", .text).notNull()
+                t.column("hour", .integer).notNull()
+                t.column("key", .text).notNull()
+                t.column("value", .double).notNull()
+                t.primaryKey(["day", "hour", "key"])
+            }
+        }
+
         return migrator
     }
 }
