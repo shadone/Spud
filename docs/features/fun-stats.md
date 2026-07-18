@@ -29,8 +29,9 @@ never leaves the device.
   first thing in the morning doesn't read as a broken streak); the longest streak is the
   best run anywhere in the device's history. The screen's "Longest streak" tile shows the
   longest streak.
-- Most-active-hour is computed only from event-shaped counters (excluding time-in-app),
-  so long foreground sessions don't drown out which hour actually has the most activity.
+- Most-active-hour is computed only from event-shaped counters (excluding both time-in-app
+  and scroll distance), so long foreground sessions and large scroll totals don't drown out
+  which hour actually has the most activity.
 - Scroll distance converts points to a real-world distance using a fixed, deliberately
   fun-not-science constant of 1 point = 1/163 inch, displayed as "42 m" below 1 km and
   "12.3 km" at or above it. The landmark comparison line picks the single largest landmark
@@ -50,7 +51,8 @@ never leaves the device.
 - Votes (post and comment), comments posted, and posts posted are each counted once per
   user action, at the moment the action is dispatched (including while offline, where the
   action is queued for later delivery) — a later network retry of the same queued action
-  never double-counts it. Editing an existing post does not count as a new post.
+  never double-counts it. Editing an existing post does not count as a new post, and
+  editing an existing comment does not count toward "Comments written."
 - A network search counts once per search dispatched to the server; the client-side
   instance-directory filter (which never contacts the network) does not count as a search.
 - Collection can be turned off from Preferences > Privacy ("Collect Fun Stats", on by
@@ -66,6 +68,8 @@ never leaves the device.
   surfacing an error or otherwise affecting the app.
 - There is no backfill: every counter starts at zero the moment this feature first ships
   on a device, regardless of how long the app was used before.
+- Fun-stat data is retained indefinitely and never pruned, unlike the diagnostic log
+  (which is bounded to ≤10k rows / ≤14 days) — only "Reset Stats" clears it.
 
 ## Scenarios
 
