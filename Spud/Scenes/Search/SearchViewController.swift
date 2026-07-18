@@ -1072,6 +1072,7 @@ extension SearchViewController: CommentContextMenuHost {
             return
         }
         UINotificationFeedbackGenerator().notificationOccurred(.success)
+        FunStats.record(.votesCast)
         do {
             try await viewModel.accountScope.lemmyService
                 .vote(serverCommentId: result.serverCommentId, vote: direction)
