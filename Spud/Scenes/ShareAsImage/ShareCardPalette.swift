@@ -73,3 +73,18 @@ struct ShareCardPalette {
     /// color the user picked for the app chrome.
     static let teal: UIColor = AccentColor.lemmy.color
 }
+
+extension ShareCardOptions.Appearance {
+    /// The fixed card palette this appearance renders with. Exhaustive over the
+    /// two card surfaces — the card never follows the device's live appearance,
+    /// so the resolution is a total mapping, not a "dark else light" fallback.
+    /// The single place `ShareCardOptions.Appearance` becomes a
+    /// ``ShareCardPalette``: `ShareCardView`, `ShareChainCardView`, and
+    /// `ShareCardImageRenderer` all route through here.
+    var palette: ShareCardPalette {
+        switch self {
+        case .light: .light
+        case .dark: .dark
+        }
+    }
+}

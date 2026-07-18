@@ -30,23 +30,30 @@ extension ShareAsImageViewController {
     func shareTapped() {
         guard viewModel.beginExport() else { return }
         setOutputBarBusy(true, activeButton: shareButton)
+        // Snapshot the options AND the alt text at the moment of the tap, before
+        // the media await: the tray + preview toggles stay live during the await,
+        // so rendering from the snapshot guarantees the exported card matches what
+        // the user saw when they tapped — and the embedded alt-text metadata must
+        // describe that same snapshot, not whatever the options say post-await.
+        let options = viewModel.options
+        let altText = viewModel.currentAltText
         Task { [weak self] in
             guard let self else { return }
             defer {
                 viewModel.endExport()
                 setOutputBarBusy(false, activeButton: shareButton)
             }
-            await ensureMediaResolved()
-            let image = renderCurrentImage()
+            await ensureMediaResolved(options: options)
+            let image = renderCurrentImage(options: options)
             viewModel.persist()
             guard let permalink else {
                 presentFailure()
                 return
             }
             do {
-                let pngURL = try ShareCardImageRenderer.writePNG(
+                let pngURL = try await ShareCardImageRenderer.writePNG(
                     image,
-                    altText: viewModel.currentAltText,
+                    altText: altText,
                     suggestedName: suggestedFileName
                 )
                 let items = ShareCardImageRenderer.shareItems(
@@ -74,10 +81,11 @@ extension ShareAsImageViewController {
     func saveTapped() {
         guard viewModel.beginExport() else { return }
         setOutputBarBusy(true, activeButton: saveButton)
+        let options = viewModel.options
         Task { [weak self] in
             guard let self else { return }
-            await ensureMediaResolved()
-            let image = renderCurrentImage()
+            await ensureMediaResolved(options: options)
+            let image = renderCurrentImage(options: options)
             viewModel.persist()
             UIImageWriteToSavedPhotosAlbum(
                 image,
@@ -108,14 +116,15 @@ extension ShareAsImageViewController {
     func copyTapped() {
         guard viewModel.beginExport() else { return }
         setOutputBarBusy(true, activeButton: copyButton)
+        let options = viewModel.options
         Task { [weak self] in
             guard let self else { return }
             defer {
                 viewModel.endExport()
                 setOutputBarBusy(false, activeButton: copyButton)
             }
-            await ensureMediaResolved()
-            let image = renderCurrentImage()
+            await ensureMediaResolved(options: options)
+            let image = renderCurrentImage(options: options)
             viewModel.persist()
 
             var item: [String: Any] = [:]
@@ -133,16 +142,19 @@ extension ShareAsImageViewController {
 
     // MARK: - Output bar busy state
 
-    /// Disables the whole output bar and swaps `activeButton`'s content for a
-    /// spinner (`UIButton.Configuration.showsActivityIndicator`) while an
-    /// export is in flight — mirrors
-    /// `InstanceDetailViewController.setBrowseButtonBusy`. Purely the visual
-    /// half of the guard; ``ShareAsImageViewModel/beginExport()`` is what
-    /// actually blocks a second tap from starting a second render.
+    /// Disables the whole output bar (and the nav-bar Done button) and swaps
+    /// `activeButton`'s content for a spinner
+    /// (`UIButton.Configuration.showsActivityIndicator`) while an export is in
+    /// flight — mirrors `InstanceDetailViewController.setBrowseButtonBusy`.
+    /// Purely the visual half of the guard; ``ShareAsImageViewModel/beginExport()``
+    /// is what actually blocks a second tap from starting a second render.
+    /// Done is disabled too so the editor can't be dismissed mid-export, which
+    /// would orphan the pending share sheet / Photos write.
     private func setOutputBarBusy(_ busy: Bool, activeButton: UIButton) {
         for button in [shareButton, saveButton, copyButton] {
             button.isEnabled = !busy
         }
+        doneButton.isEnabled = !busy
         guard var config = activeButton.configuration else { return }
         config.showsActivityIndicator = busy
         activeButton.configuration = config
@@ -165,35 +177,38 @@ extension ShareAsImageViewController {
 
     /// Fetches the media image if the card shows media and it isn't cached yet,
     /// so the export renders with the image rather than a shimmer. On failure
-    /// ``loadedMediaImage`` stays `nil` and ``renderCurrentImage()`` renders the
-    /// card genuinely WITHOUT media — ``ShareAsImageViewModel/exportOptions(resolvedMedia:)``
-    /// drops the media section for the export — so the "Loading media…"
-    /// placeholder is never baked into the PNG. Spud is offline-first, so a
-    /// failed/absent fetch here is a real path.
-    private func ensureMediaResolved() async {
+    /// ``loadedMediaImage`` stays `nil` and ``renderCurrentImage(options:)``
+    /// renders the card genuinely WITHOUT media —
+    /// ``ShareAsImageViewModel/exportOptions(_:resolvedMedia:)`` drops the media
+    /// section for the export — so the "Loading media…" placeholder is never
+    /// baked into the PNG. Spud is offline-first, so a failed/absent fetch here
+    /// is a real path. Takes the tap-time options snapshot rather than reading
+    /// the live options, so a toggle during the await can't change the decision.
+    private func ensureMediaResolved(options: ShareCardOptions) async {
         guard content.kind == .post,
-              viewModel.options.showMedia,
+              options.showMedia,
               let url = content.post?.mediaUrl,
               loadedMediaImage == nil
         else { return }
         loadedMediaImage = await loadImage(url)
     }
 
-    /// Builds a fresh card from the current content/options — never the live
-    /// preview — and renders it per the selected canvas. When the media never
-    /// resolved, the export options drop the media section (see
-    /// ``ShareAsImageViewModel/exportOptions(resolvedMedia:)``) so a failed fetch
-    /// never bakes the loading placeholder into the PNG.
-    private func renderCurrentImage() -> UIImage {
-        let options = viewModel.exportOptions(resolvedMedia: loadedMediaImage != nil)
+    /// Builds a fresh card from the content and the tap-time `options` snapshot —
+    /// never the live preview — through the same `locale`/`timeZone` timestamp
+    /// seam the preview uses, and renders it per the selected canvas. When the
+    /// media never resolved, the export options drop the media section (see
+    /// ``ShareAsImageViewModel/exportOptions(_:resolvedMedia:)``) so a failed
+    /// fetch never bakes the loading placeholder into the PNG.
+    private func renderCurrentImage(options optionsSnapshot: ShareCardOptions) -> UIImage {
+        let options = viewModel.exportOptions(optionsSnapshot, resolvedMedia: loadedMediaImage != nil)
         let card: UIView
         switch content.kind {
         case .post:
-            let postCard = ShareCardView(content: content, options: options)
+            let postCard = ShareCardView(content: content, options: options, locale: locale, timeZone: timeZone)
             postCard.setMediaImage(loadedMediaImage)
             card = postCard
         case .comment:
-            card = ShareChainCardView(content: content, options: options)
+            card = ShareChainCardView(content: content, options: options, locale: locale, timeZone: timeZone)
         }
         return ShareCardImageRenderer.render(cardView: card, options: options)
     }

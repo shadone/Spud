@@ -38,6 +38,13 @@ enum ShareCardImageRenderer {
     /// backdrop canvases.
     static let minBackdropPadding: CGFloat = 30
 
+    /// How old a leftover export subdirectory must be before ``sweepStaleExports(now:)``
+    /// deletes it (24 hours). Each export writes into a fresh UUID subdirectory
+    /// and otherwise relies on the OS to GC the temp dir; the sweep bounds the
+    /// leftover footprint proactively without racing an in-flight share.
+    /// `nonisolated` so the nonisolated ``sweepStaleExports(now:)`` can read it.
+    nonisolated static let staleExportAge: TimeInterval = 24 * 60 * 60
+
     /// Errors from ``writePNG(_:altText:suggestedName:)``.
     enum RenderError: Error {
         /// The `UIImage` had no backing `CGImage` to encode.
@@ -105,7 +112,7 @@ enum ShareCardImageRenderer {
         canvasSize: CGSize,
         options: ShareCardOptions
     ) -> UIImage {
-        let palette: ShareCardPalette = options.appearance == .dark ? .dark : .light
+        let palette = options.appearance.palette
         let cardRect = cardDrawRect(cardSize: cardImage.size, canvasSize: canvasSize)
 
         return image(size: canvasSize, opaque: true) { context in
@@ -156,20 +163,47 @@ enum ShareCardImageRenderer {
     ///
     /// The filename derives from `suggestedName` (sanitized, `.png` extension),
     /// falling back to `"spud-share"` when nothing usable remains.
-    static func writePNG(_ image: UIImage, altText: String, suggestedName: String) throws -> URL {
+    ///
+    /// `async` because the ImageIO encode + disk write (~2 MP) runs off the main
+    /// actor via the `nonisolated` ``encodePNG(cgImage:altText:to:)`` helper: the
+    /// only main-actor work here is extracting the backing `CGImage` from the
+    /// `UIImage` and creating the destination directory. `CGImage` is `Sendable`
+    /// (the SDK's own conformance, not one of ours), so it crosses into the
+    /// off-actor encode with no `@unchecked` wrapper of our own. Callers already
+    /// run inside a `Task`, so the hop is free.
+    static func writePNG(_ image: UIImage, altText: String, suggestedName: String) async throws -> URL {
+        // Best-effort: reclaim leftover export dirs before writing this one.
+        sweepStaleExports()
+
         guard let cgImage = image.cgImage else {
             throw RenderError.missingCGImage
         }
+        let fileURL = try makeExportFileURL(suggestedName: suggestedName)
+        try await encodePNG(cgImage: cgImage, altText: altText, to: fileURL)
+        return fileURL
+    }
 
-        let directory = FileManager.default.temporaryDirectory
-            .appendingPathComponent("share-as-image", isDirectory: true)
+    /// Creates a fresh unique subdirectory under the shared export root and
+    /// returns the sanitized `.png` file URL inside it.
+    private static func makeExportFileURL(suggestedName: String) throws -> URL {
+        let directory = shareRootDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
-
-        let fileURL = directory
+        return directory
             .appendingPathComponent(sanitizedFileName(suggestedName))
             .appendingPathExtension("png")
+    }
 
+    /// Encodes `cgImage` to `fileURL` as a PNG with `altText` embedded as
+    /// metadata. `nonisolated async` so it runs off the caller's (main) actor —
+    /// the blocking ImageIO encode + disk write does not belong on the main
+    /// thread. `CGImage` is `Sendable` (SDK conformance), so it crosses the
+    /// isolation boundary here without any wrapper of ours.
+    private nonisolated static func encodePNG(
+        cgImage: CGImage,
+        altText: String,
+        to fileURL: URL
+    ) async throws {
         guard let destination = CGImageDestinationCreateWithURL(
             fileURL as CFURL,
             UTType.png.identifier as CFString,
@@ -188,7 +222,37 @@ enum ShareCardImageRenderer {
         guard CGImageDestinationFinalize(destination) else {
             throw RenderError.encodingFailed
         }
-        return fileURL
+    }
+
+    // MARK: - Temp-dir sweep
+
+    /// The root directory every export subdirectory nests under.
+    nonisolated static var shareRootDirectory: URL {
+        FileManager.default.temporaryDirectory
+            .appendingPathComponent("share-as-image", isDirectory: true)
+    }
+
+    /// Best-effort deletion of leftover export subdirectories older than
+    /// ``staleExportAge``. Never throws — a sweep failure must not block an
+    /// export. `now` is injectable for tests. `nonisolated` (pure file I/O), so
+    /// it can run off any actor; ``writePNG(_:altText:suggestedName:)`` calls it
+    /// before creating the new subdir, so the just-created directory is never a
+    /// sweep candidate.
+    nonisolated static func sweepStaleExports(now: Date = Date()) {
+        let fileManager = FileManager.default
+        guard let entries = try? fileManager.contentsOfDirectory(
+            at: shareRootDirectory,
+            includingPropertiesForKeys: [.contentModificationDateKey, .isDirectoryKey],
+            options: [.skipsHiddenFiles]
+        ) else { return }
+
+        for entry in entries {
+            let values = try? entry.resourceValues(forKeys: [.contentModificationDateKey, .isDirectoryKey])
+            guard values?.isDirectory == true, let modified = values?.contentModificationDate else { continue }
+            if now.timeIntervalSince(modified) > staleExportAge {
+                try? fileManager.removeItem(at: entry)
+            }
+        }
     }
 
     /// Turns an arbitrary suggested name into a safe filename stem: path

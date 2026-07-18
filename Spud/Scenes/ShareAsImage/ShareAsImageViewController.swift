@@ -33,7 +33,10 @@ final class ShareAsImageViewController: UIViewController {
     private let scrollView = UIScrollView()
     private let canvasView = ShareAsImageCanvasView()
     private let previewContainer = UIView()
-    private let tapOverlay = ShareAsImageTapOverlayView()
+    // Internal (not private): the tap-region construction lives in
+    // `ShareAsImageViewController+TapRegions.swift`, a separate file that maps
+    // these onto the overlay's tap targets.
+    let tapOverlay = ShareAsImageTapOverlayView()
     private let nsfwRevealPill = UIButton(type: .system)
     private let trayView = ShareAsImageTrayView()
 
@@ -45,8 +48,15 @@ final class ShareAsImageViewController: UIViewController {
     let saveButton = UIButton(type: .system)
     let copyButton = UIButton(type: .system)
 
-    private var postCard: ShareCardView?
-    private var chainCard: ShareChainCardView?
+    /// The nav-bar Done button. Internal (not private) so the output actions in
+    /// `ShareAsImageViewController+Output.swift` can disable it while an export
+    /// is in flight — dismissing the editor mid-export can orphan the share sheet.
+    let doneButton = UIBarButtonItem(barButtonSystemItem: .done, target: nil, action: nil)
+
+    // Internal (not private): read by the tap-region construction in
+    // `ShareAsImageViewController+TapRegions.swift`.
+    var postCard: ShareCardView?
+    var chainCard: ShareChainCardView?
     private var previewCardView: UIView {
         postCard ?? chainCard!
     }
@@ -54,8 +64,11 @@ final class ShareAsImageViewController: UIViewController {
     /// The card timestamp's determinism seam, matching ``ShareCardView``:
     /// production passes `.current`; snapshot tests pin `en_US_POSIX`/`GMT` so a
     /// recorded editor reference never depends on the running machine's locale.
-    private let locale: Locale
-    private let timeZone: TimeZone
+    /// Internal (not private) so the export path in
+    /// `ShareAsImageViewController+Output.swift` renders its fresh cards through
+    /// the same seam as the preview.
+    let locale: Locale
+    let timeZone: TimeZone
 
     private let horizontalMargin: CGFloat = 20
     private let verticalMargin: CGFloat = 24
@@ -110,11 +123,9 @@ final class ShareAsImageViewController: UIViewController {
         super.viewDidLoad()
         view.backgroundColor = .systemBackground
         title = "Share as Image"
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
-            barButtonSystemItem: .done,
-            target: self,
-            action: #selector(doneTapped)
-        )
+        doneButton.target = self
+        doneButton.action = #selector(doneTapped)
+        navigationItem.rightBarButtonItem = doneButton
 
         makePreviewCard()
         setUpHierarchy()
@@ -315,7 +326,10 @@ final class ShareAsImageViewController: UIViewController {
     /// Re-applies the current options to the preview (with editor ghosting), then
     /// re-derives the tap regions, NSFW pill, alt-text label, and tray state.
     /// `animated` cross-dissolves the card so a toggle reads as a state change.
-    private func refreshPreview(animated: Bool) {
+    ///
+    /// Internal (not private): the direct-manipulation `toggle(_:)` helper in
+    /// `ShareAsImageViewController+TapRegions.swift` calls back into it.
+    func refreshPreview(animated: Bool) {
         let apply = { [self] in
             postCard?.applyForEditor(options: viewModel.options)
             chainCard?.applyForEditor(options: viewModel.options)
@@ -332,7 +346,7 @@ final class ShareAsImageViewController: UIViewController {
         }
         trayView.configure(
             options: viewModel.options,
-            isComment: viewModel.isComment,
+            showsDepthStepper: viewModel.showsDepthStepper,
             maxChainDepth: viewModel.maxChainDepth
         )
         layoutPreview()
@@ -370,127 +384,6 @@ final class ShareAsImageViewController: UIViewController {
 
         updateTapRegions()
         updateNsfwPill()
-    }
-
-    // MARK: - Tap regions
-
-    private func updateTapRegions() {
-        if let postCard {
-            tapOverlay.setRegions(postRegions(postCard))
-        } else if let chainCard {
-            tapOverlay.setRegions(chainRegions(chainCard))
-        }
-    }
-
-    private func rect(of subview: UIView) -> CGRect {
-        tapOverlay.convert(subview.bounds, from: subview)
-    }
-
-    private func postRegions(_ card: ShareCardView) -> [ShareAsImageTapRegion] {
-        var regions: [ShareAsImageTapRegion] = []
-        let post = content.post
-
-        // Community lockup (the header area left of the creator) toggles the
-        // whole community+creator header; the creator lockup (added AFTER, so it
-        // wins where they overlap) toggles redaction.
-        let headerRect = rect(of: card.headerView)
-        let creatorRect = rect(of: card.headerView.creatorView)
-        let communityWidth = max(creatorRect.minX - headerRect.minX, headerRect.width * 0.5)
-        regions.append(ShareAsImageTapRegion(
-            rect: CGRect(x: headerRect.minX, y: headerRect.minY, width: communityWidth, height: headerRect.height),
-            accessibilityLabel: "Community and author",
-            accessibilityValue: viewModel.options.showCommunityAndCreator ? "Shown" : "Hidden",
-            accessibilityHint: viewModel.options.showCommunityAndCreator ? "Double tap to hide" : "Double tap to show",
-            action: { [weak self] in self?.toggle { $0.toggleCommunityAndCreator() } }
-        ))
-        if post?.creatorHandle != nil {
-            regions.append(ShareAsImageTapRegion(
-                rect: creatorRect,
-                accessibilityLabel: "Author identity",
-                accessibilityValue: viewModel.options.redactIdentities ? "Hidden" : "Shown",
-                accessibilityHint: viewModel.options.redactIdentities ? "Double tap to show" : "Double tap to hide",
-                action: { [weak self] in self?.toggle { $0.toggleRedactIdentities() } }
-            ))
-        }
-
-        if post?.mediaUrl != nil {
-            regions.append(ShareAsImageTapRegion(
-                rect: rect(of: card.mediaView),
-                accessibilityLabel: "Image",
-                accessibilityValue: viewModel.options.showMedia ? "Shown" : "Hidden",
-                accessibilityHint: viewModel.options.showMedia ? "Double tap to hide" : "Double tap to show",
-                action: { [weak self] in self?.toggle { $0.toggleMedia() } }
-            ))
-        }
-
-        if post?.bodyPlain != nil {
-            regions.append(ShareAsImageTapRegion(
-                rect: rect(of: card.bodyView),
-                accessibilityLabel: "Body text",
-                accessibilityValue: bodyTreatmentDescription,
-                accessibilityHint: "Double tap to change how much of the body shows",
-                action: { [weak self] in self?.toggle { $0.cycleBodyTreatment() } }
-            ))
-        }
-
-        regions.append(ShareAsImageTapRegion(
-            rect: rect(of: card.statsView),
-            accessibilityLabel: "Score and comments",
-            accessibilityValue: viewModel.options.showStats ? "Shown" : "Hidden",
-            accessibilityHint: viewModel.options.showStats ? "Double tap to hide" : "Double tap to show",
-            action: { [weak self] in self?.toggle { $0.toggleStats() } }
-        ))
-
-        regions.append(footerRegion(rect: rect(of: card.footerView)))
-        return regions
-    }
-
-    private func chainRegions(_ card: ShareChainCardView) -> [ShareAsImageTapRegion] {
-        var regions: [ShareAsImageTapRegion] = []
-        if content.post != nil {
-            regions.append(ShareAsImageTapRegion(
-                rect: rect(of: card.postHeaderView),
-                accessibilityLabel: "Post context",
-                accessibilityValue: viewModel.options.includePostInChain ? "Shown" : "Hidden",
-                accessibilityHint: viewModel.options.includePostInChain ? "Double tap to hide" : "Double tap to show",
-                action: { [weak self] in self?.toggle { $0.toggleIncludePostInChain() } }
-            ))
-        }
-        regions.append(ShareAsImageTapRegion(
-            rect: rect(of: card.rowsStack),
-            accessibilityLabel: "Comment authors",
-            accessibilityValue: viewModel.options.redactIdentities ? "Hidden" : "Shown",
-            accessibilityHint: viewModel.options.redactIdentities ? "Double tap to show" : "Double tap to hide",
-            action: { [weak self] in self?.toggle { $0.toggleRedactIdentities() } }
-        ))
-        regions.append(footerRegion(rect: rect(of: card.footerView)))
-        return regions
-    }
-
-    private func footerRegion(rect: CGRect) -> ShareAsImageTapRegion {
-        ShareAsImageTapRegion(
-            rect: rect,
-            accessibilityLabel: "Spud mark",
-            accessibilityValue: viewModel.options.showViaSpudMark ? "Shown" : "Hidden",
-            accessibilityHint: viewModel.options.showViaSpudMark ? "Double tap to hide" : "Double tap to show",
-            action: { [weak self] in self?.toggle { $0.toggleViaSpudMark() } }
-        )
-    }
-
-    private var bodyTreatmentDescription: String {
-        switch viewModel.options.bodyTreatment {
-        case .full: "Showing the full body"
-        case .truncate: "Showing a truncated body"
-        case .titleOnly: "Hiding the body"
-        }
-    }
-
-    /// Runs a view-model mutation, then cross-dissolves the preview + fires a
-    /// haptic — the shared path for every direct-manipulation tap.
-    private func toggle(_ mutate: (ShareAsImageViewModel) -> Void) {
-        mutate(viewModel)
-        refreshPreview(animated: true)
-        Haptics.tap()
     }
 
     // MARK: - NSFW pill

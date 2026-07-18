@@ -89,14 +89,17 @@ device's theme, accent color, or text-size setting.
   from coming back. The export never includes a dimmed or hidden section — only what's genuinely
   enabled.
 - **Tray.** Below the preview: Light/Dark appearance, Native/Square/Story canvas, a chain-depth
-  stepper (comment cards only, showing "Depth N" with − / + controls clamped to the ancestors
-  actually available), and an Alt Text button.
+  stepper (shown only when there are ancestors to step through, with "Depth N" and − / + controls
+  clamped to the ancestors actually available — it is hidden for post cards and for a root comment
+  that has no ancestors, rather than showing a dead "Depth 0"), and an Alt Text button.
 - **Alt text.** A separate sheet shows the current description (auto-generated, or a prior
   edit) in an editable text field, with an "Auto" button that restores the auto-generated
   text. A manual edit applies only to the card being shared right now and is never persisted.
 - **Output.** Share (system share sheet), Save to Photos, and Copy. Copy places a single
   pasteboard item carrying both the image and the permalink as separate representations, not
-  two pasteboard items.
+  two pasteboard items. While an export is in flight the whole output bar and the Done button
+  are disabled (with a spinner on the tapped action), so the editor can't be dismissed
+  mid-export and orphan the pending share sheet or Photos write.
 - **Last-used settings restored on open.** The editor opens with whatever configuration was
   last used — appearance, canvas, toggles, chain depth — so the common path is open, glance,
   share. The one exception is the NSFW reveal, which always resets to spoilered on a fresh

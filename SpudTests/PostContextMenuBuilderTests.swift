@@ -160,7 +160,7 @@ struct PostContextMenuBuilderTests {
     }
 
     @Test
-    func includesCoreActionsAndDestructiveSafety() {
+    func includesCoreActionsAndDestructiveSafety() throws {
         let host = FakePostContextMenuHost(row: .fixture(communityName: "news", creatorName: "alice", isSaved: false))
         let menu = PostContextMenuBuilder.menu(forServerPostId: 42, host: host, upvoteIcon: nil, downvoteIcon: nil)
         let titles = allTitles(menu)
@@ -171,9 +171,10 @@ struct PostContextMenuBuilderTests {
         #expect(titles.contains("Share"))
         #expect(titles.contains("Share as Image"))
         // "Share as Image" sits immediately after "Share" in the share group.
-        if let shareIndex = titles.firstIndex(of: "Share") {
-            #expect(titles[titles.index(after: shareIndex)] == "Share as Image")
-        }
+        // #require (not `if let`) so the adjacency assertion can never silently
+        // skip if "Share" is missing.
+        let shareIndex = try #require(titles.firstIndex(of: "Share"))
+        #expect(titles[titles.index(after: shareIndex)] == "Share as Image")
         #expect(titles.contains("Cross-post"))
         #expect(titles.contains("Visit c/news"))
         #expect(titles.contains("View u/alice"))

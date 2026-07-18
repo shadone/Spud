@@ -198,6 +198,28 @@ struct ShareAsImageViewModelTests {
         #expect(viewModel.isComment == false)
     }
 
+    // MARK: - Depth stepper gating
+
+    /// The tray's depth stepper is shown only when there is at least one ancestor
+    /// to step through — hidden for a post card AND for a root comment (a shared
+    /// comment with no ancestors), where a "Depth 0" stepper would be dead.
+    @Test
+    func showsDepthStepper_onlyWhenAncestorsExist() {
+        // Post card: no chain at all.
+        #expect(makeViewModel(content: postContent()).showsDepthStepper == false)
+
+        // Root comment: chain is just the shared comment, zero ancestors.
+        let rootComment = makeViewModel(content: commentContent(ancestorCount: 0))
+        #expect(rootComment.maxChainDepth == 0)
+        #expect(rootComment.isComment == true)
+        #expect(rootComment.showsDepthStepper == false)
+
+        // Comment with ancestors: stepper is shown.
+        let withAncestors = makeViewModel(content: commentContent(ancestorCount: 2))
+        #expect(withAncestors.maxChainDepth == 2)
+        #expect(withAncestors.showsDepthStepper == true)
+    }
+
     // MARK: - Alt text override
 
     @Test
@@ -276,7 +298,7 @@ struct ShareAsImageViewModelTests {
         let viewModel = makeViewModel(content: postContent(media: mediaURL))
         #expect(viewModel.options.showMedia == true)
 
-        let exported = viewModel.exportOptions(resolvedMedia: false)
+        let exported = viewModel.exportOptions(viewModel.options, resolvedMedia: false)
         #expect(exported.showMedia == false)
         // The user's live options are untouched — only the returned copy changes.
         #expect(viewModel.options.showMedia == true)
@@ -285,7 +307,7 @@ struct ShareAsImageViewModelTests {
     @Test
     func exportOptions_keepsMediaWhenResolved() {
         let viewModel = makeViewModel(content: postContent(media: mediaURL))
-        let exported = viewModel.exportOptions(resolvedMedia: true)
+        let exported = viewModel.exportOptions(viewModel.options, resolvedMedia: true)
         #expect(exported.showMedia == true)
         #expect(exported == viewModel.options)
     }
@@ -294,8 +316,27 @@ struct ShareAsImageViewModelTests {
     func exportOptions_unchangedWhenNoMediaUrl() {
         // No media URL: an unresolved fetch is irrelevant, so options pass through.
         let viewModel = makeViewModel(content: postContent(media: nil))
-        let exported = viewModel.exportOptions(resolvedMedia: false)
+        let exported = viewModel.exportOptions(viewModel.options, resolvedMedia: false)
         #expect(exported == viewModel.options)
+    }
+
+    /// The snapshot the caller passes is what governs the export — the export
+    /// options are derived from the argument, not the view model's live options
+    /// (so a tray/preview toggle during the media await can't retro-change the
+    /// exported card). A snapshot taken with media shown still drops media when
+    /// unresolved even if the live options later differ.
+    @Test
+    func exportOptions_derivesFromTheSuppliedSnapshotNotLiveOptions() {
+        let viewModel = makeViewModel(content: postContent(media: mediaURL))
+        let snapshot = viewModel.options
+        // Mutate the live options AFTER capturing the snapshot.
+        viewModel.toggleMedia()
+        #expect(viewModel.options.showMedia == false)
+
+        // The snapshot (media on) governs: unresolved media is dropped from it.
+        let exported = viewModel.exportOptions(snapshot, resolvedMedia: false)
+        #expect(exported.showMedia == false)
+        #expect(snapshot.showMedia == true)
     }
 
     // MARK: - Persistence (each output action calls persist())

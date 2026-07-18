@@ -121,7 +121,7 @@ final class ShareChainCardView: UIView {
     /// rebuilds the chain rows (depth + elision), and re-applies the footer.
     func apply(options: ShareCardOptions) {
         self.options = options
-        let palette: ShareCardPalette = options.appearance == .dark ? .dark : .light
+        let palette = options.appearance.palette
 
         backgroundColor = palette.panel
         layer.borderColor = palette.edge.cgColor
