@@ -30,11 +30,13 @@ extension ShareAsImageViewController {
     func shareTapped() {
         guard viewModel.beginExport() else { return }
         setOutputBarBusy(true, activeButton: shareButton)
-        // Snapshot the options at the moment of the tap, before the media await:
-        // the tray + preview toggles stay live during the await, so rendering
-        // from the snapshot guarantees the exported card matches what the user
-        // saw when they tapped.
+        // Snapshot the options AND the alt text at the moment of the tap, before
+        // the media await: the tray + preview toggles stay live during the await,
+        // so rendering from the snapshot guarantees the exported card matches what
+        // the user saw when they tapped — and the embedded alt-text metadata must
+        // describe that same snapshot, not whatever the options say post-await.
         let options = viewModel.options
+        let altText = viewModel.currentAltText
         Task { [weak self] in
             guard let self else { return }
             defer {
@@ -51,7 +53,7 @@ extension ShareAsImageViewController {
             do {
                 let pngURL = try await ShareCardImageRenderer.writePNG(
                     image,
-                    altText: viewModel.currentAltText,
+                    altText: altText,
                     suggestedName: suggestedFileName
                 )
                 let items = ShareCardImageRenderer.shareItems(
