@@ -50,6 +50,17 @@ enum ShareCardMetrics {
     static let truncatedBodyMaxHeight: CGFloat = 132
     /// Height of the bottom fade applied to a truncated body.
     static let bodyFadeHeight: CGFloat = 46
+
+    // MARK: Comment-chain card (Task 3)
+
+    /// Community icon diameter in a chain card's compact post header (smaller
+    /// than the post card's 34pt lockup — the header is context, not the star).
+    static let chainPostHeaderIconSize: CGFloat = 26
+    /// Author avatar diameter on a chain ancestor/destination line.
+    static let chainAuthorAvatarSize: CGFloat = 19
+    /// Width of the rounded rail on the left of each chain line (hair for
+    /// ancestors, teal for the shared comment).
+    static let chainRailWidth: CGFloat = 3
 }
 
 /// The card's fixed type ramp. Deliberately built from `UIFont.systemFont` /
@@ -71,6 +82,22 @@ enum ShareCardFonts {
     static let mediaCaption = UIFont.systemFont(ofSize: 12.5, weight: .medium)
     static let sensitiveLabel = UIFont.systemFont(ofSize: 12.5, weight: .bold)
     static let postHeaderTitle = UIFont.systemFont(ofSize: 16.5, weight: .heavy)
+
+    /// Comment-chain card (Task 3).
+    /// An ancestor line's body, at 74% opacity (applied via the text color).
+    static let chainAncestorBody = UIFont.systemFont(ofSize: 13.5, weight: .regular)
+    /// The shared comment's body — larger + medium weight, full opacity.
+    static let chainDestinationBody = UIFont.systemFont(ofSize: 15.5, weight: .medium)
+    /// The uppercase "SHARED" tag on the destination line.
+    static let chainSharedTag = UIFont.systemFont(ofSize: 9.5, weight: .heavy)
+    /// The monospaced "u/name@instance" handle on a chain author line.
+    static let chainAuthorHandle = UIFont.monospacedSystemFont(ofSize: 12, weight: .regular)
+    /// A chain line's score mini-stat value.
+    static let chainScore = UIFont.monospacedSystemFont(ofSize: 11.5, weight: .medium)
+    /// The shared comment's own absolute timestamp.
+    static let chainTimestamp = UIFont.monospacedSystemFont(ofSize: 11.5, weight: .regular)
+    /// The "N more replies" elision divider label.
+    static let chainElision = UIFont.systemFont(ofSize: 12, weight: .semibold)
 }
 
 /// Formatting and deterministic-color helpers shared by the card views.
