@@ -146,6 +146,19 @@ struct DependencyContainer:
                     await statsService.setEnabled(isEnabled)
                 }
             }
+        } else {
+            // `SceneDelegate` calls `statsService.appDidBecomeActive()` /
+            // `appWillResignActive()` directly (not through the `FunStats`
+            // facade, which IS gated by leaving it uninstalled above) because
+            // it needs the concrete `StatsServicing` reference from
+            // `dependencies`, not the fire-and-forget facade. That bypasses
+            // the facade's XCTest gate, so app-hosted test runs (SpudTests,
+            // SpudUITests) would otherwise still buffer sessionCount /
+            // foregroundSeconds via those lifecycle calls and flush them into
+            // the shared simulator DB. Explicitly disabling the service here
+            // closes that hole without touching `SceneDelegate`.
+            let statsService = statsService
+            Task { await statsService.setEnabled(false) }
         }
     }
 }
