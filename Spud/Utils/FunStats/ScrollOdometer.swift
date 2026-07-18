@@ -37,6 +37,12 @@ struct ScrollOdometer {
         return accumulated
     }
 
+    /// Re-credits points returned by `take()` that the caller chose not to
+    /// report yet (sub-threshold batching).
+    mutating func credit(_ points: Double) {
+        accumulated += points
+    }
+
     /// Forget the baseline (call when the content is replaced wholesale,
     /// e.g. a feed switch), so the next update cannot fabricate a delta.
     mutating func reset() {

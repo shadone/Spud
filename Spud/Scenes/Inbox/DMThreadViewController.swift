@@ -60,6 +60,9 @@ final class DMThreadViewController: UIViewController {
 
     private var bubblesObservationTask: Task<Void, Never>?
 
+    /// Fun stats: accumulates user scroll distance; reported in batches.
+    private var scrollOdometer = ScrollOdometer()
+
     /// A stable scroll position: a specific message bubble and how far its top
     /// sits below the table's top content edge. Captured before older rows are
     /// prepended and restored after, so the visible messages don't jump.
@@ -202,6 +205,11 @@ final class DMThreadViewController: UIViewController {
         } else {
             hasAppearedOnce = true
         }
+    }
+
+    override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        reportScrollDistanceIfNeeded(force: true)
     }
 
     private func startObservation() {
@@ -526,6 +534,13 @@ extension DMThreadViewController: UITableViewDelegate {
     /// a load, and to a loaded, non-empty, not-yet-exhausted thread. `loadOlder`'s
     /// own guards make repeat calls during a load inert.
     func scrollViewDidScroll(_ scrollView: UIScrollView) {
+        scrollOdometer.update(
+            offsetY: scrollView.contentOffset.y,
+            contentHeight: scrollView.contentSize.height,
+            viewportHeight: scrollView.bounds.height
+        )
+        reportScrollDistanceIfNeeded()
+
         guard scrollView.isDragging || scrollView.isDecelerating else { return }
         guard viewModel.phase == .loaded,
               !viewModel.bubbles.isEmpty,
@@ -538,6 +553,19 @@ extension DMThreadViewController: UITableViewDelegate {
         if scrollView.contentOffset.y <= -scrollView.adjustedContentInset.top + topThreshold {
             loadOlder()
         }
+    }
+
+    /// Fun stats: reports accumulated scroll distance in batches (threshold
+    /// 1000pt) so we don't spawn a `Task` per scroll tick. `force: true`
+    /// flushes any sub-threshold remainder (e.g. on `viewWillDisappear`).
+    private func reportScrollDistanceIfNeeded(force: Bool = false) {
+        let points = scrollOdometer.take()
+        guard points > 0, force || points >= 1000 else {
+            // Under threshold: put it back rather than losing it.
+            if points > 0 { scrollOdometer.credit(points) }
+            return
+        }
+        FunStats.record(.scrollDistancePoints, amount: points)
     }
 }
 

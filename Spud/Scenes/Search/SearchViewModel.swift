@@ -234,6 +234,11 @@ final class SearchViewModel {
             return
         }
 
+        // The `.instances` path above is a client-side directory filter, not a
+        // search request, so it's excluded; this fires once per actual
+        // federated search dispatch.
+        FunStats.record(.searchesRun)
+
         let lemmyService = accountScope.lemmyService
 
         do {

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudDataKit
 import UIKit
 
 extension UIViewController {
@@ -28,6 +29,7 @@ extension UIViewController {
             isNsfw: isNsfw
         )
         let viewer = MediaViewerViewController.make(items: [item], dependencies: dependencies)
+        FunStats.record(.imagesViewed)
         present(viewer, animated: true)
     }
 }

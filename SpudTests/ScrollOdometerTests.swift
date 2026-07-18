@@ -78,4 +78,14 @@ struct ScrollOdometerTests {
         sut.update(offsetY: viewport, contentHeight: content, viewportHeight: viewport)
         #expect(sut.take() == 800)
     }
+
+    @Test
+    func credit_restoresUnreportedPoints() {
+        var sut = ScrollOdometer()
+        sut.update(offsetY: 0, contentHeight: content, viewportHeight: viewport)
+        sut.update(offsetY: 100, contentHeight: content, viewportHeight: viewport)
+        let points = sut.take()
+        sut.credit(points)
+        #expect(sut.take() == 100)
+    }
 }

@@ -482,6 +482,7 @@ final class PostDetailViewModel {
 
         let snapshotAndCount = appDatabase.postInteractionSnapshotSync(postRowId: postRowId)
         Task { @MainActor [appDatabase] in
+            FunStats.record(.postsOpened)
             try? await appDatabase.recordPostOpened(
                 accountKeychainId: keychainId,
                 serverPostId: serverPostId,
@@ -895,6 +896,7 @@ final class PostDetailViewModel {
     /// view controller stays free of that conversion. Rethrows the service error
     /// unchanged.
     func voteOnComment(serverCommentId: Int64, action: VoteStatus.Action) async throws {
+        FunStats.record(.votesCast)
         try await lemmy.vote(
             serverCommentId: Lemmy.CommentID(serverCommentId),
             vote: action
