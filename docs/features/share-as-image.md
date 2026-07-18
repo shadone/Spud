@@ -25,9 +25,10 @@ device's theme, accent color, or text-size setting.
   header (community + title only, no media) can sit above the chain. The shared comment is
   visually emphasized (a teal rail, a "SHARED" tag, its own timestamp) as the destination of
   the chain.
-- **Deep chains elide the middle.** More than four visible ancestors collapse to the closest
-  two, a "N more replies" divider, and the farthest two from the shared comment — the chain
-  never renders as an endless column.
+- **Deep chains elide the middle.** More than four visible ancestors collapse, top to
+  bottom, to the two farthest from the shared comment (nearest the root), a "N more
+  replies" divider, and the two closest to it — the chain never renders as an endless
+  column.
 - **Body treatments.** A post's body renders in full, is clamped to a fixed height with a
   bottom fade and a "Read the full post on Lemmy →" link (only when the body actually
   overflows that height), or is omitted entirely (title only).
