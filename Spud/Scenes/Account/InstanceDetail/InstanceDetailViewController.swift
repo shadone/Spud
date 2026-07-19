@@ -19,6 +19,7 @@ import UIKit
 final class InstanceDetailViewController: UIViewController {
     typealias OwnDependencies =
         HasAccountService &
+        HasAlertService &
         HasAppDatabase &
         HasImageService &
         HasMetaCommunityService &
@@ -35,6 +36,10 @@ final class InstanceDetailViewController: UIViewController {
 
     private var accountService: AccountServiceType {
         dependencies.own.accountService
+    }
+
+    private var alertService: AlertServiceType {
+        dependencies.own.alertService
     }
 
     private var appDatabase: AppDatabase {
@@ -90,6 +95,14 @@ final class InstanceDetailViewController: UIViewController {
     /// given row.
     private var metaContainer: UIStackView!
     private(set) var metaItems: [MetaCommunityListItem] = []
+    /// The acting default-account keychain id for meta-community row actions
+    /// (subscribe/mute/block/notify/favourite), captured once the meta
+    /// section's guard in `loadSecondaryData()` resolves it. `nil` until then
+    /// (and the meta section, and therefore its rows' context menus, doesn't
+    /// exist yet either) - every `CommunityContextMenuHost` method below
+    /// resolves a fresh `AccountScope` from this rather than caching one, so
+    /// account state changes (e.g. sign-out) are always read live.
+    private var metaActingKeychainId: String?
     private var communitiesContainer: UIStackView!
 
     /// The notice banner and its tint, kept so dynamic `CGColor` borders can be
@@ -854,6 +867,10 @@ final class InstanceDetailViewController: UIViewController {
         if let userKeychainId = appDatabase.defaultAccountKeychainIdSync(),
            let accountId = appDatabase.accountRowIdSync(forKeychainId: userKeychainId)
         {
+            // Captured for the meta rows' long-press context menu
+            // (`CommunityContextMenuHost` conformance below) - the same
+            // account this section's refresh/observation acts on.
+            metaActingKeychainId = userKeychainId
             let metaService = metaCommunityService
             let host = record.baseurl
             let siteName: String? = record.name
@@ -900,6 +917,12 @@ final class InstanceDetailViewController: UIViewController {
             let rowView = InstanceMetaCommunityRowView(item: item, accent: accent) { [weak self] in
                 self?.openMetaCommunity(item)
             }
+            // Long-press menu (plan Task 3): built fresh per interaction from
+            // `rowView.item` (see `contextMenuInteraction(_:configurationForMenuAtLocation:)`
+            // below), so a row whose actorId doesn't parse to a host just
+            // yields no menu rather than a broken one - the interaction is
+            // still attached unconditionally since the common case resolves.
+            rowView.addInteraction(UIContextMenuInteraction(delegate: self))
             cardStack.addArrangedSubview(rowView)
             if index < items.count - 1 {
                 let line = UIView()
@@ -915,20 +938,26 @@ final class InstanceDetailViewController: UIViewController {
         metaContainer.addArrangedSubview(card)
     }
 
-    /// Opens a meta community's own screen. The host is derived from the
-    /// ITEM's own `communityActorId` URL rather than `record.baseurl` — a meta
-    /// community is by definition local to the viewed instance, but resolving
-    /// the link from the actorId means it can never disagree with the row that
-    /// was actually rendered. `InstanceActorId.init(from:)` accepts an empty
-    /// host, so `isValid` must be checked explicitly (mirrors
-    /// `InboxViewController.openReminder`'s community branch).
+    /// Opens a meta community's own screen. Shared by the row tap and the
+    /// long-press menu's "Open Community" action (`communityOpen`).
     private func openMetaCommunity(_ item: MetaCommunityListItem) {
+        openCommunity(named: item.name, communityActorId: item.communityActorId)
+    }
+
+    /// Pushes/opens a community by its own federation actor id rather than
+    /// `record.baseurl` — a meta community is by definition local to the
+    /// viewed instance, but resolving the link from the actorId means it can
+    /// never disagree with the row that was actually rendered.
+    /// `InstanceActorId.init(from:)` accepts an empty host, so `isValid` must
+    /// be checked explicitly (mirrors `InboxViewController.openReminder`'s
+    /// community branch).
+    private func openCommunity(named name: String, communityActorId: String) {
         guard
             let window = view.window as? MainWindow,
-            let itemHost = URL(string: item.communityActorId)?.host,
+            let itemHost = URL(string: communityActorId)?.host,
             let instance = InstanceActorId(from: "https://\(itemHost)"), instance.isValid
         else { return }
-        AppCoordinator.shared.open(URL.SpudInternalLink.community(name: item.name, instance: instance).url, in: window)
+        AppCoordinator.shared.open(URL.SpudInternalLink.community(name: name, instance: instance).url, in: window)
     }
 
     private static func adminsState(_ admins: [SiteAdminRecord], isSuspicious: Bool) -> InstanceAdminsState {
@@ -1133,5 +1162,275 @@ final class InstanceDetailViewController: UIViewController {
     private func hue(for string: String) -> CGFloat {
         let sum = string.unicodeScalars.reduce(0) { $0 + Int($1.value) }
         return CGFloat(sum % 360) / 360
+    }
+}
+
+// MARK: - UIContextMenuInteractionDelegate (meta rows)
+
+extension InstanceDetailViewController: UIContextMenuInteractionDelegate {
+    /// Builds the long-press menu for a meta-community row AT INTERACTION TIME
+    /// (not cached from `renderMetaCommunities`), matching
+    /// `CommunityContextMenuBuilder`'s own "resolve live" contract. `nil` when
+    /// the row's item doesn't adapt (`MetaCommunityMenuAdapter.searchResult`
+    /// returns `nil`) - the row still has an interaction attached, but
+    /// long-pressing it shows no menu rather than a broken one.
+    func contextMenuInteraction(
+        _ interaction: UIContextMenuInteraction,
+        configurationForMenuAtLocation _: CGPoint
+    ) -> UIContextMenuConfiguration? {
+        guard let rowView = interaction.view as? InstanceMetaCommunityRowView else { return nil }
+        return UIContextMenuConfiguration(identifier: nil, previewProvider: nil) { [weak self] _ in
+            guard
+                let self,
+                let result = MetaCommunityMenuAdapter.searchResult(for: rowView.item)
+            else { return nil }
+            return CommunityContextMenuBuilder.menu(
+                for: result,
+                subscribedState: rowView.item.subscribedState,
+                host: self
+            )
+        }
+    }
+}
+
+// MARK: - CommunityContextMenuHost (meta rows)
+
+/// Adopts the shared `CommunityContextMenuBuilder` for a meta-community row's
+/// long-press menu (plan Task 3). Every action mirrors
+/// `SearchViewController`'s `CommunityContextMenuHost` conformance
+/// (`Spud/Scenes/Search/SearchViewController.swift`, "CommunityContextMenuHost"
+/// section) so this screen's third-ever conformance can't drift from the
+/// first two - the only structural difference is that this screen has no
+/// `viewModel.accountScope` to reach through, so each method resolves a fresh
+/// `AccountScope` from `metaActingKeychainId` instead.
+extension InstanceDetailViewController: CommunityContextMenuHost {
+    /// The acting scope for meta-community actions, or `nil` before
+    /// `loadSecondaryData()`'s meta-section guard resolves
+    /// `metaActingKeychainId` - practically unreachable from a menu action,
+    /// since a row's menu only exists once that resolves.
+    private var metaActingScope: AccountScope? {
+        metaActingKeychainId.map { accountService.scope(forAccountKeychainId: $0) }
+    }
+
+    func communityOpen(_ result: SearchCommunityResult) {
+        Haptics.tap()
+        openCommunity(named: result.name, communityActorId: result.communityUrl)
+    }
+
+    /// Sign-in gated exactly like Search's `setSubscribed(result:subscribe:cell:)`:
+    /// a signed-out acting account gets the sign-in gate sheet instead of a
+    /// silently-doomed subscribe attempt. No optimistic cell update (unlike
+    /// Search) - this screen has no cell to update; the meta section's own
+    /// `observeMetaCommunities` observation re-renders the row once the
+    /// server (or the outbox's own reconciliation) confirms the new state.
+    func communitySetSubscribed(_ result: SearchCommunityResult, subscribed: Bool) {
+        guard let scope = metaActingScope else {
+            Haptics.warning()
+            return
+        }
+        guard !scope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString(
+                    "Sign in to subscribe",
+                    comment: "Sign-in gate title when a signed-out user tries to subscribe from an instance-detail meta row"
+                )
+            )
+            return
+        }
+        Haptics.tap()
+        Task { [weak self] in
+            guard self != nil else { return }
+            // Outbox-owned: `setSubscribed` durably enqueues the mutation and
+            // the meta-community observation reconciles the row once it
+            // lands, so there's nothing useful to do with a thrown error here
+            // (mirrors `communitySetSubscribed`'s disposition in the plan).
+            try? await scope.lemmyService.setSubscribed(serverCommunityId: result.serverCommunityId, subscribed: subscribed)
+        }
+    }
+
+    /// Client-local mute state, keyed by the community's federation actor id
+    /// (mirrors `SearchViewController.communityIsMuted`).
+    func communityIsMuted(_ result: SearchCommunityResult) -> Bool {
+        guard let keychainId = metaActingKeychainId else { return false }
+        return appDatabase.isCommunityMutedSync(
+            forKeychainId: keychainId,
+            communityActorId: result.communityUrl
+        )
+    }
+
+    func communityMute(_ result: SearchCommunityResult, duration: MuteDuration) {
+        guard let keychainId = metaActingKeychainId else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        appDatabase.muteCommunitySync(
+            forKeychainId: keychainId,
+            communityActorId: result.communityUrl,
+            until: duration.until
+        )
+    }
+
+    func communityUnmute(_ result: SearchCommunityResult) {
+        guard let keychainId = metaActingKeychainId else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        appDatabase.unmuteCommunitySync(
+            forKeychainId: keychainId,
+            communityActorId: result.communityUrl
+        )
+    }
+
+    func communityShare(_ result: SearchCommunityResult) {
+        guard let url = URL(string: result.communityUrl) else {
+            Haptics.warning()
+            return
+        }
+        presentShareSheet(for: url)
+    }
+
+    func communityCopyLink(_ result: SearchCommunityResult) {
+        guard let url = URL(string: result.communityUrl) else {
+            Haptics.warning()
+            return
+        }
+        UIPasteboard.general.url = url
+        Haptics.tap()
+    }
+
+    /// Blocks the community on the acting account, gated on sign-in and a
+    /// destructive confirmation (mirrors `SearchViewController.communityBlock`),
+    /// AND removes a live "new posts" follow on success - blocking is an
+    /// explicit "never show me this", so a live follow must not keep
+    /// notifying about a community the user just asked to never see again
+    /// (the fourth such call site; the fire-and-forget shape below is copied
+    /// verbatim from `SearchViewController.communityBlock`).
+    func communityBlock(_ result: SearchCommunityResult) {
+        guard let scope = metaActingScope else {
+            Haptics.warning()
+            return
+        }
+        guard !scope.isSignedOut else {
+            presentSignInGate(
+                title: NSLocalizedString(
+                    "Sign in to block",
+                    comment: "Sign-in gate title when a signed-out user tries to block from an instance-detail meta row"
+                )
+            )
+            return
+        }
+        presentDestructiveConfirmation(
+            title: String(format: NSLocalizedString("Block %@?", comment: "Block community confirmation title"), "c/\(result.name)"),
+            message: NSLocalizedString(
+                "You won't see posts or comments from this community. You can unblock it later.",
+                comment: "Block community confirmation message"
+            ),
+            confirmTitle: NSLocalizedString("Block", comment: "Block community confirm button"),
+            sourceView: view
+        ) { [weak self] in
+            Task { [weak self] in
+                guard let self else { return }
+                do {
+                    try await scope.lemmyService
+                        .setBlocked(serverCommunityId: result.serverCommunityId, blocked: true)
+                    // Blocking is an explicit "never show me this" - a live new-posts
+                    // follow must not keep notifying about a community the user just
+                    // asked to never see again.
+                    let serverCommunityId = result.serverCommunityId
+                    Task {
+                        try? await scope.reminderService.removeCommunityFollow(
+                            communityServerId: Int64(serverCommunityId)
+                        )
+                    }
+                } catch {
+                    alertService.handle(error, for: .setBlockedCommunity)
+                }
+            }
+        }
+    }
+
+    /// Client-local truth read against `ReminderRecord.Kind.communityPosts`
+    /// (mirrors `SearchViewController.communityIsNotifying`). `false` before
+    /// the acting account resolves.
+    func communityIsNotifying(_ result: SearchCommunityResult) -> Bool {
+        guard
+            let keychainId = metaActingKeychainId,
+            let accountId = appDatabase.accountRowIdSync(forKeychainId: keychainId)
+        else { return false }
+        return appDatabase.activeReminderKindsSync(
+            accountId: accountId,
+            postServerId: Int64(result.serverCommunityId),
+            rootCommentServerId: ReminderRecord.wholePostSentinel
+        ).contains(ReminderRecord.Kind.communityPosts.rawValue)
+    }
+
+    /// Toggles the community "new posts" follow, re-reading the live state at
+    /// tap time (stale-menu discipline, mirrors
+    /// `SearchViewController.communityToggleNotify`) rather than trusting the
+    /// checkmark computed when the menu was built.
+    func communityToggleNotify(_ result: SearchCommunityResult) {
+        guard let scope = metaActingScope, let instanceHost = URL(string: result.communityUrl)?.host else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let wasNotifying = communityIsNotifying(result)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if wasNotifying {
+                    try await scope.reminderService.removeCommunityFollow(
+                        communityServerId: Int64(result.serverCommunityId)
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOff)
+                } else {
+                    try await scope.reminderService.setCommunityFollow(
+                        communityServerId: Int64(result.serverCommunityId),
+                        communityActorId: result.communityUrl,
+                        name: result.name,
+                        title: result.name,
+                        instanceHost: instanceHost,
+                        iconUrl: result.iconUrl?.absoluteString
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOn)
+                }
+            } catch {
+                alertService.handle(error, for: .setReminder)
+            }
+        }
+    }
+
+    private func showNotifyToast(_ message: String) {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(message, in: window)
+    }
+
+    /// Client-local favorite state (mirrors `CommunityViewModel.isFavorited`).
+    /// `nil` before the acting account resolves - inherits the protocol
+    /// extension's "surface doesn't offer Favourite" default rather than
+    /// showing a bogus unfavorited state.
+    func communityFavoriteState(_ result: SearchCommunityResult) -> Bool? {
+        guard let keychainId = metaActingKeychainId else { return nil }
+        return appDatabase.isCommunityFavoritedSync(
+            forKeychainId: keychainId,
+            communityActorId: result.communityUrl
+        )
+    }
+
+    /// Toggles favorite state (mirrors `CommunityViewModel.toggleFavorite`) -
+    /// client-local, so no sign-in gate.
+    func communityToggleFavorite(_ result: SearchCommunityResult) {
+        guard let keychainId = metaActingKeychainId else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        if appDatabase.isCommunityFavoritedSync(forKeychainId: keychainId, communityActorId: result.communityUrl) {
+            appDatabase.unfavoriteCommunitySync(forKeychainId: keychainId, communityActorId: result.communityUrl)
+        } else {
+            appDatabase.favoriteCommunitySync(forKeychainId: keychainId, communityActorId: result.communityUrl)
+        }
     }
 }
