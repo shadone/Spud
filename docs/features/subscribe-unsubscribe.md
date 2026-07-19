@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Community screen](community-screen.md), [Search](search.md), [Discover (Community Explorer)](discover.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Voting](voting.md), [Saving](saving.md), [Drafts and Outbox](drafts-and-outbox.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Community screen](community-screen.md), [Search](search.md), [Discover (Community Explorer)](discover.md), [Subscriptions sidebar](subscriptions-sidebar.md), [Voting](voting.md), [Saving](saving.md), [Drafts and Outbox](drafts-and-outbox.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -19,6 +19,7 @@ Subscribe to a community to follow it, or unsubscribe to stop. The same toggle i
 - **Toggle against current state.** The action resolves against the current subscribed state — tapping the control subscribes when not subscribed and unsubscribes when subscribed. There is no separate unsubscribe control; it is the same toggle. Toggling back to the original state before the queued change has sent cancels it outright — no network call is made.
 - **Tap haptic on submit.** Submitting a subscribe / unsubscribe fires a tap haptic.
 - **The Community screen and Communities tab are instant from the first tap; Search is instant only for a community already cached locally.** The Community screen (which fetches community info before showing the button) and the Communities tab (which only ever lists already-subscribed communities) always operate on a community that already has a local database row, so the durable optimistic write above — including the instant database-backed flip — applies the moment you tap, with no extra step. A [Search](search.md) result row may or may not have a local row yet: a community already cached (seen before in a feed or another screen) gets the same instant database flip; a community found only through this search still gets the row's own immediate flip and a durably queued send, but the database — and every other open surface for that community — only catches up once the send lands.
+- **Subscribing is independent of the "Notify About New Posts" community follow.** A community's Subscribe state and its notify-follow (see [Reminders](reminders.md)) are two separate, independently-toggled things — subscribing to a community doesn't follow it for notifications, following it for notifications doesn't subscribe you, and toggling either one never touches the other.
 - **Discover and instance-browsing resolve the community first, then apply instantly.** These two list directory rows that may not yet be a known server community, so subscribing first resolves the row to a server community id (a brief network lookup — Discover shows a spinner on the row while it resolves; instance-browsing's Join button flips its own row immediately regardless, matching the rest of the app). Once resolved, the same instant, durable write applies as everywhere else. Both surfaces additionally keep their own pre-existing cell-local optimistic touch, redundant with (but no worse than) the database-driven flip above; a permanent failure on either surface rolls back through the same shared outbox mechanism and toast, not a bespoke per-row alert.
 
 ## Scenarios

@@ -536,6 +536,17 @@ class CommunityViewController: UIViewController {
             // The server now filters this community's posts out of feed fetches;
             // reload the embedded feed so blocked content disappears.
             feedViewController?.reloadFeed()
+            if blocked {
+                // Blocking is an explicit "never show me this" - a live new-posts
+                // follow must not keep notifying about a community the user just
+                // asked to never see again.
+                let serverCommunityId = viewModel.serverCommunityId
+                Task { [accountScope] in
+                    try? await accountScope.reminderService.removeCommunityFollow(
+                        communityServerId: Int64(serverCommunityId)
+                    )
+                }
+            }
         } catch {
             viewModel.isBlocked = previous
             alertService.handle(error, for: .setBlockedCommunity)

@@ -1,8 +1,11 @@
 # Instance meta communities
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — badge + the Communities-tab "About `<instance>`" section. A dedicated meta section on the instance-detail / About screen is **not** shipped (see Not supported).
-- **Related:** [Discover (Community Explorer)](discover.md), [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Communities tab (subscriptions)](subscriptions-sidebar.md), [2026-07-14-instance-meta-communities-design.md](../superpowers/specs/2026-07-14-instance-meta-communities-design.md)
+- **Status:** shipped — badge + the Communities-tab "About `<instance>`" section, whose
+  rows offer Favourite, "Notify About New Posts", and (signed in) Subscribe. A dedicated
+  meta section on the instance-detail / About screen is **not** shipped (see Not
+  supported).
+- **Related:** [Discover (Community Explorer)](discover.md), [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Communities tab (subscriptions)](subscriptions-sidebar.md), [Reminders](reminders.md), [2026-07-14-instance-meta-communities-design.md](../superpowers/specs/2026-07-14-instance-meta-communities-design.md), [docs/superpowers/specs/2026-07-19-community-new-posts-follow-design.md](../superpowers/specs/2026-07-19-community-new-posts-follow-design.md)
 
 <!-- These are product-feature descriptions for an end-user audience, with a
      sprinkle of technical detail — not implementation docs. Do NOT link to
@@ -18,8 +21,10 @@ support, and site discussion — like `announcements@lemmy.world` or
 small badge everywhere community lists appear: Discover, the Communities tab, Search
 results, and the community header. The Communities tab also gets an always-visible
 "About `<your instance>`" section listing your home instance's own meta communities,
-each with one-tap Favourite (and, when signed in, Subscribe) — no manual search
-required to find where your instance's own announcements live.
+each with one-tap Favourite, a bell to be notified of its new posts (see
+[Reminders](reminders.md)), and, when signed in, Subscribe — no manual search required
+to find where your instance's own announcements live, and no need to check back
+manually for its next post either.
 
 ## Behavior and rules
 
@@ -52,12 +57,17 @@ required to find where your instance's own announcements live.
   ones are tucked under a "More on this instance" disclosure so the section doesn't get
   noisy. If no meta communities have been found yet (or the instance genuinely has
   none), the section is simply omitted rather than showing an empty state.
-- **Each row offers Favourite (always) and Subscribe (signed in only).** Favourite pins
-  the community for quick access and works purely locally, so it's available even
-  browsing signed out. Subscribe adds the community to your Subscribed feed and is only
-  offered when signed in, since a signed-out/anonymous browse has no server-side
-  subscription to change. **Nothing is auto-subscribed or auto-favourited** — every
-  action is a deliberate one-tap choice.
+- **Each row offers Favourite, a notify bell, and (signed in only) Subscribe.**
+  Favourite pins the community for quick access and works purely locally, so it's
+  available even browsing signed out. The bell toggles "Notify About New Posts" — a
+  standing local follow that fires a notification the next time the community posts
+  something new (see [Reminders](reminders.md)) — and is likewise available signed in or
+  out, since it's local and per-account like Favourite. Subscribe adds the community to
+  your Subscribed feed and is only offered when signed in, since a signed-out/anonymous
+  browse has no server-side subscription to change. **Nothing is auto-subscribed,
+  auto-favourited, or auto-followed** — every action is a deliberate one-tap choice, and
+  the three are fully independent of each other (see
+  [Subscribe / unsubscribe](subscribe-unsubscribe.md)).
 - **Resolution and caching.** The set of meta communities for an instance is found by
   checking a fixed, bounded list of likely community names (e.g. "meta",
   "announcements", "support", "news"...) against that instance and classifying any
@@ -103,6 +113,16 @@ required to find where your instance's own announcements live.
 - **When** I tap the star on a listed community
 - **Then** it is favourited locally (no sign-in or network round trip required)
 
+### Tap the bell on a meta-row to be notified of its new posts
+
+- **Given** the About-instance section is showing a meta community, and I have not yet
+  followed it for new posts
+- **When** I tap the bell on that row
+- **Then** the bell fills in to show a live "Notify About New Posts" follow was created
+  for that community
+- **And** this works the same whether I'm signed in or browsing signed out, and is
+  independent of whether the row's Favourite star or Subscribe button has been tapped
+
 ### Subscribe is gated to being signed in
 
 - **Given** I am signed in and viewing the About-instance section
@@ -110,7 +130,7 @@ required to find where your instance's own announcements live.
 - **Then** it is added to my Subscribed feed through the normal optimistic subscribe
   flow
 - **And** signed out, no Subscribe control is shown on these rows at all — only
-  Favourite
+  Favourite and the notify bell, both of which remain available
 
 ### Low-confidence meta communities sit under a disclosure
 
@@ -126,14 +146,9 @@ required to find where your instance's own announcements live.
   design considered generalizing the "About `<instance>`" list to any instance's About
   screen (not just your home instance), but that surface was deferred and is not part
   of this shipped behavior — don't assume it's there.
-- **No push notification on new posts.** Subscribe here means exactly what it means
-  everywhere else in Spud: the community joins your Subscribed feed. Lemmy has no
-  per-community push notification mechanism, and this feature does not add one —
-  keeping up with a meta community still means checking your feed, the same as any
-  other community.
-- **No auto-subscribe or auto-favourite.** Every action is a manual, one-tap choice;
-  detecting a community as meta never changes your subscriptions or favourites on its
-  own.
+- **No auto-subscribe, auto-favourite, or auto-follow.** Every action is a manual,
+  one-tap choice; detecting a community as meta never changes your subscriptions,
+  favourites, or notify follows on its own.
 - **No exhaustive scan of an instance's communities.** Detection checks a fixed,
   bounded list of likely candidate names against the instance rather than scanning
   every community it hosts, so an oddly-named meta community that isn't in that

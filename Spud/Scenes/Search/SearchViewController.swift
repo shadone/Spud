@@ -1038,6 +1038,16 @@ extension SearchViewController: CommunityContextMenuHost {
                 do {
                     try await viewModel.accountScope.lemmyService
                         .setBlocked(serverCommunityId: result.serverCommunityId, blocked: true)
+                    // Blocking is an explicit "never show me this" - a live new-posts
+                    // follow must not keep notifying about a community the user just
+                    // asked to never see again.
+                    let accountScope = viewModel.accountScope
+                    let serverCommunityId = result.serverCommunityId
+                    Task {
+                        try? await accountScope.reminderService.removeCommunityFollow(
+                            communityServerId: Int64(serverCommunityId)
+                        )
+                    }
                 } catch {
                     alertService.handle(error, for: .setBlockedCommunity)
                 }

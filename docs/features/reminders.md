@@ -1,8 +1,11 @@
 # Reminders
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped — all four planned phases: time-based ("remind me later") reminders, a "When there are new comments" activity follow (whole post OR a single comment thread), a best-effort background poll, and account-teardown cleanup.
-- **Related:** [Inbox](inbox.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase4.md](../superpowers/plans/2026-07-13-post-reminders-phase4.md)
+- **Status:** shipped — all four planned post-reminder phases (time-based "remind me
+  later" reminders, a "When there are new comments" activity follow, a best-effort
+  background poll, and account-teardown cleanup) plus a third follow type: a community
+  "Notify About New Posts" follow, reachable from five surfaces.
+- **Related:** [Inbox](inbox.md), [Instance meta communities](instance-meta-communities.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase4.md](../superpowers/plans/2026-07-13-post-reminders-phase4.md), [docs/superpowers/specs/2026-07-19-community-new-posts-follow-design.md](../superpowers/specs/2026-07-19-community-new-posts-follow-design.md)
 
 ## What it does
 
@@ -10,8 +13,12 @@ A "Remind Me…" action on a post lets you schedule a one-shot local notificatio
 chosen time — a few hours from now, this evening, tomorrow, or a custom pick. The same
 menu also offers "When there are new comments" — a standing follow that watches the
 post's discussion and notifies you once it's grown enough to be worth another look,
-instead of a single fixed moment. Every reminder or follow you set also shows up in a
-dedicated "Reminders" segment of the Inbox, whether or not it's fired yet, and a
+instead of a single fixed moment. A third kind of follow lives on the community itself
+rather than a post: "Notify About New Posts" watches a whole community and notifies you
+the moment it publishes anything new — useful for a low-traffic community like an
+instance's own announcements, where waiting for "enough" new comments would mean never
+hearing about it. Every reminder or follow you set also shows up in a dedicated
+"Reminders" segment of the Inbox, whether or not it's fired yet, and a
 fired-but-not-yet-seen one lights the Inbox tab's badge, just like an unread reply or
 mention.
 
@@ -48,13 +55,66 @@ mention.
   comment's own descendant count instead of the post's total, and — like the whole-post
   case — counts **every** new descendant, including your own replies to the thread; it
   isn't limited to other people's comments.
+- **A community "new posts" follow, from five entry points.** "Notify About New Posts"
+  follows a whole community instead of a single post, so you hear about its very next
+  post rather than its next comment. It's reachable from: the community screen's "•••"
+  overflow menu and its header long-press context menu (grouped next to Subscribe and
+  Favourite); a community result's long-press context menu in [Search](search.md); the
+  bell button on a meta community's row in the Communities tab's "About `<instance>`"
+  section (see [Instance meta communities](instance-meta-communities.md)); and a
+  subscribed community's row context menu in the Communities tab. Like the activity
+  follow, it's a single toggling action — choosing it follows ("You'll be notified of
+  new posts."), choosing it again unfollows ("Stopped notifying.") — and every surface
+  shares the same title and bell icon, filled while live.
+- **A community follow fires on any new post — not the 5-or-24h smart rule.** Unlike the
+  new-comments activity follow, a community follow notifies on **1 or more** new posts
+  since it was last checked, full stop; there's no comment-count threshold or 24-hour
+  fallback to wait out. This is deliberate: an activity follow's post already exists and
+  is just accumulating discussion, so it's worth batching small updates, but an
+  announcement-style community may post only rarely — holding back its one post a month
+  until "enough" arrived would defeat the entire point of following it.
+- **One notification per check, naming the count.** If a check finds several new posts
+  at once (Spud was away for a while, or the community had a burst), they're still
+  batched into a single notification — "3 new posts · c/name@instance" — not one per
+  post. If the newest-posts page fetched during the check turned out to be entirely new
+  posts (the community outpaced what a single page can show), the count reads with a
+  "+", e.g. "10+ new posts · c/name@instance", since there may be more beyond what was
+  fetched.
+- **The watermark is best-effort, not exact.** Following a community records "now" as
+  its watermark with no network round trip, so the follow is instant; the first poll's
+  server-confirmed newest-post timestamp then re-arms the watermark precisely, which
+  self-corrects for the device clock being off. Two edge cases are accepted as
+  known/best-effort rather than fixed: a device clock running ahead of the server's can
+  miss a post published inside that skew window right after you follow, and a post that
+  federates in late with an older `published` timestamp than when it actually arrived
+  never fires (the watermark has already moved past it).
+- **Muting pauses a follow; unmuting fires the backlog as one batch.** A muted
+  community's posts are already being kept out of your feeds, so the poll skips checking
+  it for new posts entirely while muted — no notification, and the watermark stays
+  where it was. Unmuting resumes checks, and the very next poll sees everything the
+  community posted while muted as new (since the watermark never moved) and fires it as
+  a single batched notification, same as any other multi-post check.
+- **Blocking a community removes its follow.** Blocking is an explicit "never show me
+  this again" — so blocking a community you're notify-following also removes that
+  follow, the same as if you'd unfollowed it yourself. Unblocking later does not restore
+  it; follow it again if you want it back.
+- **Subscribing and notify-following are fully independent.** A community follow has
+  nothing to do with your Subscribed feed — you can notify-follow a community you don't
+  subscribe to (the usual case for an announcements community you just want a heads-up
+  from), subscribe without following, or both. See [Subscribe / unsubscribe](subscribe-unsubscribe.md).
+- **Works signed out, same as activity follows.** A community follow is local and
+  per-account (including the signed-out "browsing" account), so it works while browsing
+  anonymously — including from the Communities tab's meta-row bell, which is available
+  signed in or out.
 - **Checked by a foreground poll, not push.** There's no reminders backend, so nothing
   can push a "new comments" event to your device. Instead, while Spud is in the
   foreground, a periodic sweep (piggybacking on the existing 5-minute scheduler tick)
   re-checks each followed post's comment count — throttled to at most once per ~30
   minutes per post — and applies the rule above. This means a burst of comments is
   noticed on a delay (the next foreground check), not instantly. Works whether you're
-  signed in or just browsing signed out — the poll doesn't require an account.
+  signed in or just browsing signed out — the poll doesn't require an account. A
+  community follow is checked by the same sweep, at the same ~30-minute per-item
+  throttle, against the community's newest posts instead of a post's comment count.
 - **Best-effort background delivery.** Beyond the foreground poll, Spud also asks iOS to
   occasionally wake it in the background (a `BGAppRefreshTask`) to run the exact same
   check, so a follow can still notify you even while Spud is closed. This is honestly
@@ -93,21 +153,26 @@ mention.
   the foreground, so this degrades gracefully — a reminder is never silently lost.
 - **The Reminders segment.** A dedicated segment in the Inbox tab's segmented control
   (after Mentions), separate from Replies/Mentions/Messages so reminders never mix with
-  Lemmy notifications. Time reminders and activity follows appear side by side as
-  separate rows (a post following both shows up twice, and a thread-scoped follow is its
-  own additional row). Each row shows the post's thumbnail, title, and
-  `c/<community>@<instance>` handle, plus a status line whose text depends on the kind and
-  scope: a whole-post time reminder shows a relative countdown ("in 2 days") while still
-  scheduled, or "Tap to revisit" once fired — a thread-scoped time reminder reads
-  identically, since the countdown itself doesn't depend on scope. A whole-post activity
-  follow shows "Watching for new comments" while live, or "New comments · tap to catch up"
-  once the rule fires; a thread-scoped one instead shows "Watching a thread for new
-  replies" while live, or "New replies · tap to catch up" once fired, so a followed thread
-  is never mistaken for a followed whole post in the same list (no live count on the row —
-  see [Not supported](#not-supported--out-of-scope)). Fired-and-unseen rows sort first; the
-  rest sort soonest-due first. Tapping a row opens the post — a thread-scoped reminder
-  opens the post scrolled to (and briefly highlighting) that comment, same as opening a
-  comment permalink. Swipe left to remove a reminder or follow (cancels its notification
+  Lemmy notifications. Time reminders, activity follows, and community follows all
+  appear side by side as separate rows (a post following both a time reminder and an
+  activity follow shows up twice, and a thread-scoped follow is its own additional row).
+  A post-scoped row (time or activity) shows the post's thumbnail, title, and
+  `c/<community>@<instance>` handle; a community-follow row shows the community's icon,
+  its title, and the same `c/<community>@<instance>` handle. Each row's status line text
+  depends on its kind and scope: a whole-post time reminder shows a relative countdown
+  ("in 2 days") while still scheduled, or "Tap to revisit" once fired — a thread-scoped
+  time reminder reads identically, since the countdown itself doesn't depend on scope. A
+  whole-post activity follow shows "Watching for new comments" while live, or "New
+  comments · tap to catch up" once the rule fires; a thread-scoped one instead shows
+  "Watching a thread for new replies" while live, or "New replies · tap to catch up" once
+  fired, so a followed thread is never mistaken for a followed whole post in the same
+  list. A community follow shows "Watching for new posts" while live, or "New posts · tap
+  to catch up" once fired (no live count on any fired row — see
+  [Not supported](#not-supported--out-of-scope)). Fired-and-unseen rows sort first; the
+  rest sort soonest-due first. Tapping a row opens its target — a post-scoped reminder
+  opens the post (a thread-scoped one scrolled to, and briefly highlighting, that
+  comment, same as opening a comment permalink), and a community-follow row opens the
+  community screen. Swipe left to remove a reminder or follow (cancels its notification
   too, if one was scheduled).
 - **The badge only counts fired-and-unseen reminders.** A scheduled (not yet due)
   reminder never contributes to the badge — only a reminder that has fired and hasn't
@@ -235,13 +300,77 @@ mention.
   tapping it opens the post scrolled to that comment (not the whole-post behavior of
   opening at the top)
 
+### Follow a community from its overflow menu
+
+- **Given** I am viewing a community
+- **When** I choose "Notify About New Posts" from the "•••" overflow menu (or the
+  header's long-press context menu)
+- **Then** a confirmation toast shows ("You'll be notified of new posts.")
+- **And** the menu item now shows a checkmark and a filled bell
+- **And** the community appears in the Inbox's Reminders segment, showing "Watching for
+  new posts" as its status
+- **And** the follow's watermark is set to now — only posts published after this point
+  count toward the next notification
+
+### Follow a community from a meta-row bell
+
+- **Given** I open the Communities tab and my home instance's "About `<instance>`"
+  section is showing a meta community
+- **When** I tap the bell button on that community's row
+- **Then** the follow is created exactly as it would be from the community screen, and
+  the bell fills to show it's live
+- **And** this works whether I'm signed in or browsing signed out
+
+### The poll fires on a single new post
+
+- **Given** I'm following a community's new posts (watermark set at the last check) and
+  Spud is in the foreground
+- **When** a periodic check finds even a single post published after the watermark
+- **Then** a system notification is delivered (if I granted notification permission),
+  titled with the community's name and reading "1 new post · c/name@instance"
+- **And** tapping it opens the community screen
+- **And** the reminder's row in the Reminders segment now reads "New posts · tap to
+  catch up"
+- **And** the watermark re-arms to that post's published time, so the next notification
+  again needs at least one more new post
+
+### A muted community's backlog fires as one batch after unmute
+
+- **Given** I'm following a community's new posts, and I mute that community while it
+  publishes several new posts
+- **When** I unmute it and the next periodic check runs
+- **Then** none of those posts triggered a notification while muted (the poll skipped
+  the community entirely, and the watermark didn't move)
+- **And** the check after unmuting sees all of them as new at once and delivers a single
+  batched notification naming the total count, not one per post
+
+### Swipe-remove a community follow
+
+- **Given** a community has a live "Notify About New Posts" follow, showing in the
+  Reminders segment
+- **When** I swipe left on its row and tap Remove (or toggle "Notify About New Posts"
+  off again from wherever I followed it)
+- **Then** a confirmation toast shows ("Stopped notifying.")
+- **And** the row disappears from the Reminders segment, and no further checks happen
+  for that community
+
+### Blocking a community removes its notify follow
+
+- **Given** a community has a live "Notify About New Posts" follow
+- **When** I block that community (from the community screen or a Search result) and
+  confirm
+- **Then** the community is blocked as normal
+- **And** its notify follow is also removed, so a community I've explicitly asked never
+  to see again can't keep notifying me
+
 ### Removing an account cancels its reminders
 
 - **Given** a signed-in account has a scheduled time reminder and an active "When there
   are new comments" follow
 - **When** I log out of that account, or remove it from the account list
 - **Then** both are deleted, and the time reminder's scheduled OS notification is
-  cancelled, so nothing fires for that account afterward
+  cancelled, so nothing fires for that account afterward — the same teardown also
+  deletes any community follows on that account
 
 ## Not supported / out of scope
 
@@ -250,9 +379,21 @@ mention.
   requires Background App Refresh to be enabled. Treat it as "Spud will try to catch you
   up even when closed," not "you'll be notified the moment it happens"; the foreground
   poll remains the only reliably-timed path.
-- **A live new-comment count on the Reminders-segment row.** A fired activity follow's
-  row just reads "New comments · tap to catch up" — it doesn't say how many, unlike the
-  push notification's body, which does.
+- **A live new-comment (or new-post) count on the Reminders-segment row.** A fired
+  activity or community follow's row just reads "New comments · tap to catch up" / "New
+  posts · tap to catch up" — it doesn't say how many, unlike the push notification's
+  body, which does.
+- **A live post title (or any post content) in a community follow's notification.** The
+  notification body names only a count and the community handle — "3 new posts ·
+  c/name@instance" — never the new post's title, text, or thumbnail. This is
+  deliberate, not a missing feature: the poll only reads publish timestamps, never post
+  content, so nothing — including a title that might itself be NSFW or otherwise
+  sensitive — can leak into a notification you might see on a lock screen.
+- **Community follows from Discover.** A Discover row can be an unresolved directory
+  entry with no home-instance server id yet (only a `resolve_object` round trip would
+  get one), so "Notify About New Posts" isn't offered there — consistent with Discover's
+  context menu already omitting Favourite for the same reason. Follow the community from
+  the community screen, Search, or the Communities tab instead once it resolves.
 - **Rescheduling a pending reminder in place** — to change a reminder's time, cancel it
   and set a new one; there's no "edit" affordance on an existing row yet.
 - **Cross-device sync** — reminders are on-device only; there's no backend, so setting a
