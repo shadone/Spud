@@ -52,6 +52,25 @@ public class SchedulerService: SchedulerServiceType {
     /// tests supply a closure they control to step time without sleeping.
     private let now: @Sendable () -> Date
 
+    /// The account's synced show-NSFW preference, read live at the top of each
+    /// community-follow poll (`pollActivityRemindersSweep`'s community fetcher)
+    /// and forwarded to `LemmyServiceType.fetchCommunityNewestPostDates`, so
+    /// the community-follow listing request is server-side NSFW-filtered
+    /// exactly like a real feed fetch (mirrors `PostListViewModel` forwarding
+    /// `preferencesService.showNsfw` to `fetchFeed`). Defaults to `{ true }`
+    /// (never suppress NSFW server-side) so existing constructions that don't
+    /// pass this keep compiling.
+    ///
+    /// `@MainActor` (unlike `reminderNotificationsEnabled`'s plain `@Sendable`
+    /// seam): `PreferencesServiceType.showNsfw` is an ordinary `@MainActor`-
+    /// isolated property (not `nonisolated`), and `SchedulerService` itself is
+    /// `@MainActor`, so this closure only ever needs to run there too - typing
+    /// it `@MainActor` lets `DependencyContainer` close over `preferencesService`
+    /// directly with no `nonisolated(unsafe)` escape hatch, and `@Sendable`
+    /// alongside it keeps the closure itself a Sendable value so this class
+    /// still satisfies `SchedulerServiceType: Sendable`.
+    private let showNsfwProvider: @MainActor @Sendable () -> Bool
+
     /// Network reachability. Used to clear back-off and fire an immediate tick
     /// when connectivity is restored, so previously-failing accounts retry
     /// promptly rather than waiting up to 2 hours for the next scheduled window.
@@ -82,12 +101,14 @@ public class SchedulerService: SchedulerServiceType {
         alertService: AlertServiceType,
         diagnostics: DiagnosticLogging,
         now: @escaping @Sendable () -> Date = Date.init,
-        reachabilityMonitor: ReachabilityMonitoring
+        reachabilityMonitor: ReachabilityMonitoring,
+        showNsfwProvider: @escaping @MainActor @Sendable () -> Bool = { true }
     ) {
         self.appDatabase = appDatabase
         self.accountService = accountService
         self.alertService = alertService
         self.diagnostics = diagnostics
+        self.showNsfwProvider = showNsfwProvider
         self.now = now
         self.reachabilityMonitor = reachabilityMonitor
     }
@@ -325,13 +346,14 @@ public class SchedulerService: SchedulerServiceType {
 
     // MARK: Activity reminder poll (Post Reminders Phase 2)
 
-    /// Drives `ReminderService.pollDueActivityReminders` once per pollable
-    /// account per sweep - the "When there are new comments" follow,
-    /// whole-post AND comment-subtree (spec §5.1/§5.3; Phase 3 added the
-    /// subtree scope). Called from both `tick()` (the foreground 5-minute
-    /// timer) and `runReminderPoll()` (the Phase-4 `BGAppRefreshTask`
-    /// handler), so this sweep is the single shared implementation for both
-    /// the foreground and background paths.
+    /// Drives `ReminderService.pollDueActivityReminders` AND
+    /// `ReminderService.pollDueCommunityFollows` once per pollable account per
+    /// sweep - the "When there are new comments" follow (whole-post AND
+    /// comment-subtree; spec §5.1/§5.3; Phase 3 added the subtree scope) and
+    /// the "New posts" community follow (§4). Called from both `tick()` (the
+    /// foreground 5-minute timer) and `runReminderPoll()` (the Phase-4
+    /// `BGAppRefreshTask` handler), so this sweep is the single shared
+    /// implementation for both the foreground and background paths.
     ///
     /// Accounts are enumerated via `pollableAccountKeychainIds()` - every
     /// non-service account, BOTH signed-in and signed-out. Unlike the two
@@ -444,6 +466,24 @@ public class SchedulerService: SchedulerServiceType {
             await accountService
                 .reminderService(forAccountKeychainId: keychainId)
                 .pollDueActivityReminders(asOf: now(), commentCountFetcher: fetcher)
+
+            // "New posts" community follows (§4). `showNsfw` is resolved once
+            // per account (not per community) - it's a single account-wide
+            // preference, so there is no per-community variance to capture.
+            let showNsfw = showNsfwProvider()
+            let communityFetcher: @Sendable (Int64, String) async -> [Date]? = { communityServerId, communityActorId in
+                // Muted community: skip the check entirely (nil -> nextCheckAt
+                // bumps, watermark untouched) - notifications pause while muted
+                // and the accumulated posts fire once as a single batch after
+                // unmute.
+                guard !appDatabase.isCommunityMutedSync(forKeychainId: keychainId, communityActorId: communityActorId) else {
+                    return nil
+                }
+                return await lemmy.fetchCommunityNewestPostDates(communityId: communityServerId, showNsfw: showNsfw)
+            }
+            await accountService
+                .reminderService(forAccountKeychainId: keychainId)
+                .pollDueCommunityFollows(asOf: now(), postDatesFetcher: communityFetcher)
         }
 
         await diagnostics.record(
