@@ -1222,7 +1222,10 @@ extension InstanceDetailViewController: CommunityContextMenuHost {
     /// silently-doomed subscribe attempt. No optimistic cell update (unlike
     /// Search) - this screen has no cell to update; the meta section's own
     /// `observeMetaCommunities` observation re-renders the row once the
-    /// server (or the outbox's own reconciliation) confirms the new state.
+    /// server (or the outbox's own reconciliation) confirms the new state. The
+    /// remaining deliberate divergence from Search: there's no cell state to
+    /// revert on failure either, since that same observation already re-syncs
+    /// the row to the persisted baseline on the next menu build.
     func communitySetSubscribed(_ result: SearchCommunityResult, subscribed: Bool) {
         guard let scope = metaActingScope else {
             Haptics.warning()
@@ -1239,12 +1242,12 @@ extension InstanceDetailViewController: CommunityContextMenuHost {
         }
         Haptics.tap()
         Task { [weak self] in
-            guard self != nil else { return }
-            // Outbox-owned: `setSubscribed` durably enqueues the mutation and
-            // the meta-community observation reconciles the row once it
-            // lands, so there's nothing useful to do with a thrown error here
-            // (mirrors `communitySetSubscribed`'s disposition in the plan).
-            try? await scope.lemmyService.setSubscribed(serverCommunityId: result.serverCommunityId, subscribed: subscribed)
+            guard let self else { return }
+            do {
+                try await scope.lemmyService.setSubscribed(serverCommunityId: result.serverCommunityId, subscribed: subscribed)
+            } catch {
+                alertService.handle(error, for: .setSubscribed)
+            }
         }
     }
 

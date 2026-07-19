@@ -5,7 +5,6 @@
 //
 
 import SpudDataKit
-import SpudUIKit
 import UIKit
 
 /// A row in the instance-detail "About this instance" card: icon mark +
