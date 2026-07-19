@@ -608,7 +608,7 @@ public actor ReminderService {
 
     // MARK: - Account teardown (Phase 4)
 
-    /// Deletes every reminder of this account (both kinds, whole-post and
+    /// Deletes every reminder of this account (all kinds, whole-post and
     /// comment-subtree alike) and cancels each deleted time reminder's OS
     /// notification request. The account-teardown counterpart to
     /// `removeTimeReminder`/`removeActivityReminder` - called by

@@ -63,9 +63,13 @@ mention.
   bell button on a meta community's row in the Communities tab's "About `<instance>`"
   section (see [Instance meta communities](instance-meta-communities.md)); and a
   subscribed community's row context menu in the Communities tab. Like the activity
-  follow, it's a single toggling action — choosing it follows ("You'll be notified of
-  new posts."), choosing it again unfollows ("Stopped notifying.") — and every surface
-  shares the same title and bell icon, filled while live.
+  follow, it's a single toggling action — choosing it follows, choosing it again
+  unfollows. Confirmation feedback differs by surface: the community screen's
+  overflow/header menu and a Search result's context menu show a toast ("You'll be
+  notified of new posts." / "Stopped notifying."), while the Communities tab's meta-row
+  bell and a subscribed community's row context menu instead give haptic feedback and
+  flip the bell's fill state, with no toast. Every surface shares the same title and
+  bell icon, filled while live.
 - **A community follow fires on any new post — not the 5-or-24h smart rule.** Unlike the
   new-comments activity follow, a community follow notifies on **1 or more** new posts
   since it was last checked, full stop; there's no comment-count threshold or 24-hour
@@ -344,15 +348,26 @@ mention.
 - **And** the check after unmuting sees all of them as new at once and delivers a single
   batched notification naming the total count, not one per post
 
-### Swipe-remove a community follow
+### Swipe-remove a community follow from the Inbox
 
 - **Given** a community has a live "Notify About New Posts" follow, showing in the
   Reminders segment
-- **When** I swipe left on its row and tap Remove (or toggle "Notify About New Posts"
-  off again from wherever I followed it)
+- **When** I swipe left on its row and tap Remove
+- **Then** the row disappears immediately, with no confirmation toast — same as
+  swipe-removing any other reminder kind
+- **And** no further checks happen for that community
+
+### Toggle off a community follow from where you followed it
+
+- **Given** a community has a live "Notify About New Posts" follow
+- **When** I toggle "Notify About New Posts" off again from the community screen or a
+  Search result's context menu
 - **Then** a confirmation toast shows ("Stopped notifying.")
-- **And** the row disappears from the Reminders segment, and no further checks happen
-  for that community
+- **When** I instead toggle it off from its bell in the Communities tab (meta-row bell or
+  a subscribed row's context menu)
+- **Then** the bell empties and a haptic confirms the change, with no toast
+- **And** either way, the row disappears from the Reminders segment and no further
+  checks happen for that community
 
 ### Blocking a community removes its notify follow
 

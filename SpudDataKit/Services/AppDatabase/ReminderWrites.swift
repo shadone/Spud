@@ -197,7 +197,7 @@ public extension AppDatabase {
         }
     }
 
-    /// Deletes every reminder row (both kinds, whole-post and comment-subtree
+    /// Deletes every reminder row (all kinds, whole-post and comment-subtree
     /// alike) belonging to `accountId` - the account-teardown cleanup
     /// (`ReminderService.removeAllReminders`, called from `AccountService.
     /// logout`/`removeAccount`, Phase 4). `reminder.accountId` carries no
