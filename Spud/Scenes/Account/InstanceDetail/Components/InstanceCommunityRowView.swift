@@ -122,22 +122,6 @@ final class InstanceCommunityRowView: UIView {
     }
 
     private static func iconMark(for row: CommunityListRow) -> UIView {
-        let container = UIView()
-        container.layer.cornerRadius = 10
-        container.layer.cornerCurve = .continuous
-        container.clipsToBounds = true
-        let hue = CGFloat(row.instanceHost.unicodeScalars.reduce(0) { $0 + Int($1.value) } % 360) / 360
-        container.backgroundColor = UIColor(hue: hue, saturation: 0.45, brightness: 0.55, alpha: 1)
-        let letter = UILabel()
-        letter.text = String((row.title ?? row.name).prefix(1)).uppercased()
-        letter.font = .systemFont(ofSize: 16, weight: .bold)
-        letter.textColor = .white
-        letter.translatesAutoresizingMaskIntoConstraints = false
-        container.addSubview(letter)
-        NSLayoutConstraint.activate([
-            letter.centerXAnchor.constraint(equalTo: container.centerXAnchor),
-            letter.centerYAnchor.constraint(equalTo: container.centerYAnchor),
-        ])
-        return container
+        InstanceIconMark.make(hueSeed: row.instanceHost, letterSource: row.title ?? row.name)
     }
 }

@@ -109,8 +109,8 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
     private struct SplitDependencies:
         HasAccountService, HasAlertService, HasAppDatabase, HasAppService,
         HasAppearanceService, HasDiagnosticLog, HasImageService, HasLinkEmbedService,
-        HasNodeInfoService, HasPostContentDetectorService, HasPreferencesService,
-        HasReachabilityMonitor, HasVoid
+        HasMetaCommunityService, HasNodeInfoService, HasPostContentDetectorService,
+        HasPreferencesService, HasReachabilityMonitor, HasVoid
     {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
@@ -120,6 +120,7 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
         let diagnosticLog: DiagnosticLogging
         let imageService: ImageServiceType
         let linkEmbedService: LinkEmbedServiceType
+        let metaCommunityService: MetaCommunityServiceType
         let nodeInfoService: NodeInfoServiceType
         let postContentDetectorService: PostContentDetectorServiceType
         let preferencesService: PreferencesServiceType
@@ -215,6 +216,7 @@ final class ActivityIPadSplitSnapshotTests: XCTestCase {
             diagnosticLog: DiagnosticLog(appDatabase: appDatabase),
             imageService: StaticImageService(),
             linkEmbedService: LinkEmbedService(),
+            metaCommunityService: StubMetaCommunityService(),
             nodeInfoService: StubNodeInfoService(),
             postContentDetectorService: PostContentDetectorService(),
             preferencesService: preferencesService,

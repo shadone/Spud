@@ -21,6 +21,7 @@ final class InstanceDetailViewController: UIViewController {
         HasAccountService &
         HasAppDatabase &
         HasImageService &
+        HasMetaCommunityService &
         HasNodeInfoService
     typealias NestedDependencies =
         LoginViewController.Dependencies &
@@ -42,6 +43,10 @@ final class InstanceDetailViewController: UIViewController {
 
     private var nodeInfoService: NodeInfoServiceType {
         dependencies.own.nodeInfoService
+    }
+
+    private var metaCommunityService: MetaCommunityServiceType {
+        dependencies.own.metaCommunityService
     }
 
     private let record: ExplorerInstanceRecord
@@ -77,6 +82,14 @@ final class InstanceDetailViewController: UIViewController {
     private var isBrowseInFlight = false
 
     private var adminsView: InstanceAdminsView!
+    /// "About this instance" section: the viewed instance's classified "meta"
+    /// communities for the signed-in default account, live from
+    /// `AppDatabase.observeMetaCommunities`. Hidden (no empty state) until the
+    /// observation yields at least one item. `metaItems` is exposed so a
+    /// future long-press context menu (Task 3) can resolve the item behind a
+    /// given row.
+    private var metaContainer: UIStackView!
+    private(set) var metaItems: [MetaCommunityListItem] = []
     private var communitiesContainer: UIStackView!
 
     /// The notice banner and its tint, kept so dynamic `CGColor` borders can be
@@ -357,6 +370,12 @@ final class InstanceDetailViewController: UIViewController {
         adminsView.update(.loading)
         stack.setCustomSpacing(4, after: stack.arrangedSubviews.last!)
         stack.addArrangedSubview(adminsView)
+
+        metaContainer = UIStackView()
+        metaContainer.axis = .vertical
+        metaContainer.spacing = 8
+        metaContainer.isHidden = true
+        stack.addArrangedSubview(metaContainer)
 
         communitiesContainer = UIStackView()
         communitiesContainer.axis = .vertical
@@ -827,6 +846,89 @@ final class InstanceDetailViewController: UIViewController {
                 adminsView.update(Self.adminsState(admins, isSuspicious: isSuspicious))
             }
         })
+
+        // "About this instance" meta-community section: only exists when a
+        // default (non-service) account is signed in — the acting account for
+        // both the refresh and the observation below. No account -> no
+        // section, and no refresh is ever triggered.
+        if let userKeychainId = appDatabase.defaultAccountKeychainIdSync(),
+           let accountId = appDatabase.accountRowIdSync(forKeychainId: userKeychainId)
+        {
+            let metaService = metaCommunityService
+            let host = record.baseurl
+            let siteName: String? = record.name
+            observationTasks.append(Task { @MainActor in
+                // Fire-and-forget: the observation below renders whatever the
+                // refresh (or a previous day's cache) yields; a miss just
+                // leaves the section absent.
+                await metaService.refreshInstance(host: host, siteName: siteName, forAccountKeychainId: userKeychainId)
+            })
+            observationTasks.append(Task { @MainActor [weak self] in
+                for await items in appDatabase.observeMetaCommunities(forAccountId: accountId, instanceHost: host) {
+                    if Task.isCancelled { break }
+                    guard let self else { break }
+                    renderMetaCommunities(items)
+                }
+            })
+        }
+    }
+
+    /// Renders the "About this instance" card from the live meta-community
+    /// observation: hidden while `items` is empty (no empty state — the
+    /// section simply doesn't exist until there's something to show), else an
+    /// `InstanceSectionHeader` plus a card of `InstanceMetaCommunityRowView`
+    /// rows separated by the same 0.5pt inset hairlines `renderCommunities`
+    /// uses, each opening its community on tap.
+    private func renderMetaCommunities(_ items: [MetaCommunityListItem]) {
+        metaItems = items
+        metaContainer.isHidden = items.isEmpty
+        metaContainer.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        guard !items.isEmpty else { return }
+
+        let header = InstanceSectionHeader()
+        header.configure(title: "About this instance", count: items.count)
+        metaContainer.addArrangedSubview(header)
+
+        let card = makeCard()
+        let cardStack = UIStackView()
+        cardStack.axis = .vertical
+        cardStack.translatesAutoresizingMaskIntoConstraints = false
+        card.addSubview(cardStack)
+        pinToCard(cardStack, card, inset: 0)
+
+        for (index, item) in items.enumerated() {
+            let rowView = InstanceMetaCommunityRowView(item: item, accent: accent) { [weak self] in
+                self?.openMetaCommunity(item)
+            }
+            cardStack.addArrangedSubview(rowView)
+            if index < items.count - 1 {
+                let line = UIView()
+                line.backgroundColor = .separator
+                line.heightAnchor.constraint(equalToConstant: 0.5).isActive = true
+                let insetLine = UIStackView(arrangedSubviews: [line])
+                insetLine.isLayoutMarginsRelativeArrangement = true
+                insetLine.layoutMargins = .init(top: 0, left: 13, bottom: 0, right: 0)
+                cardStack.addArrangedSubview(insetLine)
+            }
+        }
+
+        metaContainer.addArrangedSubview(card)
+    }
+
+    /// Opens a meta community's own screen. The host is derived from the
+    /// ITEM's own `communityActorId` URL rather than `record.baseurl` — a meta
+    /// community is by definition local to the viewed instance, but resolving
+    /// the link from the actorId means it can never disagree with the row that
+    /// was actually rendered. `InstanceActorId.init(from:)` accepts an empty
+    /// host, so `isValid` must be checked explicitly (mirrors
+    /// `InboxViewController.openReminder`'s community branch).
+    private func openMetaCommunity(_ item: MetaCommunityListItem) {
+        guard
+            let window = view.window as? MainWindow,
+            let itemHost = URL(string: item.communityActorId)?.host,
+            let instance = InstanceActorId(from: "https://\(itemHost)"), instance.isValid
+        else { return }
+        AppCoordinator.shared.open(URL.SpudInternalLink.community(name: item.name, instance: instance).url, in: window)
     }
 
     private static func adminsState(_ admins: [SiteAdminRecord], isSuspicious: Bool) -> InstanceAdminsState {

@@ -53,11 +53,12 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     /// A minimal dependency container.
     @MainActor
-    struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase, HasNodeInfoService {
+    struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase, HasMetaCommunityService, HasNodeInfoService {
         let imageService: ImageServiceType
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let appDatabase: AppDatabase
+        let metaCommunityService: MetaCommunityServiceType
         let nodeInfoService: NodeInfoServiceType
     }
 
@@ -68,6 +69,7 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             appDatabase: appDatabase,
+            metaCommunityService: StubMetaCommunityService(),
             nodeInfoService: StubNodeInfoService(metadataResult: metadata)
         )
     }
@@ -204,6 +206,106 @@ final class InstanceDetailSnapshotTests: XCTestCase {
     func test_missing_gracefulDegradation() throws {
         // Missing: 0 admins (unavailable) + 0 communities (unavailable)
         try assertScreens(Fixtures.missing, adminCount: 0, communityCount: 0)
+    }
+
+    /// "About this instance" meta-community section: a seeded default account
+    /// plus two cached `instanceMetaCommunity` rows (joined against mirrored
+    /// `community` rows) render the section between Admins and Communities —
+    /// one high-confidence item with a title (subtitle shown) and one
+    /// low-confidence item without (subtitle hidden). Uses the `.example`-host
+    /// fixture so the incidental site-info fetch fails fast and can never
+    /// mutate the seeded render; the stub meta service never refreshes, so the
+    /// section is a pure function of the seeded cache.
+    func test_metaSection() async throws {
+        for style in [UIUserInterfaceStyle.light, .dark] {
+            let dependencies = try makeDependencies()
+            try seedInstanceSnapshot(
+                Fixtures.liveDemo,
+                into: dependencies.appDatabase,
+                adminCount: 3,
+                communityCount: 3
+            )
+            try seedMetaCommunities(for: Fixtures.liveDemo, into: dependencies.appDatabase)
+            let viewController = InstanceDetailViewController(record: Fixtures.liveDemo, dependencies: dependencies)
+            let navigationController = UINavigationController(rootViewController: viewController)
+
+            navigationController.loadViewIfNeeded()
+            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+            navigationController.view.layoutIfNeeded()
+
+            // The meta section renders from an async GRDB observation; poll
+            // until both seeded items land before capturing (fail loudly if
+            // they never do).
+            let deadline = Date().addingTimeInterval(2)
+            while viewController.metaItems.count < 2 {
+                if Date() > deadline {
+                    XCTFail("Meta communities never rendered")
+                    return
+                }
+                try await Task.sleep(nanoseconds: 5_000_000)
+                await Task.yield()
+            }
+            navigationController.view.layoutIfNeeded()
+
+            let contentHeight = viewController.snapshotContentHeight
+            let totalHeight = max(844, contentHeight + 120)
+            let size = CGSize(width: 390, height: totalHeight)
+
+            assertSnapshot(
+                matching: navigationController,
+                as: .image(
+                    on: .deterministicPhone,
+                    size: size,
+                    traits: UITraitCollection(userInterfaceStyle: style)
+                ),
+                named: style == .dark ? "dark" : "light"
+            )
+        }
+    }
+
+    /// Seeds the "About this instance" state: a signed-in default account (on
+    /// its own home site, distinct from the viewed instance), two mirrored
+    /// `community` rows under that account, and two `instanceMetaCommunity`
+    /// cache rows keyed to the record's host. One item carries a title
+    /// (subtitle shown) and one doesn't (subtitle hidden); confidences are
+    /// high/low so the section's ordering is deterministic (high first).
+    private func seedMetaCommunities(for record: ExplorerInstanceRecord, into database: AppDatabase) throws {
+        try database.writer.write { db in
+            try db.execute(sql: "INSERT INTO instance (actorId, createdAt) VALUES (?, ?)", arguments: ["https://home.example", Date()])
+            let instanceId = db.lastInsertedRowID
+            try db.execute(sql: "INSERT INTO site (instanceId, createdAt, updatedAt) VALUES (?, ?, ?)", arguments: [instanceId, Date(), Date()])
+            let siteId = db.lastInsertedRowID
+            try db.execute(sql: """
+                INSERT INTO account (siteId, accountKeychainId, isDefault, isServiceAccount, isSignedOutAccountType, createdAt, updatedAt)
+                VALUES (?, 'kc-snapshot-meta', 1, 0, 0, ?, ?)
+                """, arguments: [siteId, Date(), Date()])
+            let accountId = db.lastInsertedRowID
+
+            let host = record.baseurl
+            let seeds: [(name: String, title: String?, serverId: Int64, confidence: String, reason: String)] = [
+                ("announcements", "Announcements", 201, "high", "strongKeyword"),
+                ("meta", nil, 202, "low", "broadKeyword"),
+            ]
+            for seed in seeds {
+                let actorId = "https://\(host)/c/\(seed.name)"
+                var community = CommunityRecord(
+                    accountId: accountId,
+                    communityId: seed.serverId,
+                    name: seed.name,
+                    title: seed.title,
+                    actorId: actorId
+                )
+                try community.insert(db)
+                var meta = InstanceMetaCommunityRecord(
+                    accountId: accountId,
+                    instanceHost: host,
+                    communityActorId: actorId,
+                    confidence: seed.confidence,
+                    reason: seed.reason
+                )
+                try meta.insert(db)
+            }
+        }
     }
 
     /// A live NodeInfo probe drives the header badge ("Lemmy 0.19.11" — the live

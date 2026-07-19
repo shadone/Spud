@@ -147,8 +147,8 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     private struct CommunitySplitDependencies:
         HasAccountService, HasAlertService, HasAppDatabase, HasAppService,
         HasAppearanceService, HasDiagnosticLog, HasImageService, HasLinkEmbedService,
-        HasNodeInfoService, HasPostContentDetectorService, HasPreferencesService,
-        HasReachabilityMonitor, HasVoid
+        HasMetaCommunityService, HasNodeInfoService, HasPostContentDetectorService,
+        HasPreferencesService, HasReachabilityMonitor, HasVoid
     {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
@@ -158,6 +158,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
         let diagnosticLog: DiagnosticLogging
         let imageService: ImageServiceType
         let linkEmbedService: LinkEmbedServiceType
+        let metaCommunityService: MetaCommunityServiceType
         let nodeInfoService: NodeInfoServiceType
         let postContentDetectorService: PostContentDetectorServiceType
         let preferencesService: PreferencesServiceType
@@ -214,6 +215,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
             diagnosticLog: DiagnosticLog(appDatabase: appDatabase),
             imageService: StaticImageService(),
             linkEmbedService: LinkEmbedService(),
+            metaCommunityService: StubMetaCommunityService(),
             nodeInfoService: StubNodeInfoService(),
             postContentDetectorService: PostContentDetectorService(),
             preferencesService: preferencesService,

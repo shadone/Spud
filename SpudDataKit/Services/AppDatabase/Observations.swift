@@ -34,13 +34,40 @@ public extension AppDatabase {
     func observeDefaultAccount() -> AsyncStream<AccountRecord?> {
         let observation = ValueObservation
             .tracking { db in
-                try AccountRecord
-                    .filter(Column("isDefault") == true)
-                    .filter(Column("isServiceAccount") == false)
-                    .fetchOne(db)
+                try Self.fetchDefaultAccount(db)
             }
             .removeDuplicates()
         return makeStream(observation: observation)
+    }
+
+    /// One-shot read of the current default (non-service) account's keychain
+    /// id, or nil if none is marked default. Shares `fetchDefaultAccount`'s
+    /// selection with `observeDefaultAccount()` so the two can never disagree
+    /// on which account counts as default. Synchronous read intended for
+    /// one-shot UI bring-up (e.g. gating the instance-detail meta-community
+    /// section) where blocking the caller briefly is preferable to making the
+    /// call site async.
+    func defaultAccountKeychainIdSync() -> String? {
+        do {
+            return try writer.read { db in
+                try Self.fetchDefaultAccount(db)?.accountKeychainId
+            }
+        } catch {
+            logger.error("defaultAccountKeychainIdSync failed: \(String(describing: error), privacy: .public)")
+            return nil
+        }
+    }
+
+    /// Shared selection logic for "the current default account": a real
+    /// (non-service) account with `isDefault == true`. Extracted so
+    /// `observeDefaultAccount()` and `defaultAccountKeychainIdSync()` read
+    /// from a single definition of "default account" rather than two
+    /// independently-maintained filters that could drift apart.
+    private static func fetchDefaultAccount(_ db: Database) throws -> AccountRecord? {
+        try AccountRecord
+            .filter(Column("isDefault") == true)
+            .filter(Column("isServiceAccount") == false)
+            .fetchOne(db)
     }
 
     /// Stream of accounts for a specific site, ordered by keychain id.
