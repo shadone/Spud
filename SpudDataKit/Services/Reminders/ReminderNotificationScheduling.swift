@@ -161,6 +161,81 @@ public enum ReminderNotificationFactory {
         let routingURL = URL.SpudInternalLink.objectAtURL(url: apURL).url
         return ReminderNotificationContent(title: titleSnapshot, body: body, routingURLString: routingURL.absoluteString)
     }
+
+    /// Builds the content for a fired community "new posts" follow, posted
+    /// ad-hoc by the foreground poll (`ReminderService.pollDueCommunityFollows`)
+    /// rather than scheduled up-front - mirrors `activityReminderContent`.
+    ///
+    /// Unlike `timeReminderContent`/`activityReminderContent`, the deep link
+    /// routes to the COMMUNITY (`URL.SpudInternalLink.community`), not a post
+    /// - there's no single post to open, the follow is on the community
+    /// itself.
+    ///
+    /// - Parameters:
+    ///   - title: the community's display title, denormalized onto the
+    ///     reminder record at follow-time (`ReminderRecord.titleSnapshot`).
+    ///   - communityName: the community's bare name (no `!`/`@`).
+    ///   - instanceHost: the community's home instance host, used both for
+    ///     the body copy's qualified handle and to resolve the deep link's
+    ///     `InstanceActorId` (bare stored host string, same construction
+    ///     `SiteListRow.forTypedInstance`'s call sites use).
+    ///   - newCount: the number of new posts observed since the follow's
+    ///     watermark (`CommunityFollowRule.shouldFire`'s `newPosts`). Never 0
+    ///     in practice - the rule never fires on zero new posts.
+    ///   - isSaturated: whether the fetched page was entirely new posts AND
+    ///     reached `CommunityFollowRule.saturationThreshold` - there may be
+    ///     more beyond the single fetched page, so the body reads "N+ new
+    ///     posts" instead of an exact count.
+    public static func communityFollowContent(
+        title: String,
+        communityName: String,
+        instanceHost: String,
+        newCount: Int,
+        isSaturated: Bool
+    ) -> ReminderNotificationContent {
+        // Three separate localized formats (rather than stitching a
+        // pluralized/saturated noun into one template), same rationale as
+        // `activityReminderContent` - all three use positional specifiers so
+        // the count can still be reordered relative to the community handle
+        // in translation.
+        let bodyFormat: String = if isSaturated {
+            NSLocalizedString(
+                "%1$d+ new posts · c/%2$@@%3$@",
+                comment: "Fired community-follow notification body, saturated (more posts than the fetched page could show); %1$d is the new-post count, %2$@ is the community name, %3$@ is its instance host"
+            )
+        } else if newCount == 1 {
+            NSLocalizedString(
+                "%1$d new post · c/%2$@@%3$@",
+                comment: "Fired community-follow notification body, singular; %1$d is always 1, %2$@ is the community name, %3$@ is its instance host"
+            )
+        } else {
+            NSLocalizedString(
+                "%1$d new posts · c/%2$@@%3$@",
+                comment: "Fired community-follow notification body, plural; %1$d is the new-post count, %2$@ is the community name, %3$@ is its instance host"
+            )
+        }
+        let body = String(format: bodyFormat, newCount, communityName, instanceHost)
+
+        // `instanceHost` is a bare host string (no scheme) - prepend one so
+        // `InstanceActorId(from:)` parses it as a host rather than falling
+        // through to its naive regex fallback, mirroring the construction
+        // `MainWindow`'s custom-instance seam uses ahead of
+        // `SiteListRow.forTypedInstance`.
+        // `InstanceActorId(from: String)` succeeds even on an empty host
+        // (`URLComponents(string: "https://").host == ""`, non-nil), so the
+        // nil check alone isn't enough - `isValid` catches an empty host too.
+        guard let instance = InstanceActorId(from: "https://\(instanceHost)"), instance.isValid else {
+            // Should never happen in practice - instanceHost is denormalized
+            // from a resolved community's own instance at follow-set time.
+            // Degrade to a notification with no working deep link rather than
+            // crashing on a malformed stored host.
+            logger.error("communityFollowContent: instanceHost is not a valid host: \(instanceHost, privacy: .public)")
+            return ReminderNotificationContent(title: title, body: body, routingURLString: "")
+        }
+
+        let routingURL = URL.SpudInternalLink.community(name: communityName, instance: instance).url
+        return ReminderNotificationContent(title: title, body: body, routingURLString: routingURL.absoluteString)
+    }
 }
 
 /// Schedules/cancels the OS local notification behind a reminder. Injected
