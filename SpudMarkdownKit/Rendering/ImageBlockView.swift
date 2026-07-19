@@ -123,8 +123,12 @@ final class ImageBlockView: UIView {
         boxAspect = nil
         box.backgroundColor = nil
         box.layer.borderWidth = 0
+        // Reset disables interaction; states hosting interactive content re-enable
+        // it (loaded's zoom tap, failed's buttons) — hit-testing never descends
+        // into a disabled view, so a state that forgets this renders buttons that
+        // can never receive a touch.
         box.isUserInteractionEnabled = false
-        // Only the loaded state is an interactive element; loading/failed expose
+        // Only the loaded state is an accessibility element; loading/failed expose
         // their own children (status label, "Retry" / "Open in browser" buttons)
         // instead.
         isLoaded = false
@@ -203,6 +207,7 @@ final class ImageBlockView: UIView {
             }, for: .touchUpInside)
             statusViews.append(open)
             placeStatusStack(statusViews)
+            box.isUserInteractionEnabled = true
         }
     }
 

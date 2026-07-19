@@ -101,6 +101,43 @@ struct ImageBlockViewTests {
         )
     }
 
+    @Test
+    func failedPlateButtonsAreHitTestReachable() async throws {
+        let url = try #require(URL(string: "https://example.com/a.jpg"))
+        let view = ImageBlockView(
+            image: MarkdownImage(url: url, altText: "alt"),
+            context: MarkdownContext(kind: .post),
+            onTapImage: nil,
+            onOpenInBrowser: nil,
+            onContentSizeChange: nil,
+            loader: { _ in nil }
+        )
+        await poll { button(titled: "Retry", in: view) != nil }
+
+        // Real geometry: a finger tap resolves through hitTest, which never
+        // descends into a disabled superview — sendActions can't catch that.
+        let size = view.systemLayoutSizeFitting(
+            CGSize(width: 320, height: UIView.layoutFittingCompressedSize.height),
+            withHorizontalFittingPriority: .required,
+            verticalFittingPriority: .fittingSizeLevel
+        )
+        view.frame = CGRect(origin: .zero, size: size)
+        view.layoutIfNeeded()
+
+        for title in ["Retry", "Open in browser"] {
+            let target = try #require(button(titled: title, in: view))
+            let center = view.convert(
+                CGPoint(x: target.bounds.midX, y: target.bounds.midY),
+                from: target
+            )
+            let hit = view.hitTest(center, with: nil)
+            #expect(
+                hit === target || hit?.isDescendant(of: target) == true,
+                "a tap on \(title) must reach the button, not a disabled ancestor"
+            )
+        }
+    }
+
     /// Mutable call counter for a loader closure to capture (an escaping closure
     /// can't capture a mutable local under strict concurrency).
     @MainActor
