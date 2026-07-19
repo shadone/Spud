@@ -42,11 +42,12 @@ final class InstanceExploreSnapshotTests: XCTestCase {
     }
 
     @MainActor
-    private struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase, HasNodeInfoService {
+    private struct SnapshotDependencies: HasVoid, HasImageService, HasAccountService, HasAlertService, HasAppDatabase, HasMetaCommunityService, HasNodeInfoService {
         let imageService: ImageServiceType
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let appDatabase: AppDatabase
+        let metaCommunityService: MetaCommunityServiceType
         let nodeInfoService: NodeInfoServiceType
     }
 
@@ -57,6 +58,7 @@ final class InstanceExploreSnapshotTests: XCTestCase {
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             appDatabase: appDatabase,
+            metaCommunityService: StubMetaCommunityService(),
             nodeInfoService: StubNodeInfoService()
         )
     }

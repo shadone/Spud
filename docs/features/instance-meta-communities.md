@@ -2,10 +2,11 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped — badge + the Communities-tab "About `<instance>`" section, whose
-  rows offer Favourite, "Notify About New Posts", and (signed in) Subscribe. A dedicated
-  meta section on the instance-detail / About screen is **not** shipped (see Not
-  supported).
-- **Related:** [Discover (Community Explorer)](discover.md), [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Communities tab (subscriptions)](subscriptions-sidebar.md), [Reminders](reminders.md), [2026-07-14-instance-meta-communities-design.md](../superpowers/specs/2026-07-14-instance-meta-communities-design.md), [docs/superpowers/specs/2026-07-19-community-new-posts-follow-design.md](../superpowers/specs/2026-07-19-community-new-posts-follow-design.md)
+  rows offer Favourite, "Notify About New Posts", and (signed in) Subscribe; plus an
+  "About this instance" card on the instance-detail screen for **whichever instance
+  you're viewing** (not just your home one), whose rows carry the same actions behind a
+  long-press context menu instead of inline controls.
+- **Related:** [Discover (Community Explorer)](discover.md), [Search](search.md), [Community screen](community-screen.md), [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Communities tab (subscriptions)](subscriptions-sidebar.md), [Instance browsing (open an instance in-app)](instance-browsing.md), [Reminders](reminders.md), [2026-07-14-instance-meta-communities-design.md](../superpowers/specs/2026-07-14-instance-meta-communities-design.md), [docs/superpowers/specs/2026-07-19-community-new-posts-follow-design.md](../superpowers/specs/2026-07-19-community-new-posts-follow-design.md), [docs/superpowers/specs/2026-07-19-instance-detail-meta-section-design.md](../superpowers/specs/2026-07-19-instance-detail-meta-section-design.md)
 
 <!-- These are product-feature descriptions for an end-user audience, with a
      sprinkle of technical detail — not implementation docs. Do NOT link to
@@ -24,7 +25,11 @@ results, and the community header. The Communities tab also gets an always-visib
 each with one-tap Favourite, a bell to be notified of its new posts (see
 [Reminders](reminders.md)), and, when signed in, Subscribe — no manual search required
 to find where your instance's own announcements live, and no need to check back
-manually for its next post either.
+manually for its next post either. The instance-detail screen (see
+[Instance browsing](instance-browsing.md)) shows the same idea for **any** instance you
+open, not just your home one: an "About this instance" card lists that instance's own
+meta communities, with Favourite, Notify, and Subscribe reachable from a long-press
+context menu instead of inline controls.
 
 ## Behavior and rules
 
@@ -77,6 +82,39 @@ manually for its next post either.
   (e.g. a network blip) never wipes a previously-good cached result. The badge itself
   never depends on this cache — it's computed fresh, inline, from whatever community
   data the list is already showing.
+- **The instance-detail screen reuses this same cache, keyed per instance you're
+  viewing.** Opening the instance-detail screen (the "before you commit" screen reached
+  from an instance's health card, or from the instance picker — see
+  [Instance browsing](instance-browsing.md)) fires the identical refresh for the viewed
+  host, using the app's current default account (signed in or browsing signed out) to do
+  the resolving. The same 24-hour freshness and never-overwrite-on-a-miss rules apply.
+  The card is simply absent — no placeholder — until the app has a default account and
+  that refresh (or a still-fresh earlier one) has something to show; there's no
+  directory-classified fallback while waiting.
+- **Row actions there are a long-press context menu, not inline controls.** The
+  instance-detail card's rows match its Communities card's compact row style (icon,
+  `c/name` handle with the "Instance community" badge glyph, an optional title subtitle,
+  chevron) — tapping a row opens the community, and every action instead lives behind a
+  long-press: Open Community, Subscribe/Unsubscribe, Add to Favorites (or Remove from
+  Favorites), Notify About New Posts, Mute/Unmute, Share, Copy Link, and Block Community.
+  This is the same community context menu [Search](search.md)'s results use, plus
+  Favourite. Rows resolve through your home instance's own connection, exactly like the
+  Communities-tab section, so every action works regardless of which instance's meta
+  communities you're looking at.
+- **Subscribe is sign-in gated here rather than simply hidden.** Unlike the
+  Communities-tab section, which omits the Subscribe control entirely when signed out,
+  the instance-detail menu always offers "Subscribe" / "Unsubscribe" and shows the
+  sign-in gate instead of a doomed attempt when signed out. Favourite and Notify work
+  signed out either way. Blocking a community from this menu also removes a live
+  "Notify About New Posts" follow on it, same as every other block entry point (see
+  [Reminders](reminders.md)).
+- **Favourite is a shared, host-optional menu action.** The community long-press menu
+  builder — the same one Search's results use — can offer "Add to Favorites" / "Remove
+  from Favorites" when the hosting screen supplies favourite state; the instance-detail
+  screen does, Search doesn't, so Search's own menu is unchanged. The copy ("Add to
+  Favorites" / "Remove from Favorites") and star / star-slash symbols are centralized so
+  the wording can't drift between this menu and the community screen's own overflow
+  action.
 
 ## Scenarios
 
@@ -140,12 +178,48 @@ manually for its next post either.
 - **Then** the high-confidence ones are listed directly and the low-confidence ones are
   reachable by expanding "More on this instance"
 
+### The instance-detail screen shows any viewed instance's meta communities
+
+- **Given** I open the instance-detail screen for an instance (not necessarily my home
+  one) whose meta communities Spud has classified, and the app has a default account
+- **When** the screen loads
+- **Then** an "About this instance" card appears above its Communities card, listing
+  those meta communities with the high-confidence ones first
+
+### Favourite a meta community from the instance-detail long-press menu
+
+- **Given** the instance-detail screen's About this instance card is showing a row
+- **When** I long-press it and choose "Add to Favorites"
+- **Then** it's favourited locally, the same as tapping the star in the Communities
+  tab's own About section — no sign-in or network round trip required
+
+### Subscribe from the instance-detail menu is sign-in gated, not hidden
+
+- **Given** I'm browsing signed out and long-press a meta-community row on the
+  instance-detail screen
+- **When** I choose "Subscribe"
+- **Then** the sign-in gate appears instead of a doomed subscribe attempt — unlike the
+  Communities tab's About section, which simply omits the Subscribe control when signed
+  out
+
+### Blocking from the instance-detail menu also removes a live notify follow
+
+- **Given** a meta-community row I'm notify-following shows on the instance-detail
+  screen
+- **When** I long-press it, choose "Block Community", and confirm
+- **Then** the community is blocked and its "Notify About New Posts" follow is also
+  removed, same as every other block entry point
+
 ## Not supported / out of scope
 
-- **No dedicated meta-communities section on the instance-detail / About screen.** The
-  design considered generalizing the "About `<instance>`" list to any instance's About
-  screen (not just your home instance), but that surface was deferred and is not part
-  of this shipped behavior — don't assume it's there.
+- **No meta section on the plain "browse all communities" list.** The screen that opens
+  first when you tap an instance name (banner, description, communities) has no "About
+  this instance" card — only the deeper instance-detail screen (reached from its health
+  card, or from the instance picker) does; that plain list's rows keep whatever badging
+  they already had.
+- **No directory-classified fallback before an account exists.** The instance-detail
+  card is simply absent until the app has a default account (signed in or browsing
+  signed out) — there's no substitute drawn from the bundled directory in the meantime.
 - **No auto-subscribe, auto-favourite, or auto-follow.** Every action is a manual,
   one-tap choice; detecting a community as meta never changes your subscriptions,
   favourites, or notify follows on its own.

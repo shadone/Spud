@@ -54,6 +54,7 @@ final class OnboardingHomeBaseSnapshotTests: XCTestCase {
         HasAccountService,
         HasAlertService,
         HasExplorerService,
+        HasMetaCommunityService,
         HasNodeInfoService
     {
         let appDatabase: AppDatabase
@@ -61,6 +62,7 @@ final class OnboardingHomeBaseSnapshotTests: XCTestCase {
         let accountService: AccountServiceType
         let alertService: AlertServiceType
         let explorerService: ExplorerServiceType
+        let metaCommunityService: MetaCommunityServiceType
         let nodeInfoService: NodeInfoServiceType
     }
 
@@ -81,6 +83,7 @@ final class OnboardingHomeBaseSnapshotTests: XCTestCase {
             accountService: AccountService(appDatabase: appDatabase),
             alertService: AlertService(),
             explorerService: ExplorerService(appDatabase: appDatabase),
+            metaCommunityService: StubMetaCommunityService(),
             nodeInfoService: StubNodeInfoService()
         )
     }

@@ -38,6 +38,13 @@ private struct StubNodeInfoService: NodeInfoServiceType {
     }
 }
 
+/// Deterministic no-op: `refreshInstance` never mutates the cache, so a
+/// screen built with `FakeDependencies` never picks up a spurious meta
+/// section mid-test.
+private struct StubMetaCommunityService: MetaCommunityServiceType {
+    func refreshInstance(host _: String, siteName _: String?, forAccountKeychainId _: String) async { }
+}
+
 @MainActor
 struct FakeDependencies:
     HasVoid,
@@ -56,6 +63,7 @@ struct FakeDependencies:
     HasExplorerService,
     HasReachabilityMonitor,
     HasDiagnosticLog,
+    HasMetaCommunityService,
     HasNodeInfoService
 {
     let appDatabase: AppDatabase
@@ -73,6 +81,7 @@ struct FakeDependencies:
     let explorerService: ExplorerServiceType
     let reachabilityMonitor: ReachabilityMonitoring
     let diagnosticLog: DiagnosticLogging
+    let metaCommunityService: MetaCommunityServiceType
     let nodeInfoService: NodeInfoServiceType
 
     init() {
@@ -109,6 +118,7 @@ struct FakeDependencies:
         )
         unreadCountService = UnreadCountService(accountService: accountService, appDatabase: appDatabase, diagnostics: diagnosticLog)
         explorerService = ExplorerService(appDatabase: appDatabase)
+        metaCommunityService = StubMetaCommunityService()
         nodeInfoService = StubNodeInfoService()
     }
 }

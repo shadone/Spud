@@ -24,8 +24,13 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
     private(set) var copiedLinkResults: [SearchCommunityResult] = []
     private(set) var blockedResults: [SearchCommunityResult] = []
     private(set) var toggleNotifyResults: [SearchCommunityResult] = []
+    private(set) var toggleFavoriteResults: [SearchCommunityResult] = []
     var isMuted = false
     var isNotifying = false
+    /// `nil` by default (inherits the protocol-extension default), matching a
+    /// host that doesn't offer Favourite at all (e.g. Search). Set to `false`
+    /// or `true` to opt in and drive the Favourite action's state.
+    var favoriteState: Bool?
 
     func communityOpen(_ result: SearchCommunityResult) {
         openedResults.append(result)
@@ -66,6 +71,40 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
     func communityToggleNotify(_ result: SearchCommunityResult) {
         toggleNotifyResults.append(result)
     }
+
+    func communityFavoriteState(_: SearchCommunityResult) -> Bool? {
+        favoriteState
+    }
+
+    func communityToggleFavorite(_ result: SearchCommunityResult) {
+        toggleFavoriteResults.append(result)
+    }
+}
+
+/// A second, deliberately minimal `CommunityContextMenuHost` fake that
+/// implements only the non-defaulted protocol requirements - it does NOT
+/// override `communityFavoriteState`/`communityToggleFavorite`, so it
+/// exercises the protocol-extension defaults exactly as Search's real host
+/// does today. Used to assert the builder omits the Favourite action
+/// entirely when a surface hasn't opted in.
+@MainActor
+final class DefaultCommunityContextMenuHost: UIViewController, CommunityContextMenuHost {
+    func communityOpen(_: SearchCommunityResult) { }
+    func communitySetSubscribed(_: SearchCommunityResult, subscribed: Bool) { }
+    func communityIsMuted(_: SearchCommunityResult) -> Bool {
+        false
+    }
+
+    func communityMute(_: SearchCommunityResult, duration: MuteDuration) { }
+    func communityUnmute(_: SearchCommunityResult) { }
+    func communityShare(_: SearchCommunityResult) { }
+    func communityCopyLink(_: SearchCommunityResult) { }
+    func communityBlock(_: SearchCommunityResult) { }
+    func communityIsNotifying(_: SearchCommunityResult) -> Bool {
+        false
+    }
+
+    func communityToggleNotify(_: SearchCommunityResult) { }
 }
 
 /// Minimal `SearchCommunityResult` test factory.
@@ -367,5 +406,79 @@ struct CommunityContextMenuBuilderTests {
         )
         performAction(titled: CommunityNotifyLabel.title, in: menu)
         #expect(host.toggleNotifyResults.map(\.serverCommunityId) == [result.serverCommunityId])
+    }
+
+    /// A host that doesn't override `communityFavoriteState` (Search's real
+    /// host today) inherits the protocol-extension default of `nil`, which
+    /// means the surface doesn't offer Favourite at all - the builder must
+    /// omit the action entirely, not just leave it in some default state.
+    @Test
+    func defaultHost_omitsFavoriteAction() {
+        let host = DefaultCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        let titles = allTitles(menu)
+        #expect(!titles.contains(CommunityFavoriteLabel.title(isFavorited: false)))
+        #expect(!titles.contains(CommunityFavoriteLabel.title(isFavorited: true)))
+    }
+
+    @Test
+    func favoriteState_false_showsAddToFavoritesAndInvokesToggle() {
+        let host = FakeCommunityContextMenuHost()
+        host.favoriteState = false
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        let title = CommunityFavoriteLabel.title(isFavorited: false)
+        #expect(allTitles(menu).contains(title))
+        performAction(titled: title, in: menu)
+        #expect(host.toggleFavoriteResults.map(\.serverCommunityId) == [result.serverCommunityId])
+    }
+
+    @Test
+    func favoriteState_true_showsRemoveFromFavorites() {
+        let host = FakeCommunityContextMenuHost()
+        host.favoriteState = true
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        let title = CommunityFavoriteLabel.title(isFavorited: true)
+        #expect(allTitles(menu).contains(title))
+        #expect(!allTitles(menu).contains(CommunityFavoriteLabel.title(isFavorited: false)))
+    }
+
+    /// Menu order in the open group: Open, Subscribe, Favourite (when
+    /// present), Notify.
+    @Test
+    func favoriteAction_isOrderedBetweenSubscribeAndNotify() {
+        let host = FakeCommunityContextMenuHost()
+        host.favoriteState = false
+        let result = SearchCommunityResult.fixture(followState: .notFollowing)
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        let titles = allTitles(menu)
+        let subscribeIndex = titles.firstIndex(of: "Subscribe")
+        let favoriteIndex = titles.firstIndex(of: CommunityFavoriteLabel.title(isFavorited: false))
+        let notifyIndex = titles.firstIndex(of: CommunityNotifyLabel.title)
+        #expect(subscribeIndex != nil)
+        #expect(favoriteIndex != nil)
+        #expect(notifyIndex != nil)
+        if let subscribeIndex, let favoriteIndex, let notifyIndex {
+            #expect(subscribeIndex < favoriteIndex)
+            #expect(favoriteIndex < notifyIndex)
+        }
     }
 }

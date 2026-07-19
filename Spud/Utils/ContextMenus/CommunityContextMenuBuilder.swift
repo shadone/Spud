@@ -37,6 +37,25 @@ protocol CommunityContextMenuHost: UIViewController {
     /// the live state at tap time rather than trusting the checkmark computed
     /// when the menu was built.
     func communityToggleNotify(_ result: SearchCommunityResult)
+    /// Whether `result`'s community is currently favorited, if this surface
+    /// offers Favourite at all. `nil` (the protocol-extension default) means
+    /// the surface doesn't offer Favourite - the builder omits the action
+    /// entirely rather than showing it in some default state. Search inherits
+    /// this default today; a host that wants Favourite (e.g. instance-detail)
+    /// overrides it.
+    func communityFavoriteState(_ result: SearchCommunityResult) -> Bool?
+    /// Toggles `result`'s community favorite state. No-op by default (paired
+    /// with `communityFavoriteState`'s `nil` default); only called when the
+    /// builder actually shows the Favourite action.
+    func communityToggleFavorite(_ result: SearchCommunityResult)
+}
+
+extension CommunityContextMenuHost {
+    func communityFavoriteState(_: SearchCommunityResult) -> Bool? {
+        nil
+    }
+
+    func communityToggleFavorite(_: SearchCommunityResult) { }
 }
 
 /// Builds the community long-press menu for a Search `.community` result. Mirrors
@@ -81,7 +100,18 @@ enum CommunityContextMenuBuilder {
             state: notifying ? .on : .off
         ) { [weak host] _ in host?.communityToggleNotify(result) }
 
-        let openGroup = UIMenu(options: .displayInline, children: [openAction, subscribeAction, notifyAction])
+        // Favourite is only shown when the host opts in (non-nil state) -
+        // Search's host inherits the protocol-extension `nil` default, so its
+        // menu is unchanged.
+        var openChildren: [UIMenuElement] = [openAction, subscribeAction]
+        if let favorited = host.communityFavoriteState(result) {
+            openChildren.append(UIAction(
+                title: CommunityFavoriteLabel.title(isFavorited: favorited),
+                image: UIImage(systemName: CommunityFavoriteLabel.symbol(isFavorited: favorited))
+            ) { [weak host] _ in host?.communityToggleFavorite(result) })
+        }
+        openChildren.append(notifyAction)
+        let openGroup = UIMenu(options: .displayInline, children: openChildren)
 
         let muteElement: UIMenuElement
         if host.communityIsMuted(result) {

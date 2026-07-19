@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Discover (Community Explorer)](discover.md), [Instance picker](instance-picker.md), [Community screen](community-screen.md), [Search](search.md), [Person / user profile](person-profile.md), [External link handling](external-link-handling.md), [Instance software detection](instance-software-detection.md)
+- **Related:** [Discover (Community Explorer)](discover.md), [Instance picker](instance-picker.md), [Community screen](community-screen.md), [Search](search.md), [Person / user profile](person-profile.md), [External link handling](external-link-handling.md), [Instance software detection](instance-software-detection.md), [Instance meta communities](instance-meta-communities.md)
 
 ## What it does
 
@@ -20,6 +20,8 @@ Tapping an instance name anywhere in the app — the source-instance chip in a c
 - **Repeat taps in the same session are instant.** Once an unknown host has been resolved, tapping it again that session reopens its screen from the session cache with no second network round-trip. The cache is not persisted; relaunching the app re-probes on the next tap.
 - **Link classification is unchanged.** Deciding whether a tapped link is a Lemmy reference at all (and prefilling login) still uses the directory's known-instance check; only the act of *opening* an instance screen now probes. A normal link tap never triggers a network probe.
 - **A deeper "before you commit" detail is one tap further.** The in-app instance screen's health/trust card pushes a richer instance-detail screen (uptime, software version, signups, federation) — the same screen used by the [instance picker](instance-picker.md) before you add an account. Its software badge and Signups row prefer live NodeInfo metadata over the directory snapshot when a probe has resolved, fail-open otherwise; see [Instance software detection](instance-software-detection.md) for the detection and copy rules.
+- **That deeper screen also surfaces the viewed instance's own "meta" communities.** Immediately above its Communities card, an "About this instance" card lists the viewed instance's classified meta communities — its own news/changelog/announcements communities, high-confidence ones first (see [Instance meta communities](instance-meta-communities.md) for what "meta" means and how detection works). This is the same classifier and cache the Communities tab's own "About `<your instance>`" section uses, refreshed for whichever instance you're viewing (not necessarily your home one) when this screen opens. The card only appears once the app has a default account (signed in or browsing signed out) and classification has found at least one meta community for that host; otherwise it's simply absent — no placeholder, no empty state. Rows are resolved through your home instance's own connection, so Subscribe, Favourite, and Notify all work here exactly as they would anywhere else.
+- **A meta-community row opens on tap; every action is behind a long-press.** Tapping a row opens that community in-app, the same as any other community row. Long-pressing it opens the shared community context menu — Open Community, Subscribe/Unsubscribe, Add to Favorites (or Remove from Favorites), Notify About New Posts, Mute/Unmute, Share, Copy Link, and Block Community — the same menu [Search](search.md)'s community results use, plus Favourite. Favourite and Notify work while browsing signed out; Subscribe shows the sign-in gate instead of a doomed attempt when signed out. Blocking a community from this menu also removes a live "Notify About New Posts" follow on it, same as every other block entry point.
 
 ## Scenarios
 
@@ -56,9 +58,35 @@ Tapping an instance name anywhere in the app — the source-instance chip in a c
 - **When** I tap that same instance again
 - **Then** its in-app screen opens immediately from the session cache, with no second network request
 
+### The instance-detail screen shows a viewed instance's meta communities
+
+- **Given** I open the "before you commit" instance-detail screen (via the health card) for an instance whose meta communities Spud has classified, and the app has a default account
+- **When** the screen loads
+- **Then** an "About this instance" card appears immediately above the Communities card, listing those meta communities with the high-confidence ones first
+
+### Tap a meta-community row to open it
+
+- **Given** the About this instance card is showing a row
+- **When** I tap it
+- **Then** that community opens in-app, the same as tapping any other community row
+
+### Long-press a meta-community row for its full context menu
+
+- **Given** the About this instance card is showing a row
+- **When** I long-press it
+- **Then** the community context menu opens — Open Community, Subscribe/Unsubscribe, Add to Favorites (or Remove from Favorites), Notify About New Posts, Mute/Unmute, Share, Copy Link, and Block Community
+- **And** Favourite and Notify work whether I'm signed in or browsing signed out; Subscribe shows the sign-in gate when signed out instead of a doomed attempt
+
+### No default account yet — the card is absent
+
+- **Given** the app has no default account yet (before onboarding creates one)
+- **When** the instance-detail screen would otherwise have meta communities to show for the viewed instance
+- **Then** no "About this instance" card appears — no placeholder, nothing
+
 ## Not supported / out of scope
 
 - **Live community list is a single unpaged page.** When the directory has no communities for a host, Spud fetches one page of the instance's own local communities (top-subscribed first, up to 50) — enough to populate the screen, but not a full, paginated browse of every community on the instance. The live rows carry only the fields `/api/v3/community/list` returns (name, title, description, icon, counts, published date); they are not de-duplicated across servers the way the directory's rows are. If the live fetch fails (non-Lemmy server, timeout, unreachable) the list stays empty; the header, description, sidebar, stats, and admins still render from the site probe.
 - **No persistence of resolved instances.** Resolved unknown instances live only in memory for the session; they are never written to the curated directory and do not survive a relaunch.
 - **The `/api/v3/site` probe is a compatibility check, not a software classifier.** It only checks that the server answers the Lemmy site endpoint. Software classification, the version-bearing badge, and the live Signups override on the instance-detail screen ("before you commit", reached by tapping the health card) all come from a separate, fail-open NodeInfo detection layer; see [instance-software-detection.md](instance-software-detection.md).
 - **Directory ranking and contents are untouched.** This feature does not add, remove, or re-rank anything in the bundled Explorer directory or Discover.
+- **No meta-community section on the in-app instance screen itself.** The screen that opens on the first tap (banner, description, sidebar, stats, admins, communities) has no "About this instance" card — that lives one tap further, on the "before you commit" instance-detail screen reached from its health card. Its plain communities list also isn't classified for meta communities; only the deeper screen's dedicated card is.

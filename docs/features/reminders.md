@@ -4,7 +4,7 @@
 - **Status:** shipped — all four planned post-reminder phases (time-based "remind me
   later" reminders, a "When there are new comments" activity follow, a best-effort
   background poll, and account-teardown cleanup) plus a third follow type: a community
-  "Notify About New Posts" follow, reachable from five surfaces.
+  "Notify About New Posts" follow, reachable from six surfaces.
 - **Related:** [Inbox](inbox.md), [Instance meta communities](instance-meta-communities.md), [docs/superpowers/specs/2026-07-12-post-reminders-design.md](../superpowers/specs/2026-07-12-post-reminders-design.md), [docs/superpowers/plans/2026-07-12-post-reminders-phase1.md](../superpowers/plans/2026-07-12-post-reminders-phase1.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase2.md](../superpowers/plans/2026-07-13-post-reminders-phase2.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase3.md](../superpowers/plans/2026-07-13-post-reminders-phase3.md), [docs/superpowers/plans/2026-07-13-post-reminders-phase4.md](../superpowers/plans/2026-07-13-post-reminders-phase4.md), [docs/superpowers/specs/2026-07-19-community-new-posts-follow-design.md](../superpowers/specs/2026-07-19-community-new-posts-follow-design.md)
 
 ## What it does
@@ -55,21 +55,24 @@ mention.
   comment's own descendant count instead of the post's total, and — like the whole-post
   case — counts **every** new descendant, including your own replies to the thread; it
   isn't limited to other people's comments.
-- **A community "new posts" follow, from five entry points.** "Notify About New Posts"
+- **A community "new posts" follow, from six entry points.** "Notify About New Posts"
   follows a whole community instead of a single post, so you hear about its very next
   post rather than its next comment. It's reachable from: the community screen's "•••"
   overflow menu and its header long-press context menu (grouped next to Subscribe and
-  Favourite); a community result's long-press context menu in [Search](search.md); the
-  bell button on a meta community's row in the Communities tab's "About `<instance>`"
-  section (see [Instance meta communities](instance-meta-communities.md)); and a
-  subscribed community's row context menu in the Communities tab. Like the activity
+  Favourite); a community result's long-press context menu in [Search](search.md); a
+  meta-community row's long-press context menu on the instance-detail screen (see
+  [Instance meta communities](instance-meta-communities.md) and
+  [Instance browsing](instance-browsing.md)); the bell button on a meta community's row
+  in the Communities tab's "About `<instance>`" section; and a subscribed community's
+  row context menu in the Communities tab. Like the activity
   follow, it's a single toggling action — choosing it follows, choosing it again
   unfollows. Confirmation feedback differs by surface: the community screen's
-  overflow/header menu and a Search result's context menu show a toast ("You'll be
-  notified of new posts." / "Stopped notifying."), while the Communities tab's meta-row
-  bell and a subscribed community's row context menu instead give haptic feedback and
-  flip the bell's fill state, with no toast. Every surface shares the same title and
-  bell icon, filled while live.
+  overflow/header menu, a Search result's context menu, and a meta-community row's
+  context menu on the instance-detail screen all show a toast ("You'll be notified of
+  new posts." / "Stopped notifying."), while the Communities tab's meta-row bell and a
+  subscribed community's row context menu instead give haptic feedback and flip the
+  bell's fill state, with no toast. Every surface shares the same title and bell icon,
+  filled while live.
 - **A community follow fires on any new post — not the 5-or-24h smart rule.** Unlike the
   new-comments activity follow, a community follow notifies on **1 or more** new posts
   since it was last checked, full stop; there's no comment-count threshold or 24-hour
@@ -360,8 +363,9 @@ mention.
 ### Toggle off a community follow from where you followed it
 
 - **Given** a community has a live "Notify About New Posts" follow
-- **When** I toggle "Notify About New Posts" off again from the community screen or a
-  Search result's context menu
+- **When** I toggle "Notify About New Posts" off again from the community screen, a
+  Search result's context menu, or a meta-community row's context menu on the
+  instance-detail screen
 - **Then** a confirmation toast shows ("Stopped notifying.")
 - **When** I instead toggle it off from its bell in the Communities tab (meta-row bell or
   a subscribed row's context menu)
@@ -372,8 +376,8 @@ mention.
 ### Blocking a community removes its notify follow
 
 - **Given** a community has a live "Notify About New Posts" follow
-- **When** I block that community (from the community screen or a Search result) and
-  confirm
+- **When** I block that community (from the community screen, a Search result, or a
+  meta-community row on the instance-detail screen) and confirm
 - **Then** the community is blocked as normal
 - **And** its notify follow is also removed, so a community I've explicitly asked never
   to see again can't keep notifying me

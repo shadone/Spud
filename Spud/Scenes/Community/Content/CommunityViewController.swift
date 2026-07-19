@@ -40,6 +40,7 @@ class CommunityViewController: UIViewController {
         HasDiagnosticLog &
         HasImageService &
         HasLinkEmbedService &
+        HasMetaCommunityService &
         HasNodeInfoService &
         HasPostContentDetectorService &
         HasPreferencesService &
@@ -402,10 +403,8 @@ class CommunityViewController: UIViewController {
         guard viewModel.actorId != nil else { return [] }
         let favorited = viewModel.isFavorited()
         return [UIAction(
-            title: favorited
-                ? NSLocalizedString("Remove from Favorites", comment: "Overflow action to unfavorite a community")
-                : NSLocalizedString("Add to Favorites", comment: "Overflow action to favorite a community"),
-            image: UIImage(systemName: favorited ? "star.slash" : "star")
+            title: CommunityFavoriteLabel.title(isFavorited: favorited),
+            image: UIImage(systemName: CommunityFavoriteLabel.symbol(isFavorited: favorited))
         ) { [weak self] _ in
             self?.toggleFavorite()
         }]
