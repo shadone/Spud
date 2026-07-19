@@ -105,7 +105,8 @@ alias on `ReminderRecord`.
 
 All surfaces use one centralized copy/symbol helper (the
 `CommunitySubscribeButtonLabel` pattern): menu title "Notify About New Posts",
-checkmark when live, toggle on tap; bell symbols (`bell` / `bell.fill`); toasts
+checkmark when live, toggle on tap; bell symbols `bell.badge` / `bell.badge.fill`
+(NOT `bell`/`bell.slash`, which Mute/Unmute already use in the same menus); toasts
 "You'll be notified of new posts." / "Stopped notifying."
 
 1. **Community screen overflow menu** — a deferred action in the state group next
