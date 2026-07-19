@@ -8,7 +8,8 @@
 
 The Inbox is a tab that gathers everything addressed to your account: replies to your
 posts and comments, @-mentions of you, private-message conversations, and your own
-[reminders](reminders.md). A segmented control switches between four scopes — Replies,
+[reminders](reminders.md) — including standing follows on a post's comments or a
+community's new posts. A segmented control switches between four scopes — Replies,
 Mentions, Reminders, Messages — and the active scope's list is shown below it. Unread
 items are visually distinct, and the count of all unread items (including fired-unseen
 reminders) rides as a numeric badge on the Inbox tab, kept live. The Inbox requires a

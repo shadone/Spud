@@ -429,6 +429,14 @@ final class DiscoverViewModel {
                     .fetchCommunityInfo(communityName: "\(row.name)@\(row.instanceHost)")
                 try await lemmyService.setBlocked(serverCommunityId: serverCommunityId, blocked: true)
                 Haptics.success()
+                // Blocking is an explicit "never show me this" - a live new-posts
+                // follow must not keep notifying about a community the user just
+                // asked to never see again.
+                Task { [accountScope] in
+                    try? await accountScope.reminderService.removeCommunityFollow(
+                        communityServerId: Int64(serverCommunityId)
+                    )
+                }
             } catch {
                 alertService.handle(error, for: .setBlockedCommunity)
             }

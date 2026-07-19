@@ -106,6 +106,27 @@ public protocol LemmyServiceType: Actor {
         sortType: Lemmy.CommentSortType
     ) async -> Int?
 
+    /// Fetch `communityId`'s newest posts' `published` dates for the reminder
+    /// poll's COMMUNITY-FOLLOW branch (`SchedulerService.
+    /// pollActivityRemindersSweep`) - a feed-less, one-shot listing request:
+    /// nothing is persisted (no feed row, no post rows), only the `published`
+    /// stamps off one page (sort `.New`) are read back. Has a default
+    /// (always-nil) implementation, so conformers that never drive the
+    /// reminder poll's community-follow branch don't need to implement it,
+    /// exactly like `fetchSubtreeChildCount`.
+    ///
+    /// - Parameters:
+    ///   - communityId: the target community's server-assigned id.
+    ///   - showNsfw: forwarded to the underlying listing request exactly like
+    ///     `fetchFeed`'s `showNsfw` - the account's synced show-NSFW
+    ///     preference, so NSFW posts are server-side included/excluded
+    ///     consistently with the rest of the app.
+    /// - Returns: the newest page's posts' `published` dates, or nil on any
+    ///   failure (network/decoding error) - best-effort, exactly like
+    ///   `fetchSubtreeChildCount`. `pollDueCommunityFollows` treats a nil
+    ///   result as "fetch failed" and bumps `nextCheckAt` without firing.
+    func fetchCommunityNewestPostDates(communityId: Int64, showNsfw: Bool) async -> [Date]?
+
     func fetchSiteInfo() async throws
 
     /// Fetch the instance's site info via the version-neutral `getSiteNeutral()`
@@ -602,6 +623,15 @@ public extension LemmyServiceType {
         rootCommentServerId _: Int64,
         sortType _: Lemmy.CommentSortType
     ) async -> Int? {
+        nil
+    }
+
+    /// Default: no community-follow newest-post refresh available - always
+    /// nil, exactly like a failed fetch. Only `LemmyService` (the real
+    /// implementation) and test doubles that specifically drive
+    /// `SchedulerService`'s reminder-poll community-follow branch need to
+    /// override this.
+    func fetchCommunityNewestPostDates(communityId _: Int64, showNsfw _: Bool) async -> [Date]? {
         nil
     }
 }
@@ -1277,6 +1307,39 @@ public actor LemmyService: LemmyServiceType {
         }
 
         return nil
+    }
+
+    /// Fetch `communityId`'s newest posts' `published` dates for the reminder
+    /// poll's COMMUNITY-FOLLOW branch (`SchedulerService.
+    /// pollActivityRemindersSweep`). Feed-less: unlike `fetchFeed`'s community
+    /// branch, this requests one page (sort `.New`, no time window) directly
+    /// by id - no `FeedHandle`/`FeedType`, and nothing is mirrored into the
+    /// database (no feed row, no post rows). Only the `published` field the
+    /// importer would otherwise persist is read back here.
+    ///
+    /// Best-effort: never throws. Returns nil on any failure (network,
+    /// decoding, ...) - `pollDueCommunityFollows` treats a nil result exactly
+    /// like it treats a fetch failure elsewhere (bumps `nextCheckAt` without
+    /// firing).
+    public func fetchCommunityNewestPostDates(communityId: Int64, showNsfw: Bool) async -> [Date]? {
+        do {
+            let (sort, timeRange) = Lemmy.SortType.New.neutralPostSort
+            let page = try await api.getPostsNeutral(
+                listingType: .All,
+                sort: sort,
+                communityId: communityId,
+                timeRange: timeRange,
+                showNsfw: showNsfw,
+                pageCursor: nil
+            )
+            return page.items.map(\.post.publishedAt)
+        } catch {
+            logger.error("""
+                fetchCommunityNewestPostDates failed. account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                communityId=\(communityId, privacy: .public). \(String(describing: error), privacy: .public)
+                """)
+            return nil
+        }
     }
 
     /// Fetches moderator removal reasons for the post's removed comments from

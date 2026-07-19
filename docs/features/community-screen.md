@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Person / user profile](person-profile.md), [Search](search.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Subscribe / unsubscribe](subscribe-unsubscribe.md), [Feeds and sorting](feeds-and-sorting.md), [Feed loading and pagination](feed-loading.md), [Person / user profile](person-profile.md), [Search](search.md), [NSFW content visibility and blur](nsfw-content.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -18,13 +18,14 @@ The community screen pins a header above the community's post feed. The header s
 - **Resolve-then-show.** Opening a community first resolves its server id (fetching by qualified name when not cached) behind a spinner, then swaps in the header-plus-feed content. A remote community is resolved fully-qualified so any instance can find it.
 - **Two-column reading layout on iPad.** On a regular-width iPad, opening a community presents a two-column reading split — the header-plus-feed in the primary column and the tapped post in the secondary column — so reading a community mirrors the Posts tab's side-by-side layout. Tapping a post lands it in that secondary column with the feed still visible (see [iPad split-view handoff](ipad-split-view.md)). At compact width the community opens as a single pushed screen and a tapped post pushes full-screen.
 - **Subscribe / unsubscribe from the header.** The header button toggles subscription, gated on sign-in. Tapping it flips the button to Pending / Subscribe instantly through the durable optimistic outbox (see [Subscribe / unsubscribe](subscribe-unsubscribe.md)), then updates again once the background send's authoritative result lands (Subscribed, or Pending if the community requires approval).
-- **Header context menu.** Long-pressing the header offers Subscribe / Unsubscribe and Block / Unblock community.
+- **Header context menu.** Long-pressing the header offers Subscribe / Unsubscribe, "Notify About New Posts" (see below), and Block / Unblock community.
 - **New post.** A compose button in the navigation bar opens the new-post composer pre-filled with this community; it is gated on sign-in.
 - **Sort the feed.** A sort menu in the navigation bar changes the community feed's post sort order — the same grouped Hot / Active / New / Top… pull-down as the main feed. Picking a sort reloads the feed at the new ordering while the header stays in place. See [Feeds and sorting](feeds-and-sorting.md).
-- **Overflow menu.** The navigation bar's `•••` menu is grouped into three visually separated sections: (1) Subscribe / Unsubscribe and Add to / Remove from Favorites, (2) Mute and Block, (3) Copy Link, Share…, and Open in Browser. The state-dependent entries are evaluated each time the menu opens so they reflect live subscription, favorite, mute, and block state.
+- **Overflow menu.** The navigation bar's `•••` menu is grouped into three visually separated sections: (1) Subscribe / Unsubscribe, Add to / Remove from Favorites, and "Notify About New Posts", (2) Mute and Block, (3) Copy Link, Share…, and Open in Browser. The state-dependent entries are evaluated each time the menu opens so they reflect live subscription, favorite, notify-follow, mute, and block state.
 - **Favorites.** Add to / Remove from Favorites is a local, per-account concern (not server-backed, like muting), so it is not gated on sign-in. A favorited community is pinned to the top of the Communities list and flagged with a star (see [Subscriptions sidebar](subscriptions-sidebar.md)).
+- **"Notify About New Posts."** A standing local follow, independent of Subscribe and Favorites, that notifies you the next time this community posts something new — useful for a low-traffic community where waiting to browse back would mean missing it. Like Favorites, it's local and per-account, so it's available signed in or out, and toggles on tap with a checkmark and a filled bell while live. See [Reminders](reminders.md) for the full behavior (the fire rule, batching, mute/block interplay, and where the follow shows up in the Inbox).
 - **Sharing actions.** Copy Link copies the community's canonical URL, Share… opens the system share sheet (anchored to the overflow button on iPad), and Open in Browser opens that URL externally. The three are omitted when the community has no valid URL yet.
-- **Block awareness.** The overflow menu offers Block / Unblock community. The current block state is resolved from the server's block list on appear so the label is correct. Blocking asks for confirmation, then reloads the embedded feed so the now-filtered content disappears; a signed-out block attempt is gated with an alert.
+- **Block awareness.** The overflow menu offers Block / Unblock community. The current block state is resolved from the server's block list on appear so the label is correct. Blocking asks for confirmation, then reloads the embedded feed so the now-filtered content disappears; a signed-out block attempt is gated with an alert. Blocking also removes any live "Notify About New Posts" follow on the community — an explicit block means never notify either (see [Reminders](reminders.md)).
 - **Markdown description links.** Links in the description open in-app: a person mention opens the [Person profile](person-profile.md), a community link opens another Community screen, and other Lemmy links (posts, instances, and federated mentions that need resolving) are routed in-app through the shared link router. Only non-Lemmy web links open externally.
 - **Title in the nav bar.** The navigation bar title is set to the community title once loaded.
 
@@ -54,6 +55,16 @@ The community screen pins a header above the community's post feed. The header s
 - **Given** an open community while signed in
 - **When** I choose Block community from the overflow menu and confirm
 - **Then** the community is blocked and the embedded feed reloads so its posts are filtered out
+- **And** if I had a live "Notify About New Posts" follow on that community, it is removed too
+
+### Follow a community for new-post notifications
+
+- **Given** an open community, not currently notify-followed
+- **When** I choose "Notify About New Posts" from the overflow menu (or the header's
+  long-press context menu)
+- **Then** a confirmation toast shows ("You'll be notified of new posts.")
+- **And** the menu item shows a checkmark and filled bell the next time the menu opens
+- **And** this works whether I am signed in or browsing signed out
 
 ### Favorite a community pins it in the Communities list
 
@@ -89,5 +100,5 @@ The community screen pins a header above the community's post feed. The header s
 
 - No pull-to-refresh on the community feed — it reloads on sort change, re-selection, or after a block, like the main feed (see [Feed loading and pagination](feed-loading.md)).
 - The community feed sort starts at the account default; a navigation-bar sort menu lets you change it per visit (the choice is not persisted as a new default).
-- Moderator and admin actions on the community are not provided; the overflow menu offers subscribe, favorite, mute, block, and the sharing actions only.
+- Moderator and admin actions on the community are not provided; the overflow menu offers subscribe, favorite, "Notify About New Posts", mute, block, and the sharing actions only.
 - The header shows community metadata but not a moderator list or sidebar rules beyond the markdown description.

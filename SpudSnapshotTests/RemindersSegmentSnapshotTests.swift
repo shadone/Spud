@@ -11,10 +11,12 @@ import XCTest
 @testable import Spud
 
 /// Snapshots of the Inbox "Reminders" segment: the empty-state placeholder,
-/// and `InboxReminderCell` in its four live states - `time`-kind `scheduled`
-/// (a relative countdown to `fireAt`) / `fired` ("Tap to revisit"), and
+/// and `InboxReminderCell` in its six live states - `time`-kind `scheduled`
+/// (a relative countdown to `fireAt`) / `fired` ("Tap to revisit"),
 /// `activity`-kind (Phase 2) `scheduled` ("Watching for new comments") /
-/// `fired` ("New comments · tap to catch up") - each in light and dark.
+/// `fired` ("New comments · tap to catch up"), and `communityPosts`-kind (the
+/// community "new posts" follow) `scheduled` ("Watching for new posts") /
+/// `fired` ("New posts · tap to catch up") - each in light and dark.
 ///
 /// Mirrors `InboxCellsSnapshotTests` (cell rendering, `StaticImageService` for
 /// deterministic thumbnail loading, no network) and `InboxGatedSnapshotTests`
@@ -89,6 +91,26 @@ final class RemindersSegmentSnapshotTests: XCTestCase {
     func test_activityFired() async {
         let cell = await makeReminderCell(reminder(
             kind: .activity,
+            status: .fired,
+            unseen: true,
+            fireAt: nil
+        ))
+        assertCell(cell)
+    }
+
+    func test_communityScheduled() async {
+        let cell = await makeReminderCell(reminder(
+            kind: .communityPosts,
+            status: .scheduled,
+            unseen: false,
+            fireAt: nil
+        ))
+        assertCell(cell)
+    }
+
+    func test_communityFired() async {
+        let cell = await makeReminderCell(reminder(
+            kind: .communityPosts,
             status: .fired,
             unseen: true,
             fireAt: nil

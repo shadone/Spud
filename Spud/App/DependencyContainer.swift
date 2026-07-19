@@ -97,12 +97,23 @@ struct DependencyContainer:
             // the in-app toggle is inert.
             reminderNotificationsEnabled: { preferencesServiceForReminders.reminderNotificationsEnabled }
         )
+        // A plain local `let` (no `nonisolated(unsafe)` needed - `showNsfwProvider`'s
+        // seam type is itself `@MainActor`, so it may read `preferencesService`
+        // directly). Still required to go through a local rather than closing
+        // over `self.preferencesService` inline below: `DependencyContainer` is a
+        // struct, and an escaping closure built in `init` can't capture `self`
+        // before every stored property is initialized.
+        let preferencesServiceForScheduler = preferencesService
         schedulerService = SchedulerService(
             appDatabase: appDatabase,
             accountService: accountService,
             alertService: alertService,
             diagnostics: diagnosticLog,
-            reachabilityMonitor: reachabilityMonitor
+            reachabilityMonitor: reachabilityMonitor,
+            // Wires the real user preference through to the scheduler's
+            // community-follow poll (see `SchedulerService.showNsfwProvider`'s
+            // doc comment).
+            showNsfwProvider: { preferencesServiceForScheduler.showNsfw }
         )
         postContentDetectorService = PostContentDetectorService()
         appearanceService = AppearanceService(preferencesService: preferencesService)

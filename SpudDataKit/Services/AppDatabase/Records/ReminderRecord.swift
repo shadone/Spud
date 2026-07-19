@@ -26,9 +26,26 @@ import GRDB
 /// `(accountId, postServerId, rootCommentServerId, kind)` an effective
 /// "one live reminder per kind per target" constraint.
 ///
-/// `kind` is `"time"` for Phase 1 (see `Kind`); `nextCheckAt`/`baselineCount`/
-/// `baselineAt` and the `"activity"` kind are unused until a later phase, but
-/// present now so that phase adds no migration.
+/// `kind` is one of `"time"`, `"activity"`, or `"communityPosts"` (see `Kind`) -
+/// all three are live. `nextCheckAt`/`baselineCount`/`baselineAt` were added in
+/// the Phase 1 migration alongside the `time` kind, even though `activity`
+/// (Phase 2) and `communityPosts` (this phase) didn't start using them until
+/// later, so neither later phase needed its own migration; `communityPosts`
+/// uses `nextCheckAt` and `baselineAt` (the watermark) but always leaves
+/// `baselineCount` nil (see the column-reuse table below).
+///
+/// `kind == .communityPosts` reuses the same post-centric columns to watch a
+/// *community* instead, rather than adding a migration for a parallel set of
+/// community-shaped columns:
+/// - `postServerId` - the community's server id (not a post id)
+/// - `apId` - the community's actorId
+/// - `titleSnapshot` - the community's title
+/// - `thumbnailUrl` - the community's icon URL
+/// - `baselineAt` - the watermark: the newest post `published` timestamp
+///   observed as of the last check
+/// - `baselineCount` / `fireAt` - always nil (unused by this kind)
+/// - `rootCommentServerId` - always `wholePostSentinel` (0); a community
+///   follow has no comment-subtree variant
 public struct ReminderRecord: Codable, Sendable, Equatable, Identifiable {
     public static let databaseTableName = "reminder"
 
@@ -39,7 +56,8 @@ public struct ReminderRecord: Codable, Sendable, Equatable, Identifiable {
     public var apId: String
     /// `wholePostSentinel` (0) for a whole-post reminder.
     public var rootCommentServerId: Int64
-    /// Raw `Kind` string - `"time"` (Phase 1) | `"activity"` (later).
+    /// Raw `Kind` string - `"time"` (Phase 1) | `"activity"` (Phase 2) |
+    /// `"communityPosts"` (this phase).
     public var kind: String
     public var fireAt: Date?
     /// Activity-kind only; unused in Phase 1.
@@ -119,6 +137,9 @@ public extension ReminderRecord {
     enum Kind: String {
         case time
         case activity
+        /// A community "new posts" follow. Reuses the post-centric columns -
+        /// see the type doc comment's column-reuse table.
+        case communityPosts
     }
 
     /// Typed view of the `status` raw string.

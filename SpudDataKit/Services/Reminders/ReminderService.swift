@@ -425,9 +425,190 @@ public actor ReminderService {
         }
     }
 
+    // MARK: - Community follows
+
+    /// Sets (or replaces) a "new posts" follow on the community
+    /// `communityServerId`: notify me when the community posts something new
+    /// (spec §4). Reuses the post-centric `reminder` columns to watch a
+    /// community instead of a post - see `ReminderRecord`'s column-reuse doc
+    /// comment for the full mapping (`postServerId` is the community's server
+    /// id, `apId` is the community's actorId, `baselineAt` is the watermark:
+    /// the newest post `published` seen at follow-time).
+    ///
+    /// Like `setActivityReminder`, this schedules **no** up-front OS trigger -
+    /// a community follow fires ad-hoc from the foreground poll
+    /// (`pollDueCommunityFollows`), which reads the watermark against the
+    /// community's live newest-post dates and decides via
+    /// `CommunityFollowRule.shouldFire`.
+    ///
+    /// Calling this a second time for the same community replaces the
+    /// existing row in place and re-baselines its watermark to "now" - the
+    /// unique key `(accountId, postServerId, rootCommentServerId, kind)` is
+    /// shared with the other kinds, so a community follow never collides with
+    /// a `time`/`activity` reminder that happens to target a post sharing the
+    /// same numeric id as this community.
+    ///
+    /// - Parameters:
+    ///   - communityServerId: the target community's server-assigned id.
+    ///   - communityActorId: the community's canonical ActivityPub actor URL,
+    ///     denormalized onto the row (column-reuse: stored in `apId`).
+    ///   - name: the community's bare name (no `!`/`@`), denormalized onto the
+    ///     row (column-reuse: stored in `communityName`).
+    ///   - title: the community's display title, denormalized at set-time
+    ///     (column-reuse: stored in `titleSnapshot`).
+    ///   - instanceHost: the community's home instance host.
+    ///   - iconUrl: the community's icon, if any, denormalized at set-time
+    ///     (column-reuse: stored in `thumbnailUrl`).
+    public func setCommunityFollow(
+        communityServerId: Int64,
+        communityActorId: String,
+        name: String,
+        title: String,
+        instanceHost: String,
+        iconUrl: String?
+    ) async throws {
+        let now = Date()
+        let record = ReminderRecord(
+            accountId: accountId,
+            postServerId: communityServerId, // column reuse - see ReminderRecord
+            apId: communityActorId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.communityPosts.rawValue,
+            nextCheckAt: now.addingTimeInterval(CommunityFollowRule.pollInterval),
+            baselineCount: nil,
+            baselineAt: now, // the watermark
+            status: ReminderRecord.Status.scheduled.rawValue,
+            unseen: false,
+            notificationRequestId: nil,
+            titleSnapshot: title,
+            communityName: name,
+            instanceHost: instanceHost,
+            thumbnailUrl: iconUrl
+        )
+        try await appDatabase.upsertReminder(record)
+
+        // Side-effect only: primes the OS permission prompt on first use,
+        // same rationale as `setActivityReminder`. The row above is already
+        // persisted regardless of the outcome.
+        _ = await isAuthorized()
+    }
+
+    /// Removes the "new posts" follow on the community `communityServerId`,
+    /// if any. Unlike `removeTimeReminder`, there is no OS notification
+    /// request to cancel - community follows never carry a
+    /// `notificationRequestId` (`setCommunityFollow` always persists it
+    /// `nil`), same as `removeActivityReminder`. A no-op (not a throw) if no
+    /// such follow exists.
+    public func removeCommunityFollow(communityServerId: Int64) async throws {
+        try await appDatabase.removeReminder(
+            accountId: accountId,
+            postServerId: communityServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.communityPosts.rawValue
+        )
+    }
+
+    /// The stable `notificationRequestId` a community follow's ad-hoc fire
+    /// posts under. Never persisted on the row (mirrors
+    /// `activityNotificationRequestId`) - it only needs to be stable enough
+    /// that back-to-back fires for the same community replace rather than
+    /// pile up in Notification Center.
+    private func communityFollowNotificationRequestId(forCommunityServerId communityServerId: Int64) -> String {
+        "reminder-\(accountId)-\(communityServerId)-\(ReminderRecord.wholePostSentinel)-\(ReminderRecord.Kind.communityPosts.rawValue)"
+    }
+
+    /// Polls every community follow due for a check (`nextCheckAt <= asOf`)
+    /// and applies the fixed fire rule (`CommunityFollowRule`): refreshes each
+    /// community's newest-post dates via `postDatesFetcher`, and either fires
+    /// (posts the notification, re-arms the watermark to the newest date
+    /// seen, pushes `nextCheckAt` forward) or - on a fetch failure or zero new
+    /// posts - just pushes `nextCheckAt` forward so the follow is retried on
+    /// the next due sweep. Mirrors `pollDueActivityReminders`'s structure and
+    /// never-throws contract.
+    ///
+    /// - Parameters:
+    ///   - asOf: the poll's reference "now" - every timestamp this call
+    ///     writes (`baselineAt`, `nextCheckAt`, `lastNotifiedAt`) derives from
+    ///     this, not the real wall clock, so tests can drive the rule
+    ///     deterministically.
+    ///   - postDatesFetcher: resolves a community's live newest-post
+    ///     `published` dates (most recent page), or nil on failure (offline,
+    ///     server error, or the community is muted) - a best-effort skip, not
+    ///     a fatal error. Called with each due row's `communityServerId` AND
+    ///     `communityActorId` (`@Sendable` for the same cross-actor reason as
+    ///     `commentCountFetcher`).
+    public func pollDueCommunityFollows(
+        asOf: Date,
+        postDatesFetcher: @Sendable (_ communityServerId: Int64, _ communityActorId: String) async -> [Date]?
+    ) async {
+        let due = appDatabase.dueCommunityFollowsSync(accountId: accountId, asOf: asOf)
+        let nextCheckAt = asOf.addingTimeInterval(CommunityFollowRule.pollInterval)
+
+        for follow in due {
+            guard let id = follow.id else { continue }
+
+            guard let dates = await postDatesFetcher(follow.postServerId, follow.apId) else {
+                await bumpNextCheck(id: id, nextCheckAt: nextCheckAt)
+                await diagnostics.record(
+                    category: .reminder,
+                    level: .notice,
+                    event: "poll.community.fetchFailed",
+                    message: "Community follow poll could not fetch newest posts (or the community is muted)",
+                    instance: follow.instanceHost,
+                    metadata: ["communityServerId": String(follow.postServerId)]
+                )
+                continue
+            }
+
+            // Malformed-row fallback mirrors the activity poll: a follow
+            // always sets baselineAt at creation, so nil only means a damaged
+            // row - treat everything as already-seen rather than firing on
+            // the backlog.
+            let watermark = follow.baselineAt ?? asOf
+            let newPosts = dates.filter { $0 > watermark }.count
+
+            if CommunityFollowRule.shouldFire(newPosts: newPosts) {
+                let isSaturated = newPosts == dates.count && newPosts >= CommunityFollowRule.saturationThreshold
+                let content = ReminderNotificationFactory.communityFollowContent(
+                    title: follow.titleSnapshot,
+                    communityName: follow.communityName,
+                    instanceHost: follow.instanceHost,
+                    newCount: newPosts,
+                    isSaturated: isSaturated
+                )
+                await scheduler.postNow(
+                    requestId: communityFollowNotificationRequestId(forCommunityServerId: follow.postServerId),
+                    content: content
+                )
+
+                do {
+                    try await appDatabase.rearmCommunityFollow(
+                        id: id,
+                        watermark: dates.max() ?? watermark,
+                        nextCheckAt: nextCheckAt,
+                        firedAt: asOf
+                    )
+                } catch {
+                    logger.error("pollDueCommunityFollows: rearmCommunityFollow(\(id)) failed: \(String(describing: error), privacy: .public)")
+                }
+
+                await diagnostics.record(
+                    category: .reminder,
+                    level: .info,
+                    event: "poll.community.fired",
+                    message: "Community follow fired",
+                    instance: follow.instanceHost,
+                    metadata: ["communityServerId": String(follow.postServerId), "newPosts": String(newPosts)]
+                )
+            } else {
+                await bumpNextCheck(id: id, nextCheckAt: nextCheckAt)
+            }
+        }
+    }
+
     // MARK: - Account teardown (Phase 4)
 
-    /// Deletes every reminder of this account (both kinds, whole-post and
+    /// Deletes every reminder of this account (all kinds, whole-post and
     /// comment-subtree alike) and cancels each deleted time reminder's OS
     /// notification request. The account-teardown counterpart to
     /// `removeTimeReminder`/`removeActivityReminder` - called by

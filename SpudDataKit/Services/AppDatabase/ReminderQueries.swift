@@ -41,8 +41,8 @@ public extension AppDatabase {
 
     /// Kinds still "active" on this target - drives the "Remind Me…" menu's
     /// checkmarks and "Cancel reminder" affordance. "Active" is
-    /// **kind-specific**, not a single `status` filter, because `time` and
-    /// `activity` diverge on what "still live" means:
+    /// **kind-specific**, not a single `status` filter, because `time`,
+    /// `activity`, and `communityPosts` diverge on what "still live" means:
     /// - `time`: active only while `.scheduled` - a one-shot reminder that has
     ///   fired is done, so it drops out (mirrors
     ///   `reconcileOverdueTimeReminders`'s scope). Phase 1 doesn't track which
@@ -53,9 +53,16 @@ public extension AppDatabase {
     ///   scope), so it must stay "active" or the "When there are new comments"
     ///   checkmark would go stale (showing OFF while the user is still being
     ///   notified) and toggling it would re-baseline instead of removing it.
+    /// - `communityPosts`: active while `.scheduled` OR `.fired`, same
+    ///   rationale as `activity` - a fired-then-re-armed community follow
+    ///   keeps watching (mirrors `dueCommunityFollowsSync`'s scope).
     ///
-    /// `.dismissed`/`.failed` are never active for either kind - there's
-    /// nothing left to cancel/toggle.
+    /// `.dismissed`/`.failed` are never active for any kind - there's nothing
+    /// left to cancel/toggle. Because `postServerId` is scoped per-kind (a
+    /// post id for `time`/`activity`, a community id for `communityPosts`),
+    /// a community follow and an activity reminder that happen to share the
+    /// same numeric target id are unambiguous - the `kind` column keeps them
+    /// distinct rows and distinct entries in the returned set.
     func activeReminderKindsSync(
         accountId: Int64,
         postServerId: Int64,
@@ -71,11 +78,13 @@ public extension AppDatabase {
                           AND (
                                 (kind = ? AND status = ?)
                              OR (kind = ? AND status IN (?, ?))
+                             OR (kind = ? AND status IN (?, ?))
                           )
                     """, arguments: [
                     accountId, postServerId, rootCommentServerId,
                     ReminderRecord.Kind.time.rawValue, ReminderRecord.Status.scheduled.rawValue,
                     ReminderRecord.Kind.activity.rawValue, ReminderRecord.Status.scheduled.rawValue, ReminderRecord.Status.fired.rawValue,
+                    ReminderRecord.Kind.communityPosts.rawValue, ReminderRecord.Status.scheduled.rawValue, ReminderRecord.Status.fired.rawValue,
                 ])
             }
             return Set(kinds)
@@ -132,6 +141,40 @@ public extension AppDatabase {
             }
         } catch {
             logger.error("dueActivityRemindersSync failed: \(String(describing: error), privacy: .public)")
+            return []
+        }
+    }
+
+    /// Every `communityPosts` follow due for a poll check: `kind ==
+    /// .communityPosts`, `status` is `.scheduled` OR `.fired` (a
+    /// fired-then-re-armed follow keeps watching - only `.dismissed`/`.failed`
+    /// drop out), and `nextCheckAt <= asOf`. Mirrors `dueActivityRemindersSync`
+    /// - drives the community-follow poll (Task 2).
+    ///
+    /// `asOf` is bound as a `Date` (not an epoch double) to match
+    /// `nextCheckAt`'s ISO-8601-text storage - see the GRDB date-storage
+    /// convention in the project `CLAUDE.md`; a Double-vs-text comparison would
+    /// silently match nothing.
+    func dueCommunityFollowsSync(accountId: Int64, asOf: Date) -> [ReminderRecord] {
+        do {
+            return try writer.read { db in
+                try ReminderRecord.fetchAll(db, sql: """
+                        SELECT * FROM reminder
+                        WHERE accountId = ?
+                          AND kind = ?
+                          AND status IN (?, ?)
+                          AND nextCheckAt IS NOT NULL
+                          AND nextCheckAt <= ?
+                    """, arguments: [
+                    accountId,
+                    ReminderRecord.Kind.communityPosts.rawValue,
+                    ReminderRecord.Status.scheduled.rawValue,
+                    ReminderRecord.Status.fired.rawValue,
+                    asOf,
+                ])
+            }
+        } catch {
+            logger.error("dueCommunityFollowsSync failed: \(String(describing: error), privacy: .public)")
             return []
         }
     }

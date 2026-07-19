@@ -19,6 +19,11 @@ struct SubscriptionsCommunityRow: Equatable, Identifiable {
     /// The community's federation actor id (e.g. "https://lemmy.world/c/world"),
     /// used to match against the per-account favorites set.
     let communityActorId: String
+    /// The community's server-assigned id (`CommunityRecord.communityId`, NOT
+    /// `id`/the row's local primary key) — the identity `ReminderService`'s
+    /// community-follow rows and `AppDatabase.observeCommunityFollowServerIds`
+    /// key on, so the notify bell/menu must use this, not `id`.
+    let communityServerId: Int64
     /// Whether this community is favorited by the active account. Favorites are
     /// pinned to the top of the list and flagged with a star.
     var isFavorite: Bool = false

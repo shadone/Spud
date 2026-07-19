@@ -113,6 +113,47 @@ public extension AppDatabase {
         }
     }
 
+    /// Live stream of the server ids of communities with a still-live
+    /// `communityPosts` follow (`.scheduled` or `.fired`, same "still
+    /// watching" scope as `dueCommunityFollowsSync`). Drives the Subscriptions
+    /// tab's bell state (Task 6): a community's row shows a filled bell iff
+    /// its server id is in this set.
+    func observeCommunityFollowServerIds(forAccountId accountId: Int64) -> AsyncStream<Set<Int64>> {
+        let observation = ValueObservation
+            .tracking { db -> Set<Int64> in
+                let ids = try Int64.fetchAll(db, sql: """
+                        SELECT postServerId FROM reminder
+                        WHERE accountId = ?
+                          AND kind = ?
+                          AND status IN (?, ?)
+                    """, arguments: [
+                    accountId,
+                    ReminderRecord.Kind.communityPosts.rawValue,
+                    ReminderRecord.Status.scheduled.rawValue,
+                    ReminderRecord.Status.fired.rawValue,
+                ])
+                return Set(ids)
+            }
+            .removeDuplicates()
+
+        return AsyncStream { continuation in
+            // ValueObservation.start defaults to .async(onQueue: .main), which is
+            // @MainActor-isolated and illegal from this non-isolated AsyncStream
+            // init closure. All *Observations.swift helpers in this project use
+            // .async(onQueue: .global(qos: .userInitiated)) explicitly.
+            let cancellable = observation.start(
+                in: writer,
+                scheduling: .async(onQueue: .global(qos: .userInitiated))
+            ) { error in
+                logger.error("observeCommunityFollowServerIds ValueObservation failed: \(String(describing: error), privacy: .public)")
+                continuation.finish()
+            } onChange: { value in
+                continuation.yield(value)
+            }
+            continuation.onTermination = { _ in cancellable.cancel() }
+        }
+    }
+
     /// Live stream of the fired-and-unseen reminder count for the account -
     /// backs the Inbox tab / segment badge (`unseenReminderCountSync` is the
     /// matching one-shot read).

@@ -66,6 +66,20 @@ struct ReminderStatusTextTests {
         #expect(ReminderStatusText.describe(for: row) == "Tap to revisit")
     }
 
+    // MARK: - Community follow
+
+    @Test
+    func communityScheduledReadsWatchingForNewPosts() {
+        let row = Self.row(kind: .communityPosts, status: .scheduled, fireAt: nil)
+        #expect(ReminderStatusText.describe(for: row) == "Watching for new posts")
+    }
+
+    @Test
+    func communityFiredReadsNewPosts() {
+        let row = Self.row(kind: .communityPosts, status: .fired, fireAt: nil)
+        #expect(ReminderStatusText.describe(for: row) == "New posts · tap to catch up")
+    }
+
     private static func row(
         kind: ReminderRecord.Kind,
         status: ReminderRecord.Status,

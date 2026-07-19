@@ -12,10 +12,11 @@ import SpudDataKit
 /// label mirror, so the two can never drift apart. Pure (no UIKit), so it's
 /// unit-testable without hosting a cell.
 ///
-/// Branches on `kind` (Phase 2 adds the `activity` branch alongside Phase 1's
-/// `time` one), and - within `activity` - on whether the reminder is scoped
-/// to a comment subtree rather than the whole post (Phase 3,
-/// `rootCommentServerId != ReminderRecord.wholePostSentinel`):
+/// Branches on `kind` (Phase 2 added `activity` alongside Phase 1's `time`;
+/// the community "new posts" follow adds `communityPosts`), and - within
+/// `activity` - on whether the reminder is scoped to a comment subtree rather
+/// than the whole post (Phase 3, `rootCommentServerId !=
+/// ReminderRecord.wholePostSentinel`):
 /// - **time, whole-post**: a relative countdown to `fireAt` ("in 2 days")
 ///   while `scheduled`, or "Tap to revisit" once `fired`.
 /// - **time, subtree**: same countdown/"Tap to revisit" wording as
@@ -28,14 +29,30 @@ import SpudDataKit
 ///   `scheduled`, or "New replies · tap to catch up" once `fired` - names the
 ///   thread scope explicitly so a subtree follow's row is never confused with
 ///   a whole-post one in the same segment.
+/// - **communityPosts** (no subtree variant - see `ReminderRecord`'s
+///   column-reuse doc comment): "Watching for new posts" while `scheduled`,
+///   or "New posts · tap to catch up" once `fired`.
 ///
-/// Phase 2/3 both keep this simple - the row doesn't carry a live new-count,
-/// so the fired string doesn't quote a number (unlike the ad-hoc push
+/// All of these keep it simple - the row doesn't carry a live new-count, so
+/// the fired string doesn't quote a number (unlike the ad-hoc push
 /// notification body, which does; see
-/// `ReminderNotificationFactory.activityReminderContent`).
+/// `ReminderNotificationFactory.activityReminderContent` /
+/// `.communityFollowContent`).
 enum ReminderStatusText {
     static func describe(for reminder: ReminderListRow, now: Date = Date()) -> String {
         let isSubtree = reminder.rootCommentServerId != ReminderRecord.wholePostSentinel
+
+        if reminder.kind == ReminderRecord.Kind.communityPosts.rawValue {
+            return reminder.status == ReminderRecord.Status.fired.rawValue
+                ? NSLocalizedString(
+                    "New posts · tap to catch up",
+                    comment: "Inbox reminder row status: a community new-posts follow has fired"
+                )
+                : NSLocalizedString(
+                    "Watching for new posts",
+                    comment: "Inbox reminder row status: a community new-posts follow is live"
+                )
+        }
 
         if reminder.kind == ReminderRecord.Kind.activity.rawValue {
             if reminder.status == ReminderRecord.Status.fired.rawValue {

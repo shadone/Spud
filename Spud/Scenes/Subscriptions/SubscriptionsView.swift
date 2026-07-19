@@ -149,22 +149,25 @@ struct SubscriptionsCommunityView: View {
 
 /// A row in the always-visible "About <instance>" section: one of the home
 /// instance's classified meta communities (e.g. an announcements/general
-/// community), with one-tap Favourite and — when signed in — Subscribe.
-/// Layout mirrors `SubscriptionsCommunityView`.
+/// community), with one-tap Favourite, Notify (new-posts follow), and — when
+/// signed in — Subscribe. Layout mirrors `SubscriptionsCommunityView`.
 ///
-/// Favourite is always available (purely local, no server call); Subscribe is
-/// gated by `showsSubscribe` because an anonymous/signed-out account has no
-/// server-side subscribe state to mutate (`setSubscribed` would throw) — see
-/// `SubscriptionsView`'s call site, which passes `viewModel.isSignedIn`. The
-/// Subscribe button's title/symbol come from the centralized
-/// `CommunitySubscribeButtonLabel` (also used by `CommunityHeaderView` /
-/// `SearchCommunityCell`) so this row can never show different copy for the
-/// same persisted `CommunitySubscribedState`.
+/// Favourite and Notify are always available (both purely local, no server
+/// call — see `CommunityNotifyLabel`'s doc comment for why `bell.badge`, not
+/// `bell`); Subscribe is gated by `showsSubscribe` because an anonymous/
+/// signed-out account has no server-side subscribe state to mutate
+/// (`setSubscribed` would throw) — see `SubscriptionsView`'s call site, which
+/// passes `viewModel.isSignedIn`. The Subscribe button's title/symbol come
+/// from the centralized `CommunitySubscribeButtonLabel` (also used by
+/// `CommunityHeaderView` / `SearchCommunityCell`) so this row can never show
+/// different copy for the same persisted `CommunitySubscribedState`.
 struct MetaCommunityAboutRow: View {
     let item: MetaCommunityListItem
     let showsSubscribe: Bool
+    let isNotifying: Bool
     let onSubscribe: () -> Void
     let onFavorite: () -> Void
+    let onNotify: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
@@ -195,6 +198,20 @@ struct MetaCommunityAboutRow: View {
                 item.isFavorite
                     ? Text("Unfavorite", comment: "Accessibility label to remove a meta community from favourites")
                     : Text("Favorite", comment: "Accessibility label to add a meta community to favourites")
+            )
+
+            // Always available (like Favourite): community follows are local,
+            // independent of server-side subscribe state — shown even when
+            // signed out.
+            Button(action: onNotify) {
+                Image(systemName: CommunityNotifyLabel.symbol(isNotifying: isNotifying))
+                    .foregroundStyle(isNotifying ? Color.accentColor : Color(.tertiaryLabel))
+            }
+            .buttonStyle(.borderless)
+            .accessibilityLabel(
+                isNotifying
+                    ? Text("Stop notifying about new posts", comment: "Accessibility label to remove a community new-posts follow")
+                    : Text("Notify about new posts", comment: "Accessibility label to follow a community for new-post notifications")
             )
 
             if showsSubscribe {
@@ -272,8 +289,10 @@ struct SubscriptionsView: View {
                         MetaCommunityAboutRow(
                             item: item,
                             showsSubscribe: viewModel.isSignedIn,
+                            isNotifying: viewModel.notifyingCommunityIds.contains(item.id),
                             onSubscribe: { viewModel.toggleSubscribe(item) },
-                            onFavorite: { viewModel.toggleFavorite(item) }
+                            onFavorite: { viewModel.toggleFavorite(item) },
+                            onNotify: { viewModel.toggleNotify(item) }
                         )
                     }
 
@@ -284,8 +303,10 @@ struct SubscriptionsView: View {
                                 MetaCommunityAboutRow(
                                     item: item,
                                     showsSubscribe: viewModel.isSignedIn,
+                                    isNotifying: viewModel.notifyingCommunityIds.contains(item.id),
                                     onSubscribe: { viewModel.toggleSubscribe(item) },
-                                    onFavorite: { viewModel.toggleFavorite(item) }
+                                    onFavorite: { viewModel.toggleFavorite(item) },
+                                    onNotify: { viewModel.toggleNotify(item) }
                                 )
                             }
                         }
@@ -336,6 +357,14 @@ struct SubscriptionsView: View {
                                     viewModel.loadFeed(.community(community))
                                 } label: {
                                     Label("Open", systemImage: "arrow.up.forward")
+                                }
+                                Button {
+                                    viewModel.toggleNotify(for: community)
+                                } label: {
+                                    Label(
+                                        CommunityNotifyLabel.title,
+                                        systemImage: CommunityNotifyLabel.symbol(isNotifying: viewModel.isNotifying(community))
+                                    )
                                 }
                                 if let url = community.shareURL {
                                     Button {
