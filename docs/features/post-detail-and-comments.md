@@ -23,7 +23,7 @@ when the account has them.
 - **Threaded comments with depth rails.** A nested comment draws one colored rail per ancestor level on its leading edge, oldest ancestor first. Rail colors cycle through the active comment-ribbon theme so the same depth always reads as the same color; top-level comments draw no rail.
 - **Header image: cached thumbnail first, then full resolution.** For an image post, the header paints the feed cell's already-cached thumbnail immediately while the full-resolution image loads behind it (the same instant-first-frame idea as the media viewer), so opening a post from the feed never shows an empty gray box first. The full image replaces the thumbnail in place when it arrives.
 - **"Low-res preview" pill when the full image can't load.** If the full-resolution image *fails* to load but a thumbnail is already on screen (e.g. offline, after browsing it in the feed), the header keeps the thumbnail and shows a small tappable **"Low-res preview"** pill over it instead of a hard failure plate — so you still see *something* and know it's degraded. Tapping the pill retries the full image; long-pressing it offers **Open in browser**. The hard failure plate ("Image couldn't load", with **Retry** and **Open in browser**) only appears when nothing is on screen at all (no thumbnail to fall back to). (VoiceOver: the pill is a button labelled "Low-res preview" with a hint that the full image is unavailable.)
-- **Inline body images.** Markdown images (`![alt](url)`) in the post body and in comment bodies render inline as part of the text flow, sized to the content width at the image's aspect ratio (capped in height so a tall image doesn't dominate). They load asynchronously, and once the image arrives the row snaps to its new height instantly, with no animation — an animated re-measure would zoom the never-before-laid-out image in from a corner, so growth is never eased or sprung. A failed load shows a small broken-image tile. Tapping an inline image opens it in the fullscreen media viewer.
+- **Inline body images.** Markdown images (`![alt](url)`) in the post body and in comment bodies render inline as part of the text flow, sized to the content width at the image's aspect ratio (capped in height so a tall image doesn't dominate). They load asynchronously, and once the image arrives the row snaps to its new height instantly, with no animation — an animated re-measure would zoom the never-before-laid-out image in from a corner, so growth is never eased or sprung. A failed load shows a small broken-image tile with **Retry** and **Open in browser** — Retry re-attempts the load in place, so a transient failure doesn't strand the image as broken until you leave the screen. Tapping a loaded inline image opens it in the fullscreen media viewer.
 - **Tap to collapse.** Tapping a comment's body area collapses it (and expands it again); a light haptic fires. Tapping a link or inline image inside the author or body text follows the link (or opens the image) instead of collapsing. A collapsed comment hides its own body and all of its descendants, and shows a **"+N" badge** counting the hidden replies underneath it. Collapsing (like voting) refreshes the header and every visible comment in place, flash-free: inline body images and link-preview cards whose content is unchanged are not reloaded, so neighboring rows never flicker.
 - **Collapse is a view-layer filter.** The full ordered comment tree is produced once from the database; collapse only hides rows from the visible list and is never written to the server or the database. Collapse state is dropped when a comment leaves the tree, and is not persisted across reopening the post.
 - **Collapse via swipe too.** Collapse is also one of the assignable comment swipe slots, so gesture-first users can fold a thread without tapping. See [swipe-actions.md](swipe-actions.md) for the configurable swipe set.
@@ -219,6 +219,20 @@ when the account has them.
 - **When** I upvote, downvote, or save it
 - **Then** the action bar and score update in place
 - **And** the post image and link-preview cards stay put — no flicker, reload, or reflow
+
+### Collapsing a thread does not flicker images
+
+- **Given** I am viewing a post whose header body and visible comments contain inline images
+- **When** I collapse (or expand) a comment thread
+- **Then** the header and every visible comment refresh in place
+- **And** inline images in the header body and in neighboring comment bodies stay put — no loading-placeholder flash or reload
+
+### A failed inline image offers Retry
+
+- **Given** an inline body image failed to load (e.g. a transient network error)
+- **When** I tap **Retry** on its broken-image tile
+- **Then** the tile returns to its loading state and the image loads in place — no cell recycle or screen re-entry needed
+- **And** **Open in browser** remains available if the load fails again
 
 ## Not supported / out of scope
 

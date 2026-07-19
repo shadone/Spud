@@ -72,6 +72,30 @@ struct PostDetailCommentCellLinkPreviewReuseTests {
         )
     }
 
+    @Test
+    func prepareForReuse_resetsGuardSoReconfigureRebuildsCards() {
+        let imageService = StaticImageService()
+        let cell = PostDetailCommentCell(style: .default, reuseIdentifier: nil)
+
+        cell.configure(with: makeViewModel(voteStatus: nil), imageService: imageService)
+        let card = cell.linkPreviewsStackView.arrangedSubviews.first
+        #expect(card != nil, "Link-preview card was never built on first configure")
+
+        cell.prepareForReuse()
+        #expect(
+            cell.linkPreviewsStackView.arrangedSubviews.isEmpty,
+            "prepareForReuse must clear the link-preview cards"
+        )
+
+        // Reusing the cell for a comment carrying the same links must rebuild
+        // fresh cards: `clearLinkPreviews()` resets the skip-guard tracker, so
+        // the recycled cell can't serve the pre-reuse (torn down) cards.
+        cell.configure(with: makeViewModel(voteStatus: nil), imageService: imageService)
+        let rebuilt = cell.linkPreviewsStackView.arrangedSubviews.first
+        #expect(rebuilt != nil, "reconfiguring after reuse must rebuild the cards")
+        #expect(rebuilt !== card, "the rebuilt card must be a fresh instance, not the pre-reuse one")
+    }
+
     // MARK: - Harness
 
     private func makeViewModel(voteStatus: Int64?, isCollapsed: Bool = false) -> PostDetailCommentViewModel {

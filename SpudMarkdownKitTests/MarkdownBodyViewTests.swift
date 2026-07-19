@@ -60,6 +60,33 @@ struct MarkdownBodyViewTests {
     }
 
     @Test
+    func setBlocksWithEqualBlocksDoesNotReinvokeImageLoader() async {
+        let body = MarkdownBodyView(context: MarkdownContext(kind: .comment))
+        let counter = LoaderCallCounter()
+        body.imageLoader = { _ in
+            counter.count += 1
+            return nil
+        }
+        let source = "![a cat](https://example.com/cat.png)"
+        body.setBlocks(MarkdownParser.parse(source))
+        await poll { counter.count == 1 }
+        #expect(counter.count == 1, "first setBlocks must start the image load")
+
+        // A reconfigure with equal blocks must not rebuild the image block: a
+        // rebuild restarts the load, and the rebuilt block renders its loading
+        // placeholder until the loader resolves — the actual flash mechanism.
+        body.setBlocks(MarkdownParser.parse(source))
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+        #expect(counter.count == 1, "equal blocks must not re-invoke the image loader")
+
+        body.setBlocks(MarkdownParser.parse("![a dog](https://example.com/dog.png)"))
+        await poll { counter.count == 2 }
+        #expect(counter.count == 2, "changed blocks must rebuild the image block and reload")
+    }
+
+    @Test
     func setBlocksAfterEmptyApplies() {
         let body = MarkdownBodyView(context: MarkdownContext(kind: .comment))
         let blocks = MarkdownParser.parse("Collapsed, then expanded.")
@@ -76,5 +103,25 @@ struct MarkdownBodyViewTests {
     private func blockViews(of body: MarkdownBodyView) -> [UIView] {
         guard let stack = body.subviews.first as? UIStackView else { return [] }
         return stack.arrangedSubviews
+    }
+
+    /// Mutable call counter for a loader closure to capture (an escaping closure
+    /// can't capture a mutable local under strict concurrency).
+    @MainActor
+    private final class LoaderCallCounter {
+        var count = 0
+    }
+
+    /// Bounded poll for a condition published by the fire-and-forget image-load
+    /// `Task`. Returns as soon as the predicate holds, or after `timeout`.
+    private func poll(
+        timeout: Duration = .seconds(2),
+        until predicate: @MainActor () -> Bool
+    ) async {
+        let deadline = ContinuousClock.now.advanced(by: timeout)
+        while ContinuousClock.now < deadline {
+            if predicate() { return }
+            try? await Task.sleep(for: .milliseconds(5))
+        }
     }
 }

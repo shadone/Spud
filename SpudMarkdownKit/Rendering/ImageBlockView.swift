@@ -7,8 +7,9 @@
 import UIKit
 
 /// A body image: an aspect-ratio box showing a loading spinner, a failed plate
-/// (with an "Open in browser" escape hatch), or the loaded image with a "Tap to
-/// zoom" chip; an optional italic alt caption sits 6pt below in every state.
+/// (with "Retry" and "Open in browser" escape hatches), or the loaded image with
+/// a "Tap to zoom" chip; an optional italic alt caption sits 6pt below in every
+/// state.
 final class ImageBlockView: UIView {
     enum State: Equatable {
         case loading
@@ -23,9 +24,22 @@ final class ImageBlockView: UIView {
     private let onOpenInBrowser: ((URL) -> Void)?
     private let onContentSizeChange: (() -> Void)?
 
+    /// Retained past init so the failed plate's Retry button can re-attempt the
+    /// load. Hosts reconfigure cells in place without rebuilding block views
+    /// (`MarkdownBodyView.setBlocks` no-ops on equal blocks), so a transient
+    /// failure no longer self-heals on an incidental rebuild — Retry is the
+    /// explicit replacement. `nil` renders the states without ever loading.
+    private let loader: MarkdownImageLoader?
+
     private let box = UIView()
     private var boxAspect: NSLayoutConstraint?
     private var isLoaded = false
+
+    /// The in-flight load, if any. Retry taps are ignored while a load runs so
+    /// overlapping loads can't race each other's terminal `apply(state:)`. The
+    /// task captures `self` weakly and the view is @MainActor, so no `deinit`
+    /// cancellation is needed — a deallocated view's task just returns.
+    private var loadTask: Task<Void, Never>?
 
     init(
         image: MarkdownImage,
@@ -41,6 +55,7 @@ final class ImageBlockView: UIView {
         self.onTapImage = onTapImage
         self.onOpenInBrowser = onOpenInBrowser
         self.onContentSizeChange = onContentSizeChange
+        self.loader = loader
         super.init(frame: .zero)
 
         let stack = UIStackView()
@@ -77,21 +92,27 @@ final class ImageBlockView: UIView {
         }
 
         apply(state: .loading)
-
-        if let loader {
-            let capturedURL = url
-            Task { [weak self] in
-                let image = await loader(capturedURL)
-                guard let self else { return }
-                apply(state: image.map(State.loaded) ?? .failed)
-                onContentSizeChange?()
-            }
-        }
+        startLoad()
     }
 
     @available(*, unavailable)
     required init?(coder _: NSCoder) {
         fatalError()
+    }
+
+    /// Starts the async image load and applies the terminal state (`.loaded` /
+    /// `.failed`) when it resolves. A no-op without a loader or while a load is
+    /// already in flight.
+    private func startLoad() {
+        guard let loader, loadTask == nil else { return }
+        let capturedURL = url
+        loadTask = Task { [weak self] in
+            let image = await loader(capturedURL)
+            guard let self else { return }
+            loadTask = nil
+            apply(state: image.map(State.loaded) ?? .failed)
+            onContentSizeChange?()
+        }
     }
 
     /// Replaces the box's content for `state` and updates its aspect ratio.
@@ -104,7 +125,8 @@ final class ImageBlockView: UIView {
         box.layer.borderWidth = 0
         box.isUserInteractionEnabled = false
         // Only the loaded state is an interactive element; loading/failed expose
-        // their own children (status label, "Open in browser" button) instead.
+        // their own children (status label, "Retry" / "Open in browser" buttons)
+        // instead.
         isLoaded = false
         isAccessibilityElement = false
 
@@ -153,6 +175,24 @@ final class ImageBlockView: UIView {
             glyph.contentMode = .scaleAspectFit
             glyph.preferredSymbolConfiguration = UIImage.SymbolConfiguration(pointSize: context.kind == .post ? 30 : 24)
             glyph.isAccessibilityElement = false
+            var statusViews: [UIView] = [glyph, statusLabel("Image couldn\u{2019}t load", color: context.secondaryColor)]
+            // Retry needs a loader to re-attempt with; without one there is
+            // nothing to retry, so the plate offers only the browser escape.
+            if loader != nil {
+                let retry = UIButton(type: .system)
+                retry.setTitle("Retry", for: .normal)
+                retry.titleLabel?.font = .systemFont(ofSize: context.smallFont.pointSize, weight: .semibold)
+                retry.tintColor = context.accentColor
+                retry.addAction(UIAction { [weak self] _ in
+                    // Ignore the tap while a load is already in flight (e.g. a
+                    // host applied .failed manually mid-load) — a second load
+                    // would race the first one's terminal apply(state:).
+                    guard let self, loadTask == nil else { return }
+                    apply(state: .loading)
+                    startLoad()
+                }, for: .touchUpInside)
+                statusViews.append(retry)
+            }
             let open = UIButton(type: .system)
             open.setTitle("Open in browser", for: .normal)
             open.titleLabel?.font = .systemFont(ofSize: context.smallFont.pointSize, weight: .semibold)
@@ -161,7 +201,8 @@ final class ImageBlockView: UIView {
                 guard let self else { return }
                 onOpenInBrowser?(url)
             }, for: .touchUpInside)
-            placeStatusStack([glyph, statusLabel("Image couldn\u{2019}t load", color: context.secondaryColor), open])
+            statusViews.append(open)
+            placeStatusStack(statusViews)
         }
     }
 
