@@ -23,7 +23,9 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
     private(set) var sharedResults: [SearchCommunityResult] = []
     private(set) var copiedLinkResults: [SearchCommunityResult] = []
     private(set) var blockedResults: [SearchCommunityResult] = []
+    private(set) var toggleNotifyResults: [SearchCommunityResult] = []
     var isMuted = false
+    var isNotifying = false
 
     func communityOpen(_ result: SearchCommunityResult) {
         openedResults.append(result)
@@ -55,6 +57,14 @@ final class FakeCommunityContextMenuHost: UIViewController, CommunityContextMenu
 
     func communityBlock(_ result: SearchCommunityResult) {
         blockedResults.append(result)
+    }
+
+    func communityIsNotifying(_: SearchCommunityResult) -> Bool {
+        isNotifying
+    }
+
+    func communityToggleNotify(_ result: SearchCommunityResult) {
+        toggleNotifyResults.append(result)
     }
 }
 
@@ -118,6 +128,20 @@ struct CommunityContextMenuBuilderTests {
                 performAction(titled: title, in: submenu)
             }
         }
+    }
+
+    /// Recursively locates the `UIAction` titled `title`, if any - used to
+    /// inspect an action's `state` (checkmark) rather than just perform it.
+    private func findAction(titled title: String, in menu: UIMenu) -> UIAction? {
+        for element in menu.children {
+            if let action = element as? UIAction, action.title == title {
+                return action
+            }
+            if let submenu = element as? UIMenu, let found = findAction(titled: title, in: submenu) {
+                return found
+            }
+        }
+        return nil
     }
 
     @Test
@@ -289,5 +313,59 @@ struct CommunityContextMenuBuilderTests {
         )
         performAction(titled: "Block Community", in: menu)
         #expect(host.blockedResults.map(\.serverCommunityId) == [result.serverCommunityId])
+    }
+
+    @Test
+    func includesNotifyAction() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        #expect(allTitles(menu).contains(CommunityNotifyLabel.title))
+    }
+
+    /// The notify action's checkmark reflects `host.communityIsNotifying`,
+    /// resolved at menu-build time (mirrors the mute/subscribe state reads
+    /// above).
+    @Test
+    func notifyAction_stateReflectsHostIsNotifying_off() {
+        let host = FakeCommunityContextMenuHost()
+        host.isNotifying = false
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        #expect(findAction(titled: CommunityNotifyLabel.title, in: menu)?.state == .off)
+    }
+
+    @Test
+    func notifyAction_stateReflectsHostIsNotifying_on() {
+        let host = FakeCommunityContextMenuHost()
+        host.isNotifying = true
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        #expect(findAction(titled: CommunityNotifyLabel.title, in: menu)?.state == .on)
+    }
+
+    @Test
+    func notifyActionInvokesHostToggleNotify() {
+        let host = FakeCommunityContextMenuHost()
+        let result = SearchCommunityResult.fixture()
+        let menu = CommunityContextMenuBuilder.menu(
+            for: result,
+            subscribedState: CommunitySubscribedState(followState: result.followState),
+            host: host
+        )
+        performAction(titled: CommunityNotifyLabel.title, in: menu)
+        #expect(host.toggleNotifyResults.map(\.serverCommunityId) == [result.serverCommunityId])
     }
 }

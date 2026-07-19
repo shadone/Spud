@@ -144,6 +144,9 @@ class CommunityViewController: UIViewController {
             UIDeferredMenuElement.uncached { [weak self] completion in
                 completion(self?.favoriteMenuActions() ?? [])
             },
+            UIDeferredMenuElement.uncached { [weak self] completion in
+                completion(self?.notifyMenuActions() ?? [])
+            },
         ])
         let moderationGroup = UIMenu(options: .displayInline, children: [
             UIDeferredMenuElement.uncached { [weak self] completion in
@@ -412,6 +415,81 @@ class CommunityViewController: UIViewController {
         guard viewModel.actorId != nil else { return }
         Haptics.tap()
         viewModel.toggleFavorite()
+    }
+
+    /// Builds the "Notify About New Posts" action for the overflow menu and
+    /// header long-press menu, reflecting the current follow state
+    /// (`ReminderRecord.Kind.communityPosts`). Omitted before `actorId` has
+    /// resolved (mirrors `favoriteMenuActions`/`muteMenuActions`) - the
+    /// community's actor id and instance host, both needed to set the
+    /// follow, aren't known until then.
+    private func notifyMenuActions() -> [UIMenuElement] {
+        guard viewModel.actorId != nil else { return [] }
+        let notifying = isNotifying()
+        return [UIAction(
+            title: CommunityNotifyLabel.title,
+            image: UIImage(systemName: CommunityNotifyLabel.symbol(isNotifying: notifying)),
+            state: notifying ? .on : .off
+        ) { [weak self] _ in self?.toggleNotify() }]
+    }
+
+    /// Whether a live "new posts" follow exists on this community under the
+    /// current account (mirrors `PostReminderDispatching`'s
+    /// `activeReminderKinds`, scoped to the community's server id via the
+    /// same `postServerId` column-reuse `ReminderService.setCommunityFollow`
+    /// writes to).
+    private func isNotifying() -> Bool {
+        guard let accountId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) else { return false }
+        return appDatabase.activeReminderKindsSync(
+            accountId: accountId,
+            postServerId: Int64(viewModel.serverCommunityId),
+            rootCommentServerId: ReminderRecord.wholePostSentinel
+        ).contains(ReminderRecord.Kind.communityPosts.rawValue)
+    }
+
+    /// Toggles the community's "new posts" follow, re-reading the live state
+    /// at tap time (stale-menu discipline, mirrors
+    /// `PostReminderDispatching.toggleActivityReminder`) rather than trusting
+    /// the checkmark computed when the menu was built.
+    private func toggleNotify() {
+        guard
+            let actorId = viewModel.actorId,
+            let instanceHost = URL(string: actorId)?.host
+        else { return }
+        Haptics.tap()
+        let serverCommunityId = viewModel.serverCommunityId
+        let name = viewModel.name
+        let title = viewModel.title
+        let iconUrl = viewModel.iconUrl?.absoluteString
+        let wasNotifying = isNotifying()
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if wasNotifying {
+                    try await accountScope.reminderService.removeCommunityFollow(
+                        communityServerId: Int64(serverCommunityId)
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOff)
+                } else {
+                    try await accountScope.reminderService.setCommunityFollow(
+                        communityServerId: Int64(serverCommunityId),
+                        communityActorId: actorId,
+                        name: name,
+                        title: title,
+                        instanceHost: instanceHost,
+                        iconUrl: iconUrl
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOn)
+                }
+            } catch {
+                alertService.handle(error, for: .setReminder)
+            }
+        }
+    }
+
+    private func showNotifyToast(_ message: String) {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(message, in: window)
     }
 
     /// Builds the sharing actions (Copy Link, Share, Open in Browser) for the
@@ -712,7 +790,7 @@ extension CommunityViewController: UIContextMenuInteractionDelegate {
             ) { [weak self] _ in
                 self?.toggleBlockCommunity()
             }
-            return UIMenu(title: "", children: [action, blockAction])
+            return UIMenu(title: "", children: [action] + notifyMenuActions() + [blockAction])
         }
     }
 }

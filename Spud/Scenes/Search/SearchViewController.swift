@@ -1044,6 +1044,63 @@ extension SearchViewController: CommunityContextMenuHost {
             }
         }
     }
+
+    /// Client-local truth read against `ReminderRecord.Kind.communityPosts`
+    /// (mirrors `communityIsMuted`'s pattern, but against the durable
+    /// reminder table rather than the mute table). `false` before an account
+    /// row exists (signed-out browse).
+    func communityIsNotifying(_ result: SearchCommunityResult) -> Bool {
+        guard let accountId = appDatabase.accountRowIdSync(forKeychainId: accountKeychainId) else { return false }
+        return appDatabase.activeReminderKindsSync(
+            accountId: accountId,
+            postServerId: Int64(result.serverCommunityId),
+            rootCommentServerId: ReminderRecord.wholePostSentinel
+        ).contains(ReminderRecord.Kind.communityPosts.rawValue)
+    }
+
+    /// Toggles the community "new posts" follow, re-reading the live state at
+    /// tap time (stale-menu discipline, mirrors
+    /// `PostReminderDispatching.toggleActivityReminder`) rather than trusting
+    /// the checkmark computed when the menu was built. Identity comes from
+    /// `result` - Search carries no separate display title, so `title`
+    /// mirrors `name` (matches `communityBlock`'s use of `result.name`
+    /// elsewhere in this file).
+    func communityToggleNotify(_ result: SearchCommunityResult) {
+        guard let instanceHost = URL(string: result.communityUrl)?.host else {
+            Haptics.warning()
+            return
+        }
+        Haptics.tap()
+        let wasNotifying = communityIsNotifying(result)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if wasNotifying {
+                    try await viewModel.accountScope.reminderService.removeCommunityFollow(
+                        communityServerId: Int64(result.serverCommunityId)
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOff)
+                } else {
+                    try await viewModel.accountScope.reminderService.setCommunityFollow(
+                        communityServerId: Int64(result.serverCommunityId),
+                        communityActorId: result.communityUrl,
+                        name: result.name,
+                        title: result.name,
+                        instanceHost: instanceHost,
+                        iconUrl: result.iconUrl?.absoluteString
+                    )
+                    showNotifyToast(CommunityNotifyLabel.toastOn)
+                }
+            } catch {
+                alertService.handle(error, for: .setReminder)
+            }
+        }
+    }
+
+    private func showNotifyToast(_ message: String) {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(message, in: window)
+    }
 }
 
 // MARK: - CommentContextMenuHost

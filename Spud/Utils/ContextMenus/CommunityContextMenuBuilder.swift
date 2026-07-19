@@ -28,6 +28,15 @@ protocol CommunityContextMenuHost: UIViewController {
     /// Copies the community's `communityUrl` to the pasteboard.
     func communityCopyLink(_ result: SearchCommunityResult)
     func communityBlock(_ result: SearchCommunityResult)
+    /// Whether `result`'s community currently has a live "new posts" follow
+    /// (`ReminderRecord.Kind.communityPosts`). Called at menu-build time to
+    /// checkmark the "Notify About New Posts" action (see
+    /// `CommunityNotifyLabel`).
+    func communityIsNotifying(_ result: SearchCommunityResult) -> Bool
+    /// Toggles `result`'s community "new posts" follow. Conformers re-read
+    /// the live state at tap time rather than trusting the checkmark computed
+    /// when the menu was built.
+    func communityToggleNotify(_ result: SearchCommunityResult)
 }
 
 /// Builds the community long-press menu for a Search `.community` result. Mirrors
@@ -65,7 +74,14 @@ enum CommunityContextMenuBuilder {
             image: UIImage(systemName: subscribed ? "checkmark" : "plus")
         ) { [weak host] _ in host?.communitySetSubscribed(result, subscribed: !subscribed) }
 
-        let openGroup = UIMenu(options: .displayInline, children: [openAction, subscribeAction])
+        let notifying = host.communityIsNotifying(result)
+        let notifyAction = UIAction(
+            title: CommunityNotifyLabel.title,
+            image: UIImage(systemName: CommunityNotifyLabel.symbol(isNotifying: notifying)),
+            state: notifying ? .on : .off
+        ) { [weak host] _ in host?.communityToggleNotify(result) }
+
+        let openGroup = UIMenu(options: .displayInline, children: [openAction, subscribeAction, notifyAction])
 
         let muteElement: UIMenuElement
         if host.communityIsMuted(result) {
