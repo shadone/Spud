@@ -141,8 +141,8 @@ final class SubscriptionsAboutSectionSnapshotTests: XCTestCase {
             let view = VStack(spacing: 0) {
                 ForEach(items) { item in
                     MetaCommunityAboutRow(
-                        item: item, showsSubscribe: true,
-                        onSubscribe: { }, onFavorite: { }
+                        item: item, showsSubscribe: true, isNotifying: false,
+                        onSubscribe: { }, onFavorite: { }, onNotify: { }
                     )
                     .padding()
                 }

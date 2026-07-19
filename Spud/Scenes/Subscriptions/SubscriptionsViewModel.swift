@@ -9,6 +9,7 @@ import LemmyKit
 import Observation
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 
 private let logger = Logger.app
@@ -43,6 +44,14 @@ final class SubscriptionsViewModel {
     /// `nil` when there's no account scope (signed-out preview) or the scope's
     /// instance can't be resolved.
     var metaInstanceName: String?
+
+    /// Server ids of communities with a live "new posts" follow under the
+    /// active account, live from `AppDatabase.observeCommunityFollowServerIds`.
+    /// Drives the bell on "About <instance>" meta rows and the notify menu
+    /// item on subscribed-list rows — a single set covers both, since a
+    /// follow is keyed purely by community server id regardless of which
+    /// surface set it.
+    var notifyingCommunityIds: Set<Int64> = []
 
     /// Live filter text from the search bar.
     var searchText: String = ""
@@ -101,6 +110,15 @@ final class SubscriptionsViewModel {
     private var favoritesObservationTask: Task<Void, Never>?
     @ObservationIgnored
     private var metaObservationTask: Task<Void, Never>?
+    @ObservationIgnored
+    private var notifyObservationTask: Task<Void, Never>?
+    /// Host (with port) of the home instance, denormalized onto follow rows
+    /// written by `toggleNotify(_:)`. Set from the same
+    /// `accountScope.instanceActorId` resolution that gates `metaObservationTask`
+    /// below, so it's always populated by the time a meta row (the only
+    /// caller of `toggleNotify(_:)`) is on screen.
+    @ObservationIgnored
+    private var instanceHost: String?
 
     init(
         accountRowId: Int64?,
@@ -135,8 +153,16 @@ final class SubscriptionsViewModel {
             }
         }
 
+        notifyObservationTask = Task { [weak self] in
+            for await ids in appDatabase.observeCommunityFollowServerIds(forAccountId: accountRowId) {
+                if Task.isCancelled { break }
+                await MainActor.run { self?.notifyingCommunityIds = ids }
+            }
+        }
+
         if let scope = accountScope, let host = scope.instanceActorId?.hostWithPort {
             metaInstanceName = scope.instanceActorId?.host
+            instanceHost = host
 
             metaObservationTask = Task { [weak self] in
                 for await items in appDatabase.observeMetaCommunities(forAccountId: accountRowId, instanceHost: host) {
@@ -159,6 +185,7 @@ final class SubscriptionsViewModel {
         observationTask?.cancel()
         favoritesObservationTask?.cancel()
         metaObservationTask?.cancel()
+        notifyObservationTask?.cancel()
     }
 
     func loadFeed(_ value: SubscriptionsViewItemType) {
@@ -197,6 +224,77 @@ final class SubscriptionsViewModel {
         }
     }
 
+    /// Toggles the local "new posts" follow for a meta community, durably
+    /// queued through `ReminderService` (`Task 1`/`Task 5`'s
+    /// `setCommunityFollow`/`removeCommunityFollow`). Purely local like
+    /// `toggleFavorite` — no toast, since the adjacent Favourite star shows
+    /// none either; the bell's fill state (driven by `notifyingCommunityIds`)
+    /// is the only feedback. `instanceHost` is set whenever `metaCommunities`
+    /// is (both gated on the same `accountScope.instanceActorId` resolution
+    /// in `init`), so a real meta row can never observe it nil here.
+    func toggleNotify(_ item: MetaCommunityListItem) {
+        guard let scope = accountScope, let instanceHost else { return }
+        Haptics.tap()
+        let wasNotifying = notifyingCommunityIds.contains(item.id)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if wasNotifying {
+                    try await scope.reminderService.removeCommunityFollow(communityServerId: item.id)
+                } else {
+                    try await scope.reminderService.setCommunityFollow(
+                        communityServerId: item.id,
+                        communityActorId: item.communityActorId,
+                        name: item.name,
+                        title: item.title ?? item.name,
+                        instanceHost: instanceHost,
+                        iconUrl: item.iconUrl
+                    )
+                }
+            } catch {
+                logger.error("toggleNotify failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
+    /// Whether a live "new posts" follow exists on `row`'s community —
+    /// read against the same live `notifyingCommunityIds` set the meta rows'
+    /// bell uses (server ids are unambiguous across both surfaces).
+    func isNotifying(_ row: SubscriptionsCommunityRow) -> Bool {
+        notifyingCommunityIds.contains(row.communityServerId)
+    }
+
+    /// Toggles the "new posts" follow for a subscribed-list row, from the
+    /// context menu. Unlike the meta rows' `instanceHost` (the local
+    /// account's home instance), a subscribed community can live on ANY
+    /// federated instance, so the host is parsed from the row's own actor id
+    /// — mirrors `CommunityViewController.toggleNotify` /
+    /// `SearchViewController.communityToggleNotify`.
+    func toggleNotify(for row: SubscriptionsCommunityRow) {
+        guard let scope = accountScope, let instanceHost = URL(string: row.communityActorId)?.host else { return }
+        Haptics.tap()
+        let wasNotifying = isNotifying(row)
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                if wasNotifying {
+                    try await scope.reminderService.removeCommunityFollow(communityServerId: row.communityServerId)
+                } else {
+                    try await scope.reminderService.setCommunityFollow(
+                        communityServerId: row.communityServerId,
+                        communityActorId: row.communityActorId,
+                        name: row.name,
+                        title: row.name,
+                        instanceHost: instanceHost,
+                        iconUrl: nil
+                    )
+                }
+            } catch {
+                logger.error("toggleNotify(for:) failed: \(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
     /// Builds a row from a persisted `CommunityRecord`, including the "meta"
     /// classification. Internal (not `private`) so it can be exercised directly
     /// from tests without going through the observation pipeline.
@@ -221,6 +319,7 @@ final class SubscriptionsViewModel {
             name: name,
             instanceActorId: instance,
             communityActorId: actorIdString,
+            communityServerId: record.communityId,
             isMeta: isMeta
         )
     }
