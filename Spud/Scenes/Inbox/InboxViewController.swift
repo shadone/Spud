@@ -8,6 +8,7 @@ import Foundation
 import LemmyKit
 import SpudDataKit
 import SpudUIKit
+import SpudUtilKit
 import UIKit
 
 /// The Inbox tab. A segmented control switches between Replies / Mentions /
@@ -590,18 +591,44 @@ final class InboxViewController: UIViewController {
         window.display(serverPostId: serverPostId, accountKeychainId: accountKeychainId)
     }
 
-    /// Opens a reminder's target post via the same `AppCoordinator` deep-link
+    /// Opens a reminder's target via the same `AppCoordinator` deep-link
     /// funnel every other system entry point uses, rather than `MainWindow`
-    /// directly - a reminder's `apId` is a canonical ActivityPub URL (not a
-    /// locally-known server post id, and possibly for a post whose local `post`
-    /// cache row has since been evicted), so it routes through
-    /// `.objectAtURL`'s `resolve_object` resolution rather than
+    /// directly. `communityPosts` rows route differently from `time`/
+    /// `activity` ones: a community follow's `apId` is the community's own
+    /// actorId, not a post - so it builds a `.community` deep link from
+    /// `reminder.communityName` + `reminder.instanceHost` instead of
+    /// resolving `apId` as an object. Other kinds keep the pre-existing
+    /// `.objectAtURL` path: a reminder's `apId` there is a canonical
+    /// ActivityPub URL (not a locally-known server post id, and possibly for
+    /// a post whose local `post` cache row has since been evicted), so it
+    /// routes through `resolve_object` resolution rather than
     /// `window.display(serverPostId:)`.
     private func openReminder(_ reminder: ReminderListRow) {
-        guard
-            let window = view.window as? MainWindow,
-            let apURL = URL(string: reminder.apId)
-        else { return }
+        guard let window = view.window as? MainWindow else { return }
+
+        if reminder.kind == ReminderRecord.Kind.communityPosts.rawValue {
+            // `instanceHost` is a bare host string (no scheme) - prepend one
+            // so `InstanceActorId(from:)` parses it as a host rather than
+            // falling through to its naive regex fallback. Mirrors
+            // `ReminderNotificationFactory.communityFollowContent`'s
+            // construction. `InstanceActorId(from:)` succeeds even on an
+            // empty host (`URLComponents(string: "https://").host == ""`,
+            // non-nil), so the nil check alone isn't enough - `isValid`
+            // catches an empty host too. On failure, do nothing (mirrors the
+            // `URL(string:)` guard below).
+            guard
+                let instance = InstanceActorId(from: "https://\(reminder.instanceHost)"),
+                instance.isValid
+            else { return }
+            let routingURL = URL.SpudInternalLink.community(
+                name: reminder.communityName,
+                instance: instance
+            ).url
+            AppCoordinator.shared.open(routingURL, in: window)
+            return
+        }
+
+        guard let apURL = URL(string: reminder.apId) else { return }
         let routingURL = URL.SpudInternalLink.objectAtURL(url: apURL).url
         AppCoordinator.shared.open(routingURL, in: window)
     }

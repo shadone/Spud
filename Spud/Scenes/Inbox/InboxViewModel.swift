@@ -475,17 +475,23 @@ final class InboxViewModel {
     /// notification, if any) via the account's `ReminderService`. Dispatches
     /// by `item.kind` (mirrors `PostReminderDispatching`'s toggle) - a `time`
     /// row calls `removeTimeReminder`, an `activity` row calls
-    /// `removeActivityReminder`. This segment now surfaces both kinds
+    /// `removeActivityReminder`, and a `communityPosts` row calls
+    /// `removeCommunityFollow`. This segment now surfaces all three kinds
     /// (Phase 2 added activity/"new comments" follows alongside time
-    /// reminders), and a post can carry one of each independently, so always
-    /// calling `removeTimeReminder` would either no-op on an activity-only row
-    /// or wrongly delete a co-existing time reminder while leaving the
-    /// activity follow in place. Also passes `item.rootCommentServerId` -
-    /// both removal methods default that parameter to
+    /// reminders; the community "new posts" follow adds a third), and a post
+    /// can carry a time/activity reminder independently of a community's
+    /// follow, so always calling `removeTimeReminder` would either no-op on
+    /// an activity-only row or wrongly delete a co-existing time reminder
+    /// while leaving the activity follow in place. Also passes
+    /// `item.rootCommentServerId` for the `time`/`activity` cases - both
+    /// removal methods default that parameter to
     /// `ReminderRecord.wholePostSentinel`, so a subtree row (Phase 3) would
     /// otherwise target the whole-post reminder instead of its own row (a
     /// no-op if only the subtree reminder exists, or the wrong deletion if
-    /// both coexist). The durable observation re-emits without the removed
+    /// both coexist). `removeCommunityFollow` takes no such parameter - a
+    /// community follow has no subtree variant, and `item.postServerId` holds
+    /// the community's server id (column reuse; see `ReminderRecord`'s
+    /// doc comment). The durable observation re-emits without the removed
     /// row, so no local optimistic splice is needed here (contrast
     /// `markReplyRead`/`markMentionRead`, which mutate transient in-memory
     /// arrays).
@@ -498,6 +504,10 @@ final class InboxViewModel {
                     try await accountScope.reminderService.removeActivityReminder(
                         postServerId: item.postServerId,
                         rootCommentServerId: item.rootCommentServerId
+                    )
+                case ReminderRecord.Kind.communityPosts.rawValue:
+                    try await accountScope.reminderService.removeCommunityFollow(
+                        communityServerId: item.postServerId
                     )
                 default:
                     try await accountScope.reminderService.removeTimeReminder(

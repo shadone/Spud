@@ -149,6 +149,8 @@ struct InboxViewModelRemoveReminderTests {
     private static let apId = "https://example.com/post/555"
     private static let subtreeRootCommentServerId: Int64 = 42
     private static let subtreeApId = "https://example.com/comment/42"
+    private static let communityServerId: Int64 = 777
+    private static let communityApId = "https://example.com/c/news"
 
     // MARK: - Fixture
 
@@ -214,6 +216,17 @@ struct InboxViewModelRemoveReminderTests {
         return Fixture(viewModel: viewModel, appDatabase: appDatabase, accountId: accountId)
     }
 
+    /// Reminder kinds that support a comment-subtree scope. `communityPosts`
+    /// has no such variant (see `ReminderRecord`'s column-reuse doc comment:
+    /// a community follow's `rootCommentServerId` is always
+    /// `wholePostSentinel`), so `makeSubtreeFixture` takes this narrower type
+    /// instead of the full `ReminderRecord.Kind` - the impossible case is
+    /// unrepresentable rather than trapping on it at runtime.
+    private enum SubtreeCapableKind {
+        case time
+        case activity
+    }
+
     /// Seeds an account row, then sets BOTH a WHOLE-POST reminder and a
     /// SUBTREE reminder (distinct `rootCommentServerId`) of the same `kind`
     /// on the same post - the review-fix scenario: before `removeReminder`
@@ -222,7 +235,7 @@ struct InboxViewModelRemoveReminderTests {
     /// wrongly deleted the co-existing whole-post reminder (or no-op'd, had
     /// the whole-post reminder not existed) instead of removing the subtree
     /// one.
-    private func makeSubtreeFixture(kind: ReminderRecord.Kind) async throws -> Fixture {
+    private func makeSubtreeFixture(kind: SubtreeCapableKind) async throws -> Fixture {
         let appDatabase = try AppDatabase.inMemory()
         let accountId = try await appDatabase.writer.write { db -> Int64 in
             var instance = InstanceRecord(actorId: "https://reminder-remove-subtree-test.example.com")
@@ -284,12 +297,54 @@ struct InboxViewModelRemoveReminderTests {
                 thumbnailUrl: nil,
                 rootCommentServerId: Self.subtreeRootCommentServerId
             )
-        case .communityPosts:
-            // No comment-subtree variant exists for a community follow (see
-            // ReminderRecord's column-reuse doc comment) - this fixture is
-            // only ever parameterized with .time/.activity.
-            fatalError("communityPosts has no comment-subtree variant")
         }
+
+        let accountService = FakeRemoveReminderAccountService(reminderService: reminderService)
+        let scope = AccountScope(accountKeychainId: keychainId, accountService: accountService)
+        let viewModel = InboxViewModel(
+            accountScope: scope,
+            appDatabase: appDatabase,
+            isSignedIn: true,
+            myPersonId: nil,
+            alertService: NoOpAlertService(),
+            unreadCountService: NoOpUnreadCountService()
+        )
+        return Fixture(viewModel: viewModel, appDatabase: appDatabase, accountId: accountId)
+    }
+
+    /// Seeds an account row, then sets a COMMUNITY "new posts" follow -
+    /// `communityPosts` reuses the post-centric columns with `postServerId`
+    /// holding the community's server id (see `ReminderRecord`'s column-reuse
+    /// doc comment), rather than a post id. Mirrors `makeFixture`'s pattern.
+    private func makeCommunityFixture() async throws -> Fixture {
+        let appDatabase = try AppDatabase.inMemory()
+        let accountId = try await appDatabase.writer.write { db -> Int64 in
+            var instance = InstanceRecord(actorId: "https://reminder-remove-community-test.example.com")
+            try instance.insert(db)
+            var site = SiteRecord(instanceId: instance.id!)
+            try site.insert(db)
+            var account = AccountRecord(
+                siteId: site.id!,
+                accountKeychainId: keychainId,
+                isSignedOutAccountType: false
+            )
+            try account.insert(db)
+            return account.id!
+        }
+
+        let reminderService = ReminderService(
+            accountId: accountId,
+            appDatabase: appDatabase,
+            scheduler: NoOpReminderScheduler()
+        )
+        try await reminderService.setCommunityFollow(
+            communityServerId: Self.communityServerId,
+            communityActorId: Self.communityApId,
+            name: "news",
+            title: "News",
+            instanceHost: "example.com",
+            iconUrl: nil
+        )
 
         let accountService = FakeRemoveReminderAccountService(reminderService: reminderService)
         let scope = AccountScope(accountKeychainId: keychainId, accountService: accountService)
@@ -328,21 +383,44 @@ struct InboxViewModelRemoveReminderTests {
         )
     }
 
+    /// Builds the `ReminderListRow` `removeReminder` would receive for a live
+    /// COMMUNITY-FOLLOW row - `postServerId` carries the community's server
+    /// id (column reuse), unlike the post-shaped fixture `row(kind:)` builds.
+    private func communityRow() -> ReminderListRow {
+        ReminderListRow(
+            id: 1,
+            postServerId: Self.communityServerId,
+            apId: Self.communityApId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.communityPosts.rawValue,
+            status: ReminderRecord.Status.scheduled.rawValue,
+            unseen: false,
+            fireAt: nil,
+            titleSnapshot: "News",
+            communityName: "news",
+            instanceHost: "example.com",
+            thumbnailUrl: nil
+        )
+    }
+
     /// `removeReminder` fires a detached `Task`, not an awaitable call - poll
     /// (bounded) until its write has landed rather than assuming a fixed
     /// delay is enough, mirroring the polling helpers in
-    /// `InboxViewModelLoadMoreTests`.
+    /// `InboxViewModelLoadMoreTests`. `postServerId` defaults to the
+    /// post-shaped fixtures' target; the community-follow test overrides it
+    /// with the community's server id (column reuse).
     private func waitUntilRemoved(
         _ appDatabase: AppDatabase,
         accountId: Int64,
         kind: ReminderRecord.Kind,
-        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel
+        rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel,
+        postServerId: Int64 = Self.postServerId
     ) async {
         let deadline = Date().addingTimeInterval(2)
         while Date() < deadline {
             if appDatabase.reminderSync(
                 accountId: accountId,
-                postServerId: Self.postServerId,
+                postServerId: postServerId,
                 rootCommentServerId: rootCommentServerId,
                 kind: kind.rawValue
             ) == nil {
@@ -471,6 +549,34 @@ struct InboxViewModelRemoveReminderTests {
             kind: ReminderRecord.Kind.time.rawValue
         )
         #expect(wholePostReminder != nil)
+    }
+
+    // MARK: - Community follow
+
+    /// Swiping a COMMUNITY-FOLLOW row dispatches to `removeCommunityFollow`
+    /// (not `removeTimeReminder`/`removeActivityReminder`) - `communityPosts`
+    /// stores the community's server id in `postServerId` (column reuse), so
+    /// this also guards that `removeReminder` doesn't misroute a community
+    /// row's `postServerId` into a post-shaped removal call.
+    @Test
+    func removeReminder_onCommunityFollowRow_removesCommunityFollow() async throws {
+        let fixture = try await makeCommunityFixture()
+
+        fixture.viewModel.removeReminder(communityRow())
+        await waitUntilRemoved(
+            fixture.appDatabase,
+            accountId: fixture.accountId,
+            kind: .communityPosts,
+            postServerId: Self.communityServerId
+        )
+
+        let follow = fixture.appDatabase.reminderSync(
+            accountId: fixture.accountId,
+            postServerId: Self.communityServerId,
+            rootCommentServerId: ReminderRecord.wholePostSentinel,
+            kind: ReminderRecord.Kind.communityPosts.rawValue
+        )
+        #expect(follow == nil)
     }
 }
 
