@@ -284,6 +284,11 @@ struct InboxViewModelRemoveReminderTests {
                 thumbnailUrl: nil,
                 rootCommentServerId: Self.subtreeRootCommentServerId
             )
+        case .communityPosts:
+            // No comment-subtree variant exists for a community follow (see
+            // ReminderRecord's column-reuse doc comment) - this fixture is
+            // only ever parameterized with .time/.activity.
+            fatalError("communityPosts has no comment-subtree variant")
         }
 
         let accountService = FakeRemoveReminderAccountService(reminderService: reminderService)

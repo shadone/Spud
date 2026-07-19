@@ -29,6 +29,19 @@ import GRDB
 /// `kind` is `"time"` for Phase 1 (see `Kind`); `nextCheckAt`/`baselineCount`/
 /// `baselineAt` and the `"activity"` kind are unused until a later phase, but
 /// present now so that phase adds no migration.
+///
+/// `kind == .communityPosts` reuses the same post-centric columns to watch a
+/// *community* instead, rather than adding a migration for a parallel set of
+/// community-shaped columns:
+/// - `postServerId` - the community's server id (not a post id)
+/// - `apId` - the community's actorId
+/// - `titleSnapshot` - the community's title
+/// - `thumbnailUrl` - the community's icon URL
+/// - `baselineAt` - the watermark: the newest post `published` timestamp
+///   observed as of the last check
+/// - `baselineCount` / `fireAt` - always nil (unused by this kind)
+/// - `rootCommentServerId` - always `wholePostSentinel` (0); a community
+///   follow has no comment-subtree variant
 public struct ReminderRecord: Codable, Sendable, Equatable, Identifiable {
     public static let databaseTableName = "reminder"
 
@@ -119,6 +132,9 @@ public extension ReminderRecord {
     enum Kind: String {
         case time
         case activity
+        /// A community "new posts" follow. Reuses the post-centric columns -
+        /// see the type doc comment's column-reuse table.
+        case communityPosts
     }
 
     /// Typed view of the `status` raw string.

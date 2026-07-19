@@ -181,6 +181,22 @@ public extension AppDatabase {
         }
     }
 
+    /// Fires a community follow from the poll: `status = .fired`, `unseen =
+    /// true`, `lastNotifiedAt = firedAt`, watermark (`baselineAt`) re-armed to
+    /// the newest post `published` observed, `nextCheckAt` pushed forward so
+    /// the follow keeps watching. A no-op if `id` doesn't exist.
+    func rearmCommunityFollow(id: Int64, watermark: Date, nextCheckAt: Date, firedAt: Date) async throws {
+        try await writer.write { db in
+            guard var record = try ReminderRecord.fetchOne(db, key: id) else { return }
+            record.status = ReminderRecord.Status.fired.rawValue
+            record.unseen = true
+            record.lastNotifiedAt = firedAt
+            record.baselineAt = watermark
+            record.nextCheckAt = nextCheckAt
+            try record.update(db)
+        }
+    }
+
     /// Deletes every reminder row (both kinds, whole-post and comment-subtree
     /// alike) belonging to `accountId` - the account-teardown cleanup
     /// (`ReminderService.removeAllReminders`, called from `AccountService.

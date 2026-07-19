@@ -23,6 +23,7 @@ struct ReminderWritesTests {
         rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel,
         kind: ReminderRecord.Kind = .time,
         fireAt: Date? = Date(timeIntervalSince1970: 1_800_000_000),
+        nextCheckAt: Date? = nil,
         status: ReminderRecord.Status = .scheduled,
         unseen: Bool = false,
         notificationRequestId: String? = "reminder-1-100-0-time",
@@ -35,6 +36,7 @@ struct ReminderWritesTests {
             rootCommentServerId: rootCommentServerId,
             kind: kind.rawValue,
             fireAt: fireAt,
+            nextCheckAt: nextCheckAt,
             status: status.rawValue,
             unseen: unseen,
             notificationRequestId: notificationRequestId,
@@ -328,6 +330,111 @@ struct ReminderWritesTests {
 
         let liveAfterActivityFires = db.activeReminderKindsSync(accountId: 1, postServerId: 1, rootCommentServerId: 0)
         #expect(liveAfterActivityFires == ["activity"])
+    }
+
+    /// A `communityPosts` follow and a `time`/`activity` reminder can share
+    /// the SAME numeric target id (e.g. a community id that happens to equal
+    /// some post's id) without conflating - `kind` keeps them distinct rows,
+    /// so both surface as separate entries in the active set.
+    @Test
+    func activeReminderKindsSyncDistinguishesCommunityFollowFromSameIdActivityReminder() async throws {
+        let db = try AppDatabase.inMemory()
+
+        _ = try await db.upsertReminder(Self.makeRecord(postServerId: 42, kind: .activity, status: .scheduled))
+        _ = try await db.upsertReminder(Self.makeRecord(postServerId: 42, kind: .communityPosts, status: .scheduled))
+
+        let live = db.activeReminderKindsSync(accountId: 1, postServerId: 42, rootCommentServerId: 0)
+        #expect(live == ["activity", "communityPosts"])
+    }
+
+    /// A `communityPosts` follow is "active" while `.scheduled` OR `.fired` -
+    /// same rationale as `activity` (a fired-then-re-armed follow keeps
+    /// watching, so it must not drop out of the "Remind Me…" checkmark set).
+    @Test
+    func activeReminderKindsSyncIncludesCommunityPostsWhenScheduledOrFired() async throws {
+        let db = try AppDatabase.inMemory()
+
+        let record = Self.makeRecord(postServerId: 5, kind: .communityPosts, status: .scheduled)
+        let id = try await db.upsertReminder(record)
+
+        let liveWhileScheduled = db.activeReminderKindsSync(accountId: 1, postServerId: 5, rootCommentServerId: 0)
+        #expect(liveWhileScheduled == ["communityPosts"])
+
+        try await db.rearmCommunityFollow(
+            id: id, watermark: Date(), nextCheckAt: Date().addingTimeInterval(1800), firedAt: Date()
+        )
+
+        let liveAfterFiring = db.activeReminderKindsSync(accountId: 1, postServerId: 5, rootCommentServerId: 0)
+        #expect(liveAfterFiring == ["communityPosts"])
+    }
+
+    // MARK: - rearmCommunityFollow
+
+    @Test
+    func rearmCommunityFollowSetsFiredUnseenAndWatermarkPreservingNilBaselineCount() async throws {
+        let db = try AppDatabase.inMemory()
+        let record = Self.makeRecord(kind: .communityPosts, status: .scheduled, unseen: false)
+        let id = try await db.upsertReminder(record)
+
+        let watermark = Date(timeIntervalSince1970: 1_850_000_000)
+        let nextCheckAt = Date(timeIntervalSince1970: 1_850_001_800)
+        let firedAt = Date(timeIntervalSince1970: 1_850_000_100)
+        try await db.rearmCommunityFollow(id: id, watermark: watermark, nextCheckAt: nextCheckAt, firedAt: firedAt)
+
+        let fetched = try #require(db.reminderSync(
+            accountId: record.accountId,
+            postServerId: record.postServerId,
+            rootCommentServerId: record.rootCommentServerId,
+            kind: record.kind
+        ))
+        #expect(fetched.status == ReminderRecord.Status.fired.rawValue)
+        #expect(fetched.unseen == true)
+        let lastNotifiedAt = try #require(fetched.lastNotifiedAt)
+        #expect(abs(lastNotifiedAt.timeIntervalSince1970 - firedAt.timeIntervalSince1970) < 1)
+        let baselineAt = try #require(fetched.baselineAt)
+        #expect(abs(baselineAt.timeIntervalSince1970 - watermark.timeIntervalSince1970) < 1)
+        let fetchedNextCheckAt = try #require(fetched.nextCheckAt)
+        #expect(abs(fetchedNextCheckAt.timeIntervalSince1970 - nextCheckAt.timeIntervalSince1970) < 1)
+        // baselineCount is untouched by rearmCommunityFollow - community rows keep it nil.
+        #expect(fetched.baselineCount == nil)
+    }
+
+    // MARK: - dueCommunityFollowsSync
+
+    /// Only `communityPosts` rows are returned, even when an `activity` row
+    /// with the exact same due `nextCheckAt` also exists.
+    @Test
+    func dueCommunityFollowsSyncReturnsOnlyCommunityPostsRowsDue() async throws {
+        let db = try AppDatabase.inMemory()
+        let asOf = Date(timeIntervalSince1970: 1_800_000_000)
+
+        _ = try await db.upsertReminder(Self.makeRecord(
+            postServerId: 1, kind: .activity, nextCheckAt: asOf.addingTimeInterval(-60), status: .scheduled
+        ))
+        _ = try await db.upsertReminder(Self.makeRecord(
+            postServerId: 2, kind: .communityPosts, nextCheckAt: asOf.addingTimeInterval(-60), status: .scheduled
+        ))
+
+        let due = db.dueCommunityFollowsSync(accountId: 1, asOf: asOf)
+
+        #expect(due.count == 1)
+        #expect(due.first?.postServerId == 2)
+        #expect(due.first?.kind == ReminderRecord.Kind.communityPosts.rawValue)
+    }
+
+    // MARK: - removeAllReminders (communityPosts)
+
+    @Test
+    func removeAllRemindersDeletesCommunityPostsRows() async throws {
+        let db = try AppDatabase.inMemory()
+        _ = try await db.upsertReminder(Self.makeRecord(postServerId: 7, kind: .communityPosts))
+
+        _ = try await db.removeAllReminders(accountId: 1)
+
+        let count = try await db.writer.read { db in
+            try ReminderRecord.fetchCount(db)
+        }
+        #expect(count == 0)
     }
 
     // MARK: - Observations
