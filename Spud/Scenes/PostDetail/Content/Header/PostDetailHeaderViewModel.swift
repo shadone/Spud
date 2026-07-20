@@ -237,12 +237,14 @@ struct PostDetailHeaderViewModel {
             voteStatus: voteStatus
         )
         subtitleCommentsAccessibilityLabel = CommentsAccessibility.label(count: row.numberOfComments)
-        // Announce "Locked" alongside the age, mirroring the feed's VoiceOver
-        // append (`PostListPostViewModel.makeAccessibilityLabel`) — the glyph
-        // itself carries no spoken word.
-        subtitleAgeAccessibilityLabel = isLocked
-            ? [row.published.relativeString, CommentLockPolicy.shortStatus].joined(separator: ", ")
-            : row.published.relativeString
+        // Announce a VoiceOver word for EVERY content-status glyph shown after the
+        // age icon (locked/featured/removed/deleted/unavailable) — a silent glyph
+        // is a dead end for VoiceOver. Each badge's `label` is co-located with its
+        // symbol/color in `PostStatusBadge`, so this stays in lockstep with
+        // whatever `contentStatusBadges` actually renders with no second mapping
+        // to keep in sync.
+        subtitleAgeAccessibilityLabel = ([row.published.relativeString] + contentStatusBadges.map(\.label))
+            .joined(separator: ", ")
 
         // The `@instance` host stays quiet (tertiary) so it reads as metadata, never
         // competing with the community / creator display name — matching the muted
