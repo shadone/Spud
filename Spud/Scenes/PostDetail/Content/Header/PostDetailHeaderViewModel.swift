@@ -60,6 +60,16 @@ struct PostDetailHeaderViewModel {
     /// restored). The title is dimmed and the attribution carries a "Deleted"
     /// marker; the post-detail overflow menu offers Restore.
     let isDeleted: Bool
+    /// True when the post is locked (no new comments/replies). Always read
+    /// straight from the header row on every reconfigure — do not cache this
+    /// outside the row, or the composer gate and the locked notice would go
+    /// stale the moment a moderator toggles the lock.
+    let isLocked: Bool
+    /// Moderation / content-status badges (locked / featured / removed /
+    /// deleted / unavailable), rendered inline in the metadata line. Shares
+    /// `PostStatusBadge.badges(for:)` with `PostListPostViewModel` so the feed
+    /// and post detail never grow a second glyph mapping.
+    let contentStatusBadges: [PostStatusBadge]
     let image: HeaderImage
 
     /// True when the post or its community is marked NSFW.
@@ -92,6 +102,8 @@ struct PostDetailHeaderViewModel {
         self.blurNsfw = blurNsfw
         self.isRevealed = isRevealed
         isDeleted = row.isDeleted
+        isLocked = row.isLocked
+        contentStatusBadges = PostStatusBadge.badges(for: row)
 
         let textSizeAdjustment = appearance.postDetail.textSizeAdjustment
         self.textSizeAdjustment = textSizeAdjustment
@@ -145,10 +157,30 @@ struct PostDetailHeaderViewModel {
             numberOfComments: row.numberOfComments,
             attributes: secondaryAttributes
         )
-        subtitleAge = IconValueFormatter.attributedString(
+        let ageText = IconValueFormatter.attributedString(
             relativeDate: row.published,
             attributes: secondaryAttributes
         )
+        // Moderation / content-status badges tacked on after the age icon,
+        // mirroring `PostListPostViewModel`'s append pattern for the feed's
+        // metadata line (a featured post gets a green pin, a locked post a
+        // yellow lock, a removed/deleted post a red marker).
+        if contentStatusBadges.isEmpty {
+            subtitleAge = ageText
+        } else {
+            let space = NSAttributedString(string: " ", attributes: secondaryAttributes)
+            var pieces = [ageText]
+            for badge in contentStatusBadges {
+                var attrs = secondaryAttributes
+                attrs[.foregroundColor] = badge.color
+                pieces.append(space)
+                pieces.append(NSAttributedString.symbol(
+                    from: UIImage(systemName: badge.symbolName)!,
+                    attributes: attrs
+                ))
+            }
+            subtitleAge = pieces.joined()
+        }
 
         // The block-based renderer caches parsed markdown off the main thread,
         // so the header re-rendering on every vote/save is a cache hit here.
@@ -205,7 +237,12 @@ struct PostDetailHeaderViewModel {
             voteStatus: voteStatus
         )
         subtitleCommentsAccessibilityLabel = CommentsAccessibility.label(count: row.numberOfComments)
-        subtitleAgeAccessibilityLabel = row.published.relativeString
+        // Announce "Locked" alongside the age, mirroring the feed's VoiceOver
+        // append (`PostListPostViewModel.makeAccessibilityLabel`) — the glyph
+        // itself carries no spoken word.
+        subtitleAgeAccessibilityLabel = isLocked
+            ? [row.published.relativeString, CommentLockPolicy.shortStatus].joined(separator: ", ")
+            : row.published.relativeString
 
         // The `@instance` host stays quiet (tertiary) so it reads as metadata, never
         // competing with the community / creator display name — matching the muted
