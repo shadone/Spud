@@ -5,6 +5,7 @@
 //
 
 import Foundation
+import SpudUtilKit
 
 /// Single source of truth for whether a user may comment on a post, and for the
 /// user-facing copy that explains a locked post. A locked post rejects new
@@ -40,5 +41,20 @@ enum CommentLockPolicy {
             "Locked",
             comment: "Short status label for a locked post."
         )
+    }
+
+    /// Returns `config` with every slot assigned `.reply` cleared to `.none`
+    /// when `isPostLocked` — HIDES the reply swipe affordance (rather than
+    /// merely intercepting its handler) on both the feed and post-detail
+    /// comment rows, which share this one decision so the two screens can't
+    /// drift. Every other slot (vote/save/share/collapse) is left untouched;
+    /// `config` is returned as-is when the post isn't locked.
+    static func sanitizedSwipeActionConfig(_ config: SwipeActionConfig, isPostLocked: Bool) -> SwipeActionConfig {
+        guard isPostLocked else { return config }
+        var sanitized = config
+        for slot in SwipeActionSlot.allCases where sanitized.action(for: slot) == .reply {
+            sanitized = sanitized.setting(.none, for: slot)
+        }
+        return sanitized
     }
 }

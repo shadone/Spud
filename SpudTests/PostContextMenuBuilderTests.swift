@@ -100,7 +100,8 @@ extension PostListRow {
         communityActorId: String? = "https://example.com/c/community",
         creatorName: String? = nil,
         creatorActorId: String? = "https://example.com/u/creator",
-        isSaved: Bool = false
+        isSaved: Bool = false,
+        isLocked: Bool = false
     ) -> PostListRow {
         PostListRow(
             id: serverPostId,
@@ -125,7 +126,7 @@ extension PostListRow {
             isRead: false,
             isSaved: isSaved,
             isRemoved: false,
-            isLocked: false,
+            isLocked: isLocked,
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
@@ -181,6 +182,34 @@ struct PostContextMenuBuilderTests {
         #expect(titles.contains("Hide"))
         #expect(hasDestructive(menu, title: "Block u/alice"))
         #expect(hasDestructive(menu, title: "Report"))
+    }
+
+    @Test
+    func omitsReplyWhenPostIsLocked() {
+        let host = FakePostContextMenuHost(row: .fixture(communityName: "news", creatorName: "alice", isLocked: true))
+        let menu = PostContextMenuBuilder.menu(forServerPostId: 1, host: host, upvoteIcon: nil, downvoteIcon: nil)
+        let titles = allTitles(menu)
+        #expect(!titles.contains("Reply"))
+        // Every other action stays untouched: locking a post never touches
+        // vote/save/hide/share/open/moderation.
+        #expect(titles.contains("Upvote"))
+        #expect(titles.contains("Downvote"))
+        #expect(titles.contains("Save"))
+        #expect(titles.contains("Share"))
+        #expect(titles.contains("Share as Image"))
+        #expect(titles.contains("Cross-post"))
+        #expect(titles.contains("Visit c/news"))
+        #expect(titles.contains("View u/alice"))
+        #expect(titles.contains("Hide"))
+        #expect(hasDestructive(menu, title: "Block u/alice"))
+        #expect(hasDestructive(menu, title: "Report"))
+    }
+
+    @Test
+    func includesReplyWhenPostIsNotLocked() {
+        let host = FakePostContextMenuHost(row: .fixture(isLocked: false))
+        let menu = PostContextMenuBuilder.menu(forServerPostId: 1, host: host, upvoteIcon: nil, downvoteIcon: nil)
+        #expect(allTitles(menu).contains("Reply"))
     }
 
     @Test

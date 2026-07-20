@@ -1925,6 +1925,30 @@ class PostDetailViewController: UIViewController {
             return
         }
 
+        // Locked-post safety net. Every reply affordance (overflow "Add
+        // comment", comment swipe/context-menu Reply) already omits itself
+        // when the post is locked, so this is the backstop for any caller that
+        // reaches the composer anyway. Gate only a BRAND-NEW top-level or
+        // comment reply: `initialBody == nil` distinguishes that from
+        // `editFailedComment`'s reopening of previously-typed, still-unsent
+        // text (same `.postReply`/`.commentReply` cases, seeded with
+        // `initialBody`) — that path isn't creating a new server-side comment
+        // yet, just letting the user massage or discard their draft, so it
+        // stays open. `.editComment` (editing an existing SENT comment) is
+        // never gated here — the server allows editing on a locked post.
+        let isNewReplyTarget: Bool
+        switch target {
+        case .postReply, .commentReply: isNewReplyTarget = true
+        case .privateMessage, .newPost, .editComment: isNewReplyTarget = false
+        }
+        if
+            isNewReplyTarget, initialBody == nil,
+            !CommentLockPolicy.canComment(isPostLocked: viewModel.headerRow?.isLocked ?? false)
+        {
+            presentCommentLockedGate()
+            return
+        }
+
         // Presenting the composer is the user's intent to compose on this post.
         // Start listening for the composer-success signal now (idempotent), before
         // the send can complete, so a successfully-sent comment triggers the
@@ -2284,7 +2308,14 @@ extension PostDetailViewController {
                     cell.swipeActionConfiguration = nil
                 } else {
                     let general = appearance.general
-                    cell.swipeActionConfiguration = self?.commentSwipeActionConfig.viewConfiguration(
+                    // The reply swipe slot is HIDDEN (not merely disabled) on a
+                    // locked post — see `CommentLockPolicy.sanitizedSwipeActionConfig`.
+                    let isPostLocked = self?.viewModel.headerRow?.isLocked ?? false
+                    let swipeConfig = CommentLockPolicy.sanitizedSwipeActionConfig(
+                        self?.commentSwipeActionConfig ?? .defaultComments,
+                        isPostLocked: isPostLocked
+                    )
+                    cell.swipeActionConfiguration = swipeConfig.viewConfiguration(
                         state: Self.swipeState(for: row, isCollapsed: isCollapsed),
                         appearance: general
                     )
@@ -2436,7 +2467,13 @@ extension PostDetailViewController: UITableViewDelegate {
                 ) { [weak self] _ in
                     self?.shareCommentAsImage(serverCommentId: serverCommentId)
                 }
-                var children: [UIMenuElement] = [upvoteAction, downvoteAction, replyAction, saveAction, shareAction, shareAsImageAction]
+                var children: [UIMenuElement] = [upvoteAction, downvoteAction]
+                // Reply is OMITTED (not merely disabled) when the post is
+                // locked — the server rejects new comments on a locked post.
+                if CommentLockPolicy.canComment(isPostLocked: self?.viewModel.headerRow?.isLocked ?? false) {
+                    children.append(replyAction)
+                }
+                children.append(contentsOf: [saveAction, shareAction, shareAsImageAction])
                 // "Remind Me…" scoped to this comment's thread (Phase 3) -
                 // mirrors the post overflow menu's placement (right after the
                 // primary interaction actions, before ownership/moderation).
