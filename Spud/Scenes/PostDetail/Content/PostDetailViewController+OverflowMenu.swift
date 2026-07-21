@@ -140,7 +140,12 @@ extension PostDetailViewController {
         ) { [weak self] _ in
             self?.presentTextSelection()
         }
-        var primaryChildren: [UIMenuElement] = [addCommentAction, saveAction, shareAction, shareAsImageAction, crossPostAction, selectTextAction]
+        var primaryChildren: [UIMenuElement] = [saveAction, shareAction, shareAsImageAction, crossPostAction, selectTextAction]
+        // "Add comment" is OMITTED (not merely disabled) when the post is
+        // locked — the server rejects new comments on a locked post.
+        if CommentLockPolicy.canComment(isPostLocked: viewModel.headerRow?.isLocked ?? false) {
+            primaryChildren.insert(addCommentAction, at: 0)
+        }
         if let target = remindMeMenuTarget() {
             primaryChildren.append(makeRemindMeMenu(for: target))
         }

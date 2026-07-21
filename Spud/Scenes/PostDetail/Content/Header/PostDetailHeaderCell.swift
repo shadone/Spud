@@ -147,6 +147,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
             postImageContainer,
             titleLabel,
             bodyView,
+            lockedCommentsNoticeView,
             linkPreviewsStackView,
             linkPreviewView,
             attributionLabel,
@@ -188,6 +189,13 @@ class PostDetailHeaderCell: UITableViewCellBase {
     /// changes, since `MarkdownBodyView` bakes the context (fonts, spacing) at
     /// init time. For a typical session only one instance is ever needed.
     private(set) lazy var bodyView: MarkdownBodyView = makeBodyView(textScale: 0)
+
+    /// Full-width "Comments are locked" notice shown below the post body when
+    /// the post is locked. Hidden (contributing no height in the stack) when
+    /// not — toggled purely from `viewModel.isLocked` on every `configure`, so
+    /// it tracks a moderator's live lock/unlock without caching the flag
+    /// anywhere on the cell itself.
+    private lazy var lockedCommentsNoticeView = LockedCommentsNoticeView()
 
     /// Holds one `LinkPreviewView` card per previewable link in the post body,
     /// stacked below the body. Hidden when the post has no body link cards to show.
@@ -576,6 +584,14 @@ class PostDetailHeaderCell: UITableViewCellBase {
 
         pinBodyWidth(bodyView)
 
+        // The locked notice is a rounded card that must span the full content
+        // width (not just size to its own text), so pin it the same way as
+        // the body — a leading-aligned stack only gives arranged subviews a
+        // `<=` max-width constraint otherwise.
+        lockedCommentsNoticeView.widthAnchor.constraint(
+            equalTo: postContentVerticalStackView.widthAnchor
+        ).isActive = true
+
         let contextMenuIteraction = UIContextMenuInteraction(delegate: self)
         linkPreviewView.addInteraction(contextMenuIteraction)
 
@@ -618,6 +634,7 @@ class PostDetailHeaderCell: UITableViewCellBase {
         onBodyAudioTapped = nil
 
         bodyView.setBlocks([])
+        lockedCommentsNoticeView.isHidden = true
 
         clearAuthorBadges()
         clearBodyLinkPreviews()
@@ -685,6 +702,10 @@ class PostDetailHeaderCell: UITableViewCellBase {
             configuredLinkPreviews = viewModel.linkPreviews
             configureBodyLinkPreviews(viewModel)
         }
+        // Driven straight from the row on every reconfigure (never cached), so
+        // a moderator's live lock/unlock is reflected on the next emit.
+        lockedCommentsNoticeView.isHidden = !viewModel.isLocked
+
         attributionLabel.attributedText = viewModel.attribution
         configureAuthorBadges(viewModel)
         subtitleScoreLabel.attributedText = viewModel.subtitleScore

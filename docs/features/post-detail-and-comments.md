@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped — inline "load more replies" expansion pending release (implemented + tested on `feat/load-more-replies`; not yet merged, and the LemmyKit pin it needs hasn't been tagged a release)
-- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [Reminders](reminders.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md), [Configurable swipe actions](swipe-actions.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Feed loading and pagination](feed-loading.md), [Media viewer and inline video](media-viewer.md), [Reminders](reminders.md), [Locked posts](locked-posts.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -41,6 +41,7 @@ when the account has them.
 - **Moderator and admin actions are capability-gated.** The account's moderation capability is fetched from the server when the screen appears (`fetchModerationCapability`). The Moderation submenu only appears when the account moderates this post's community, or is a site admin; otherwise it is absent. A signed-out account never sees it.
 - **In-body link preview cards.** Links in post bodies and comment bodies render as a tappable preview card that always shows the link's anchor text (the `[label](url)` text from markdown). For YouTube, Invidious, and PeerTube video links, when the "Load Link Previews" setting is on, the card additionally shows a thumbnail with a play badge and the video title fetched via oEmbed; when the setting is off, the card shows only the anchor text and host. The post-header link card (for link-type posts) always shows the server-provided title and thumbnail regardless of this setting. Tapping a card opens the link through the external-link preference — except a card whose link is a recognized threadiverse post (the frontend form `/c/<community>/p/<id>[/<slug>]` that Lemmy/PieFed/feddit render), which resolves in-app through the shared link router instead of the browser, even on instances outside the Explorer directory (matching how the same link resolves as inline body text). See [External link handling](external-link-handling.md).
 - **The post's vote / save / reply / report behaviors** are documented in their own features — see [Voting](voting.md), [Saving](saving.md), [Replying](replying.md), [Sharing](sharing.md).
+- **A locked post shows a locked indicator and disables new comments.** The header's metadata line shows a locked glyph and a full-width "Comments are locked" notice appears below the post body; every reply affordance for the post and its comments is hidden, and voting stays fully available. See [Locked posts](locked-posts.md).
 
 ## Scenarios
 

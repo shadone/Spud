@@ -200,7 +200,15 @@ enum PostContextMenuBuilder {
             voteChildren.append(remindMe)
         }
         let voteGroup = UIMenu(options: .displayInline, children: voteChildren)
-        let shareGroup = UIMenu(options: .displayInline, children: [replyAction, shareAction, shareAsImageAction, crossPostAction])
+
+        // Reply is OMITTED (not merely disabled) when the post is locked — the
+        // server rejects new comments on a locked post, so don't offer a dead
+        // action. Voting/save/share/moderation are untouched.
+        var shareChildren: [UIMenuElement] = [shareAction, shareAsImageAction, crossPostAction]
+        if CommentLockPolicy.canComment(isPostLocked: row?.isLocked ?? false) {
+            shareChildren.insert(replyAction, at: 0)
+        }
+        let shareGroup = UIMenu(options: .displayInline, children: shareChildren)
 
         var navChildren: [UIMenuElement] = [visitCommunityAction, viewAuthorAction]
         if let crossPostMenu = host.postCrossPostSiblingsSubmenu(serverPostId: serverPostId) {

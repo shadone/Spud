@@ -121,6 +121,16 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         )
     }
 
+    /// A locked post: the yellow lock glyph appears in the metadata line
+    /// (mirroring the feed's status badge) and a full-width "Comments are
+    /// locked" notice renders below the post body.
+    func test_locked() async {
+        await assertHeader(
+            row: row(url: nil, isLocked: true),
+            imageService: ScriptedImageService([.failure])
+        )
+    }
+
     func test_link() async {
         await assertHeader(
             row: row(
@@ -459,7 +469,8 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
         isCreatorAdmin: Bool = false,
         isCreatorBannedFromCommunity: Bool = false,
         isCreatorSiteBanned: Bool = false,
-        isCreatorAccountDeleted: Bool = false
+        isCreatorAccountDeleted: Bool = false,
+        isLocked: Bool = false
     ) -> PostDetailHeaderRow {
         PostDetailHeaderRow(
             id: 1,
@@ -486,7 +497,7 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
             voteStatus: voteStatus,
             isSaved: false,
             isRemoved: false,
-            isLocked: false,
+            isLocked: isLocked,
             isFeaturedCommunity: false,
             isFeaturedLocal: false,
             isDeleted: false,
