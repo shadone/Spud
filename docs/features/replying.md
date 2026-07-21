@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped — reply, edit, and delete/restore of your own comments are all optimistic and durable
-- **Related:** [Post detail and comments](post-detail-and-comments.md), [Markdown editor](markdown-editor.md), [Voting](voting.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Post detail and comments](post-detail-and-comments.md), [Markdown editor](markdown-editor.md), [Voting](voting.md), [Draft persistence](draft-persistence.md), [Drafts and Outbox](drafts-and-outbox.md), [Locked posts](locked-posts.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -25,6 +25,7 @@ You can also **edit** your own (non-deleted) comment: long-press it and choose E
   - **Discard** — removes the optimistic comment from the thread.
 - **Durable draft per reply target.** The composer auto-saves the in-progress body to the durable draft store. Dismissing a non-empty composer without posting offers "Save Draft" / "Delete Draft" / "Cancel". Reopening the composer for the same target silently restores the text. See [Draft persistence](draft-persistence.md).
 - **Permanent failures also surface a toast.** A non-blocking "Couldn't send comment — View" toast appears, linking to [Drafts and Outbox](drafts-and-outbox.md) where the failed item can be retried or discarded.
+- **Replying is unavailable on a locked post.** When a post is locked, every reply affordance for it and its comments (post-detail "Add comment", a comment's swipe/long-press Reply, and the post's own swipe/long-press Reply wherever it's listed) is hidden rather than shown-disabled; if a reply is somehow initiated anyway, a "Comments are locked" message is shown instead of the composer as a backstop. Editing your own existing comment stays allowed on a locked post — only starting a *new* comment or reply is blocked. See [Locked posts](locked-posts.md).
 
 ### Editing your own comment
 
@@ -106,6 +107,7 @@ You can also **edit** your own (non-deleted) comment: long-press it and choose E
 
 ## Not supported / out of scope
 
+- **Replying on a locked post is not possible from within the app** — there is no client-side bypass; a moderator who wants to comment must first unlock the post via the moderation Lock/Unlock action (see [Locked posts](locked-posts.md)).
 - **Editing your own post** uses the new-post composer (prefilled, with the community fixed), not this comment composer — durable + optimistic through the content outbox, documented in [Post detail and comments](post-detail-and-comments.md). ("Edit" in the failed-reply flow refers to editing an unsent failed item before resubmitting.)
 - **Private messages** are sent through the same durable + optimistic content outbox (instant bubble, background retry, failure recovery), documented in [Private messages](private-messages.md) — not through this comment composer.
 - **Dedup is not guaranteed.** If a send commits on the server but its response is lost before the app records success, and no later feed refresh imports the comment before an auto-retry, a duplicate comment may appear. This is a known rare edge case. Note: the duplicate-prevention check matches by post + author + body text only (it does not use the parent comment), so in the rare lost-response case a retried reply could incorrectly match a same-bodied comment elsewhere on the post.

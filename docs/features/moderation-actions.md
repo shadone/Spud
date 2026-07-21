@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Post detail and comments](post-detail-and-comments.md), [Report](report.md), [Block / unblock](block-unblock.md), [Sign-in gate on write actions](sign-in-gate.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Post detail and comments](post-detail-and-comments.md), [Report](report.md), [Block / unblock](block-unblock.md), [Sign-in gate on write actions](sign-in-gate.md), [Locked posts](locked-posts.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -14,7 +14,7 @@ When the active account moderates a post's community, or is a site admin, the po
 - **Who sees the submenu.** The Moderation submenu (shield icon, "Moderation" title) is shown only when the account moderates this post's community or is a site admin (`canModerate(communityId:)`). A signed-out account, or one with neither power, never sees it.
 - **Post moderation actions.** On a post the submenu offers:
   - **Remove / Restore** — remove a post (prompts for an optional reason recorded in the mod log) or restore a removed one. Prompts for confirmation before removing.
-  - **Lock / Unlock** — toggle whether the post accepts new comments.
+  - **Lock / Unlock** — toggle whether the post accepts new comments. See [Locked posts](locked-posts.md) for the user-facing effect: a locked indicator wherever the post appears, a detail notice, and every reply affordance hidden until it's unlocked.
   - **Pin to community / Unpin from community** — feature the post (or unfeature it) within its community.
   - **Pin to instance / Unpin from instance** — feature the post on the instance front page. This entry is admin-only; it appears only when the account is a site admin.
 - **Comment moderation actions.** On a comment the submenu offers:
