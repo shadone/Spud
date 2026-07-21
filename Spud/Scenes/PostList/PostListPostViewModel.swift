@@ -473,11 +473,8 @@ struct PostListPostViewModel {
         if row.isSaved {
             parts.append(NSLocalizedString("Saved", comment: "VoiceOver: post is saved"))
         }
-        if row.isLocked {
-            parts.append(NSLocalizedString("Locked", comment: "VoiceOver: post is locked"))
-        }
-        if row.isFeaturedCommunity || row.isFeaturedLocal {
-            parts.append(NSLocalizedString("Pinned", comment: "VoiceOver: post is pinned"))
+        for badge in PostStatusBadge.badges(for: row) {
+            parts.append(badge.label)
         }
 
         return parts.joined(separator: ", ")
