@@ -831,7 +831,14 @@ class PersonViewController: UIViewController {
             self?.openExternalLink(linkUrl)
         }
 
-        cell.swipeActionConfiguration = swipeActionConfig.viewConfiguration(
+        // The reply swipe slot is HIDDEN (not merely disabled) on a locked
+        // post — mirrors `PostListViewController`'s per-row sanitization; see
+        // `CommentLockPolicy.sanitizedSwipeActionConfig`.
+        let swipeConfig = CommentLockPolicy.sanitizedSwipeActionConfig(
+            swipeActionConfig,
+            isPostLocked: row.isLocked
+        )
+        cell.swipeActionConfiguration = swipeConfig.viewConfiguration(
             state: SwipeActionState(
                 isSaved: row.isSaved,
                 isUpvoted: row.voteStatus == 1,
@@ -882,6 +889,14 @@ class PersonViewController: UIViewController {
             presentSignInGate(
                 title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment")
             )
+            return
+        }
+        // Locked-post safety net: the reply swipe affordance already omits
+        // itself for a locked row (see `makePostCell`); this is the backstop
+        // for any caller that reaches here anyway, mirroring
+        // `PostListViewController.replyToPost`.
+        guard CommentLockPolicy.canComment(isPostLocked: rowsByServerPostId[serverPostId]?.isLocked ?? false) else {
+            presentCommentLockedGate()
             return
         }
         Haptics.tap()

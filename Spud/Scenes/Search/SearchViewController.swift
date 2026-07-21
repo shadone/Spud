@@ -745,6 +745,14 @@ extension SearchViewController: PostContextMenuHost {
             presentSignInGate(title: NSLocalizedString("Sign in to comment", comment: "Sign-in gate title when a signed-out user tries to comment"))
             return
         }
+        // Locked-post safety net: `PostContextMenuBuilder` already omits the
+        // Reply action for a locked row, but this is the backstop for any
+        // caller that reaches here anyway, mirroring
+        // `PostListViewController.replyToPost`.
+        guard CommentLockPolicy.canComment(isPostLocked: postContextRow(forServerPostId: serverPostId)?.isLocked ?? false) else {
+            presentCommentLockedGate()
+            return
+        }
         Haptics.tap()
         let composer = ComposerViewController.makeSheet(
             target: .postReply(serverPostId: Lemmy.PostID(serverPostId)),
