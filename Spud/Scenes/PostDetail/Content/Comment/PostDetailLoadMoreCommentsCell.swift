@@ -94,10 +94,11 @@ final class PostDetailLoadMoreCommentsCell: UITableViewCell {
     }
 
     /// Swaps the "Load more comments" label for an inline spinner while a fetch
-    /// is in flight. The row's `accessibilityTraits` drop `.button` while
-    /// loading (mirroring the sibling comment cell's "load more replies" row)
-    /// so VoiceOver doesn't invite a second tap on a request that's already
-    /// running.
+    /// is in flight. The row's `accessibilityTraits` switch to `.updatesFrequently`
+    /// while loading (mirroring the sibling comment cell's "load more replies"
+    /// row, `PostDetailCommentCell`) so VoiceOver doesn't invite a second tap on
+    /// a request that's already running, while still describing the row as live
+    /// content rather than dropping its traits entirely.
     func setLoading(_ isLoading: Bool) {
         titleLabel.isHidden = isLoading
         if isLoading {
@@ -111,6 +112,6 @@ final class PostDetailLoadMoreCommentsCell: UITableViewCell {
     private func applyAccessibility(isLoading: Bool) {
         accessibilityLabel = isLoading ? Self.loadingHint : Self.title
         accessibilityHint = isLoading ? Self.loadingHint : Self.loadHint
-        accessibilityTraits = isLoading ? [] : .button
+        accessibilityTraits = isLoading ? .updatesFrequently : .button
     }
 }

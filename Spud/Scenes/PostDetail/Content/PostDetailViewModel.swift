@@ -945,9 +945,20 @@ final class PostDetailViewModel {
     /// Resets ``commentPageBudgetAttempt`` to 1 like every other fresh fetch —
     /// a pull-to-refresh must not inherit an inflated bound left over from a
     /// prior "Load more comments" streak.
+    ///
+    /// Captures the returned completion and updates ``hasOutstandingCommentPages``
+    /// from it, mirroring the winning branch of `fetchComments(maxPages:)` --
+    /// otherwise the "Load more comments" row goes stale after a refresh: it
+    /// lingers when the refreshed walk actually completed the tree, and fails
+    /// to appear when the refreshed walk is genuinely partial. Guarded by
+    /// `!Task.isCancelled` for the same reason as that winning branch: only a
+    /// completed (non-cancelled) refresh should write the flag.
     func refreshComments() async throws {
         commentPageBudgetAttempt = 1
-        try await fetchCommentsOperation(commentSortType, LemmyService.maxCommentPages)
+        let completion = try await fetchCommentsOperation(commentSortType, LemmyService.maxCommentPages)
+        if !Task.isCancelled {
+            hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
+        }
     }
 
     /// Casts (or clears) a vote on the comment `serverCommentId` for the backing

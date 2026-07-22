@@ -179,6 +179,43 @@ struct PostDetailPartialCommentLoadTests {
 
         #expect(capture.received[2] == LemmyService.maxCommentPages)
     }
+
+    // MARK: - Refresh must reflect the completion it gets back
+
+    /// Pull-to-refresh reuses the `fetchCommentsOperation` seam directly (not
+    /// the ``PostDetailViewModel/fetchComments()`` state machine), so it must
+    /// capture the completion it gets back and update
+    /// ``PostDetailViewModel/hasOutstandingCommentPages`` from it just like the
+    /// winning branch of `fetchComments(maxPages:)` does. A refresh whose walk
+    /// actually completes the tree must clear a flag left over from before the
+    /// refresh -- otherwise the "Load more comments" row lingers with nothing
+    /// left to load.
+    @Test
+    func refreshWithCompleteCompletionClearsOutstandingPages() async throws {
+        let vm = makeViewModel(completions: [
+            .partial(.pageBudgetExhausted),
+            .complete,
+        ])
+        await vm.fetchComments()
+        #expect(vm.hasOutstandingCommentPages)
+
+        try await vm.refreshComments()
+
+        #expect(!vm.hasOutstandingCommentPages)
+    }
+
+    /// The mirror direction: a refresh whose walk is genuinely partial must set
+    /// the flag so the "Load more comments" row appears, even when nothing was
+    /// outstanding before the refresh.
+    @Test
+    func refreshWithPartialCompletionSetsOutstandingPages() async throws {
+        let vm = makeViewModel(completion: .partial(.pageBudgetExhausted))
+        #expect(!vm.hasOutstandingCommentPages)
+
+        try await vm.refreshComments()
+
+        #expect(vm.hasOutstandingCommentPages)
+    }
 }
 
 /// Records, in order, the `maxPages` bound each `fetchCommentsOperation` call
