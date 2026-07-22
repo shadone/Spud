@@ -83,6 +83,12 @@ final class PostDetailViewModel {
     /// not a cursor to resume from.
     private(set) var hasOutstandingCommentPages = false
 
+    /// Set when a fetch ended `.partial(.pageFetchFailed)` -- some pages landed
+    /// and a later one did not. Read-and-clear via
+    /// ``consumePartialCommentLoadFailure()`` so a re-render cannot re-toast it.
+    @ObservationIgnored
+    private var pendingPartialCommentLoadFailure = false
+
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
     ///
@@ -614,6 +620,14 @@ final class PostDetailViewModel {
         await fetchComments(maxPages: LemmyService.maxCommentPages * commentPageBudgetAttempt)
     }
 
+    /// Returns `true` once after a comment fetch kept earlier pages but lost a
+    /// later one, then clears. The view controller turns this into a toast: the
+    /// inline failed state is wrong here because comments ARE on screen.
+    func consumePartialCommentLoadFailure() -> Bool {
+        defer { pendingPartialCommentLoadFailure = false }
+        return pendingPartialCommentLoadFailure
+    }
+
     // MARK: - New-comment delta (view-layer)
 
     /// Number of comments new since the user's last visit.
@@ -701,6 +715,7 @@ final class PostDetailViewModel {
                     // the empty / comments state can show.
                     commentFetchError = nil
                     hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
+                    pendingPartialCommentLoadFailure = completion == .partial(.pageFetchFailed)
                 }
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.
@@ -950,14 +965,19 @@ final class PostDetailViewModel {
     /// from it, mirroring the winning branch of `fetchComments(maxPages:)` --
     /// otherwise the "Load more comments" row goes stale after a refresh: it
     /// lingers when the refreshed walk actually completed the tree, and fails
-    /// to appear when the refreshed walk is genuinely partial. Guarded by
-    /// `!Task.isCancelled` for the same reason as that winning branch: only a
-    /// completed (non-cancelled) refresh should write the flag.
+    /// to appear when the refreshed walk is genuinely partial. Also mirrors that
+    /// branch's ``pendingPartialCommentLoadFailure`` handling -- a refresh
+    /// (pull-to-refresh, or the post-composer-success refresh) can just as
+    /// easily lose a later page as the ordinary fetch path can, and the reader
+    /// deserves the same toast either way. Guarded by `!Task.isCancelled` for
+    /// the same reason as that winning branch: only a completed (non-cancelled)
+    /// refresh should write either flag.
     func refreshComments() async throws {
         commentPageBudgetAttempt = 1
         let completion = try await fetchCommentsOperation(commentSortType, LemmyService.maxCommentPages)
         if !Task.isCancelled {
             hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
+            pendingPartialCommentLoadFailure = completion == .partial(.pageFetchFailed)
         }
     }
 

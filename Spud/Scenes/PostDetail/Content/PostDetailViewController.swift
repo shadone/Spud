@@ -452,7 +452,13 @@ class PostDetailViewController: UIViewController {
         // The VC's revision reaction keeps observing across the restart, so the
         // new ordering's first emit flows through the same pipeline.
         viewModel.restartComments(sortType: sortType)
-        Task { await viewModel.fetchComments() }
+        Task { [weak self] in
+            guard let self else { return }
+            await viewModel.fetchComments()
+            if viewModel.consumePartialCommentLoadFailure() {
+                showPartialCommentLoadToast()
+            }
+        }
     }
 
     /// Observes the comment-density preference and reconfigures visible comment
@@ -523,7 +529,12 @@ class PostDetailViewController: UIViewController {
                 wasOnline = online
                 guard shouldRetry else { continue }
                 let viewModel = viewModel
-                Task { await viewModel.fetchComments() }
+                Task { [weak self] in
+                    await viewModel.fetchComments()
+                    if viewModel.consumePartialCommentLoadFailure() {
+                        self?.showPartialCommentLoadToast()
+                    }
+                }
             }
         }
     }
@@ -751,6 +762,20 @@ class PostDetailViewController: UIViewController {
 
                 applySnapshot()
                 attemptPermalinkScroll()
+                // Backstop for the two fetches that have no VC-side await to hang
+                // a check off of: `didPrepareObservation`'s own initial fetch
+                // (fired below, and by the view model itself before the post is
+                // mirrored) and the composer-success refresh (an internal
+                // subscription in the view model, see
+                // `refreshAfterComposerSuccess()`). Both still land through this
+                // same GRDB-backed comment observation, so a later-page failure
+                // from either shows up on a subsequent revision here. One-shot
+                // consume means this can never double-toast alongside the
+                // explicit per-action checks elsewhere in this file — whichever
+                // reads the flag first wins, and there is only ever one true read.
+                if viewModel.consumePartialCommentLoadFailure() {
+                    showPartialCommentLoadToast()
+                }
                 if !hasReceivedFirstCommentSnapshot {
                     hasReceivedFirstCommentSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
@@ -1206,6 +1231,21 @@ class PostDetailViewController: UIViewController {
         )
     }
 
+    /// Shown when a comment fetch kept the pages that arrived but lost a later
+    /// one. A toast rather than the inline failed state: comments ARE on screen,
+    /// and `CommentsBackground.decide` correctly suppresses `.failed` in that
+    /// case, so without this the shortfall would be entirely silent.
+    private func showPartialCommentLoadToast() {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(
+            NSLocalizedString(
+                "Some comments couldn't be loaded",
+                comment: "Toast when part of a post's comment listing fails to load"
+            ),
+            in: window
+        )
+    }
+
     // MARK: - Jump to next top-level comment / next new comment
 
     /// The index path of the next visible depth-1 comment whose top is below the
@@ -1408,6 +1448,9 @@ class PostDetailViewController: UIViewController {
         async let postInfoRefresh: Void = refreshPostInfo()
         do {
             try await viewModel.refreshComments()
+            if viewModel.consumePartialCommentLoadFailure() {
+                showPartialCommentLoadToast()
+            }
         } catch {
             alertService.handle(error, for: .fetchComments)
         }
@@ -2209,7 +2252,13 @@ extension PostDetailViewController {
                     ?? LoadFailure(kind: .unreachable, diagnostics: "")
                 cell.configure(with: failure)
                 cell.onRetry = { [weak self] in
-                    Task { await self?.viewModel.fetchComments() }
+                    Task { [weak self] in
+                        guard let self else { return }
+                        await viewModel.fetchComments()
+                        if viewModel.consumePartialCommentLoadFailure() {
+                            showPartialCommentLoadToast()
+                        }
+                    }
                 }
                 return cell
 
@@ -2396,7 +2445,16 @@ extension PostDetailViewController: UITableViewDelegate {
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         guard dataSource.itemIdentifier(for: indexPath) == .commentsLoadMore else { return }
         tableView.deselectRow(at: indexPath, animated: true)
-        Task { [weak self] in await self?.viewModel.loadMoreCommentPages() }
+        Task { [weak self] in
+            guard let self else { return }
+            await viewModel.loadMoreCommentPages()
+            // loadMoreCommentPages() resumes the same fetch path as
+            // fetchComments() (a bigger page bound), so a later page in ITS
+            // walk can fail too -- report it the same way.
+            if viewModel.consumePartialCommentLoadFailure() {
+                showPartialCommentLoadToast()
+            }
+        }
     }
 
     func tableView(

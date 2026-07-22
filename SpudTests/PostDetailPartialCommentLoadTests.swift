@@ -100,6 +100,75 @@ struct PostDetailPartialCommentLoadTests {
         #expect(!vm.hasOutstandingCommentPages)
     }
 
+    // MARK: - A later-page failure must be reported, exactly once, without touching the inline failed state
+
+    /// A later-page failure is reported exactly once, so a re-render cannot
+    /// re-toast it.
+    @Test
+    func partialFailureIsConsumedOnce() async {
+        let vm = makeViewModel(completion: .partial(.pageFetchFailed))
+        await vm.fetchComments()
+        #expect(vm.consumePartialCommentLoadFailure())
+        #expect(!vm.consumePartialCommentLoadFailure())
+    }
+
+    /// A complete fetch reports nothing.
+    @Test
+    func completeFetchHasNoPartialFailureToConsume() async {
+        let vm = makeViewModel(completion: .complete)
+        await vm.fetchComments()
+        #expect(!vm.consumePartialCommentLoadFailure())
+    }
+
+    /// A mid-pagination failure must NOT drive the inline failed state -- the
+    /// pages that arrived stay on screen.
+    @Test
+    func partialFailureLeavesNoInlineFetchError() async {
+        let vm = makeViewModel(completion: .partial(.pageFetchFailed))
+        await vm.fetchComments()
+        #expect(vm.commentFetchError == nil)
+    }
+
+    /// Exhausting the page budget is a resumable cursor, not a shortfall --
+    /// it must not set the one-shot toast flag (that is what
+    /// ``hasOutstandingCommentPages`` / the "Load more comments" row is for).
+    @Test
+    func pageBudgetExhaustedHasNoPartialFailureToConsume() async {
+        let vm = makeViewModel(completion: .partial(.pageBudgetExhausted))
+        await vm.fetchComments()
+        #expect(!vm.consumePartialCommentLoadFailure())
+    }
+
+    /// Pull-to-refresh (``PostDetailViewModel/refreshComments()``) reuses the
+    /// closure seam directly rather than the ``fetchComments()`` state
+    /// machine, so it needs its own coverage: a later-page failure there must
+    /// also be reported exactly once.
+    @Test
+    func refreshPartialFailureIsConsumedOnce() async throws {
+        let vm = makeViewModel(completion: .partial(.pageFetchFailed))
+        try await vm.refreshComments()
+        #expect(vm.consumePartialCommentLoadFailure())
+        #expect(!vm.consumePartialCommentLoadFailure())
+    }
+
+    /// A complete refresh reports nothing.
+    @Test
+    func refreshCompleteFetchHasNoPartialFailureToConsume() async throws {
+        let vm = makeViewModel(completion: .complete)
+        try await vm.refreshComments()
+        #expect(!vm.consumePartialCommentLoadFailure())
+    }
+
+    /// A refreshed later-page failure must not be conflated with the resumable
+    /// "Load more comments" cursor -- the two flags are independent even
+    /// through the refresh path.
+    @Test
+    func refreshWithPageFetchFailedDoesNotMarkOutstandingPages() async throws {
+        let vm = makeViewModel(completion: .partial(.pageFetchFailed))
+        try await vm.refreshComments()
+        #expect(!vm.hasOutstandingCommentPages)
+    }
+
     // MARK: - Page-budget growth (the "Load more comments" row must genuinely load more)
 
     /// Each tap on "Load more comments" must request a LARGER page bound than
