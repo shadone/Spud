@@ -45,10 +45,24 @@ public extension AppDatabase {
         }
     }
 
-    /// Replaces the comment tree for a (post, sortType) pair with the given
-    /// CommentViews. Existing CommentElementRecord rows for this post + sort
-    /// are deleted, then new ones are inserted in tree-sorted order. Comments
-    /// with missing children get an extra "load more" placeholder element.
+    /// Reconciles the comment tree for a (post, sortType) pair with the given
+    /// CommentViews, in place. Comments with missing children get an extra
+    /// "load more" placeholder element.
+    ///
+    /// This RECONCILES existing `CommentElementRecord` rows rather than
+    /// deleting and reinserting them. `CommentElementRecord.id` is an
+    /// auto-increment rowid that the post-detail diffable snapshot keys on
+    /// (`Item.comment(elementId:)`), and `PostDetailViewModel` intersects its
+    /// collapse set against the surviving ids on every reload — so an import
+    /// that minted fresh ids on every call (including every pull-to-refresh)
+    /// silently discarded the reader's collapse state and churned every row
+    /// identity. Real rows are matched by their local comment row id (stable:
+    /// comment rows are upserted, never deleted here); "load more" placeholder
+    /// rows are matched by `moreParentId`, a server comment id, which is
+    /// already the semantic key `spliceMoreComments` looks them up by. There is
+    /// no unique index on `(postId, sortType, position)`, so rewriting
+    /// positions/depths of matched rows in place is safe; only rows whose
+    /// comment left the tree are deleted.
     ///
     /// Skips the operation if the post is not yet in AppDatabase — the next
     /// `fetchFeed` or `fetchPostInfo` will land it first.
@@ -75,11 +89,28 @@ public extension AppDatabase {
 
             let sortTypeRaw = sortType.rawValue
 
-            // Delete existing element rows for this (post, sortType) pair.
-            try CommentElementRecord
+            // Reconcile the element rows rather than rebuilding them. The
+            // post-detail diffable snapshot keys on `CommentElementRecord.id`
+            // and the view model intersects its collapse set against the
+            // surviving ids, so minting fresh ids on every import would silently
+            // drop the reader's collapse state and churn every row identity.
+            // Real rows are keyed by their local comment row id; "load more"
+            // placeholders by `moreParentId` (a server comment id), which is
+            // already the semantic key `spliceMoreComments` looks them up by.
+            let existingElements = try CommentElementRecord
                 .filter(Column("postId") == postRowId)
                 .filter(Column("sortType") == sortTypeRaw)
-                .deleteAll(db)
+                .fetchAll(db)
+
+            var elementByCommentRowId: [Int64: CommentElementRecord] = [:]
+            var elementByMoreParentId: [Int64: CommentElementRecord] = [:]
+            for element in existingElements {
+                if let commentId = element.commentId {
+                    elementByCommentRowId[commentId] = element
+                } else if let moreParentId = element.moreParentId {
+                    elementByMoreParentId[moreParentId] = element
+                }
+            }
 
             let commentsWithMissingChildren: Set<Lemmy.CommentID> = Set(
                 LemmyCommentImportHelper
@@ -89,6 +120,7 @@ public extension AppDatabase {
 
             let ordered = LemmyCommentImportHelper.sort(comments: comments)
 
+            var survivingElementIds: Set<Int64> = []
             var elementPosition: Int64 = 0
             for view in ordered {
                 let path = CommentPath(path: view.comment.path)
@@ -103,30 +135,51 @@ public extension AppDatabase {
                     in: db
                 )
 
-                var element = CommentElementRecord(
+                var element = elementByCommentRowId[commentRowId] ?? CommentElementRecord(
                     postId: postRowId,
                     commentId: commentRowId,
                     position: elementPosition,
                     depth: depth,
                     sortType: sortTypeRaw
                 )
-                try element.insert(db)
+                element.position = elementPosition
+                element.depth = depth
+                // A row that was a comment stays a comment; clear any stale
+                // placeholder fields defensively.
+                element.moreChildCount = nil
+                element.moreParentId = nil
+                try element.save(db)
+                if let id = element.id { survivingElementIds.insert(id) }
                 elementPosition += 1
 
                 if commentsWithMissingChildren.contains(Lemmy.CommentID(view.comment.id)) {
-                    var placeholder = CommentElementRecord(
+                    let moreParentId = Int64(view.comment.id)
+                    var placeholder = elementByMoreParentId[moreParentId] ?? CommentElementRecord(
                         postId: postRowId,
                         commentId: nil,
                         position: elementPosition,
                         depth: depth + 1,
                         sortType: sortTypeRaw,
                         moreChildCount: view.comment.childCount,
-                        moreParentId: Int64(view.comment.id)
+                        moreParentId: moreParentId
                     )
-                    try placeholder.insert(db)
+                    placeholder.commentId = nil
+                    placeholder.position = elementPosition
+                    placeholder.depth = depth + 1
+                    placeholder.moreChildCount = view.comment.childCount
+                    placeholder.moreParentId = moreParentId
+                    try placeholder.save(db)
+                    if let id = placeholder.id { survivingElementIds.insert(id) }
                     elementPosition += 1
                 }
             }
+
+            // Delete only the rows that left the tree.
+            try CommentElementRecord
+                .filter(Column("postId") == postRowId)
+                .filter(Column("sortType") == sortTypeRaw)
+                .filter(!survivingElementIds.contains(Column("id")))
+                .deleteAll(db)
         }
     }
 
