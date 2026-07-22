@@ -910,7 +910,7 @@ public actor OfflineDownloadService {
                 }
             ) {
                 try await pacer.acquire()
-                try await lemmyService.fetchComments(
+                _ = try await lemmyService.fetchComments(
                     serverPostId: Lemmy.PostID(target.serverPostId),
                     sortType: commentSort
                 )

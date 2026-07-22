@@ -300,7 +300,7 @@ actor RecordingLemmyService: LemmyServiceType {
     func fetchComments(
         serverPostId: Lemmy.PostID,
         sortType _: Lemmy.CommentSortType
-    ) async throws {
+    ) async throws -> CommentFetchCompletion {
         // The API id type is Int32; the test records/configures Int64 to match
         // the DB-stored ids.
         let postId = Int64(serverPostId)
@@ -308,6 +308,9 @@ actor RecordingLemmyService: LemmyServiceType {
         if failingCommentPostIds.contains(postId) {
             throw RecordingLemmyServiceError.commentFetchFailed
         }
+        // This fake never simulates pagination -- callers here don't assert on
+        // the completion value, only on `fetchCommentsPostIds`.
+        return .complete
     }
 
     // MARK: - LemmyServiceType (unused — trap if hit)

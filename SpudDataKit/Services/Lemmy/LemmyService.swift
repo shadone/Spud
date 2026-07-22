@@ -57,10 +57,18 @@ public protocol LemmyServiceType: Actor {
     @discardableResult
     func fetchFeed(_ feed: FeedHandle, pageCursor: String?, showNsfw: Bool) async throws -> String?
 
+    /// Fetch a post's comment listing and mirror it into the database, walking
+    /// every page the server offers (bounded by ``LemmyService/maxCommentPages``).
+    /// Page 1 is imported before the rest of the listing is walked, so a
+    /// multi-page dialect (v4, PieFed) paints after one round trip rather than
+    /// waiting for the whole tree.
+    ///
+    /// - Returns: whether the whole listing was walked, or which shortfall
+    ///   stopped it short — see ``CommentFetchCompletion``.
     func fetchComments(
         serverPostId: Lemmy.PostID,
         sortType: Lemmy.CommentSortType
-    ) async throws
+    ) async throws -> CommentFetchCompletion
 
     /// Fetches the missing reply subtree under `parentServerId` (the "load more replies" action)
     /// and splices it into the stored comment tree in place via `AppDatabase.spliceMoreComments`.
@@ -81,11 +89,11 @@ public protocol LemmyServiceType: Actor {
     /// paginating a post's comment listing until `rootCommentServerId` is
     /// found - a bounded, self-contained alternative to `fetchComments` for
     /// the reminder poll's SUBTREE branch (`SchedulerService.
-    /// pollActivityRemindersSweep`). `fetchComments` requests only the FIRST
-    /// page of the listing - complete on a v3 backend (whose
-    /// `GetCommentsResponse` always returns the whole tree in one response),
-    /// but only page 1 of a cursor-paginated v4 listing, so a subtree root
-    /// past page 1 would never be refreshed there. See
+    /// pollActivityRemindersSweep`). `fetchComments` now also walks the whole
+    /// listing (bounded by `maxCommentPages`), but it throws on a first-page
+    /// failure and drives the rendered comment tree via `mirrorCommentsToAppDatabase`
+    /// on every page - unsuitable for a background poll that only wants one
+    /// number and must never throw. See
     /// `LemmyService.fetchSubtreeChildCount(postServerId:rootCommentServerId:sortType:)`
     /// for the page bound and the best-effort-nil contract. Has a default
     /// (always-nil) implementation, so conformers that never drive the
@@ -1121,19 +1129,29 @@ public actor LemmyService: LemmyServiceType {
         )
     }
 
+    /// Bound on how many comment pages a single `fetchComments` walks before
+    /// giving up and reporting `.partial(.pageBudgetExhausted)`. Mirrors
+    /// ``maxSubtreeChildCountPages``.
+    public static let maxCommentPages = 10
+
     public func fetchComments(
         serverPostId: Lemmy.PostID,
         sortType: Lemmy.CommentSortType
-    ) async throws {
+    ) async throws -> CommentFetchCompletion {
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
             postId=\(serverPostId, privacy: .public) \
             sortType=\(sortType.rawValue, privacy: .public)
             """)
 
-        let page: Page<Lemmy.CommentView>
+        // Page 1 is fetched, imported and rendered before the rest of the
+        // listing is walked: on a multi-page dialect (v4, PieFed) waiting for
+        // the whole walk would leave the reader on a skeleton for several
+        // serial round trips. Re-importing the accumulated set afterwards is
+        // safe because `upsertComments` reconciles element rows in place.
+        let firstPage: Page<Lemmy.CommentView>
         do {
-            page = try await api.getCommentsNeutral(
+            firstPage = try await api.getCommentsNeutral(
                 postId: Int64(serverPostId),
                 sort: sortType.neutralCommentSort
             )
@@ -1152,22 +1170,63 @@ public actor LemmyService: LemmyServiceType {
             throw LemmyServiceError(from: error)
         }
 
-        logger.debug("""
-            Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
-            complete with \(page.items.count, privacy: .public) comments
-            """)
-
+        var collected = firstPage.items
         try await mirrorCommentsToAppDatabase(
             serverPostId: serverPostId,
             sortType: sortType,
-            comments: page.items
+            comments: collected
         )
+
+        var completion: CommentFetchCompletion = .complete
+        var pageCursor = firstPage.nextPage
+        var pagesFetched = 1
+        while let cursor = pageCursor {
+            guard pagesFetched < Self.maxCommentPages else {
+                completion = .partial(.pageBudgetExhausted)
+                break
+            }
+            let page: Page<Lemmy.CommentView>
+            do {
+                page = try await api.getCommentsNeutral(
+                    postId: Int64(serverPostId),
+                    sort: sortType.neutralCommentSort,
+                    pageCursor: cursor
+                )
+            } catch {
+                // Earlier pages already landed and are on screen. Keep them and
+                // report the shortfall rather than throwing the whole fetch away.
+                logger.error("""
+                    Fetch comments page failed, keeping earlier pages. \
+                    account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
+                    postId=\(serverPostId, privacy: .public). \
+                    \(String(describing: error), privacy: .public)
+                    """)
+                completion = .partial(.pageFetchFailed)
+                break
+            }
+            pagesFetched += 1
+            collected.append(contentsOf: page.items)
+            pageCursor = page.nextPage
+            try await mirrorCommentsToAppDatabase(
+                serverPostId: serverPostId,
+                sortType: sortType,
+                comments: collected
+            )
+        }
+
+        logger.debug("""
+            Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)) \
+            complete with \(collected.count, privacy: .public) comments \
+            over \(pagesFetched, privacy: .public) page(s)
+            """)
 
         // A removed comment carries no reason in the comment object — fetch it
         // from the public modlog, but only when there's something to explain.
-        if page.items.contains(where: \.comment.removed) {
+        if collected.contains(where: \.comment.removed) {
             await mirrorCommentRemovalReasons(serverPostId: serverPostId)
         }
+
+        return completion
     }
 
     /// Fetches the missing reply subtree under `parentServerId` (the "load more replies" action)

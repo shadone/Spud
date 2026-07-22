@@ -266,7 +266,7 @@ final class PostDetailViewModel {
         injectedLemmy = lemmy
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
-            try await accountScope.lemmyService
+            _ = try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: sortType)
         }
         self.fetchMoreCommentsOperation = fetchMoreCommentsOperation ?? { parentServerId, sortType in

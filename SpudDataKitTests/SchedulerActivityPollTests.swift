@@ -335,7 +335,7 @@ private actor ActivityPollLemmyService: LemmyServiceType {
     /// No longer called by the subtree branch (that now goes through
     /// `fetchSubtreeChildCount` below) - kept trapping like the rest of the
     /// unused requirements.
-    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws {
+    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws -> CommentFetchCompletion {
         activityPollUnreachable()
     }
 
