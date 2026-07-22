@@ -73,11 +73,10 @@ class SpudUITests: XCTestCase {
             )
 
             // The neutral `getCommentsNeutral` request is
-            // `type_=All&sort=Hot&post_id=1549703` -- it no longer sends the
-            // `max_depth=8` the old client did, so the matcher keys only on the
-            // params that are actually present (a stale `max_depth=8` matcher
-            // would miss and fall through to the 500 catch-all, leaving the
-            // detail with no comments).
+            // `type_=All&sort=Hot&max_depth=8&post_id=1549703`. The matcher keys
+            // only on the post and sort: a matcher listing a param the request
+            // does not send would miss and fall through to the 500 catch-all,
+            // leaving the detail with no comments.
             _ = self.app.stubRequests(
                 matching: SBTRequestMatch(
                     url: "discuss.tchncs.de/api/v3/comment/list",

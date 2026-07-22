@@ -85,6 +85,14 @@ enum LemmyCommentImportHelper {
     /// 0.245.987
     /// 0.249
     /// ```
+    /// The server's listing is a PARTIAL slice of the tree — it is bounded by
+    /// `limit`, and by `max_depth` when a tree is requested — so a response can
+    /// legitimately contain a comment whose ancestors were never fetched. Such a
+    /// comment is threaded as a display root rather than dropped: rendering it
+    /// slightly out of context beats a post whose header claims N comments and
+    /// whose body shows none. (This is defense in depth — with `max_depth` on the
+    /// request the tree comes back complete down to the depth cutoff, so orphans
+    /// should not normally occur.)
     static func sort(
         comments: [Lemmy.CommentView]
     ) -> [Lemmy.CommentView] {
@@ -98,35 +106,55 @@ enum LemmyCommentImportHelper {
                 self.children = children
             }
         }
-        var commentNodeById: [Lemmy.CommentID: CommentNode] = [:]
 
         // TODO: we could optimize for memory here and store index into `comments` instead.
         var commentViewById: [Lemmy.CommentID: Lemmy.CommentView] = [:]
-        let root = CommentNode(id: 0)
         for commentView in comments {
             // The neutral `Comment.id` is `Int64`; the id-vocabulary type is the
             // narrower generated `CommentID` (`Int32`), so narrow here.
-            let commentId = Lemmy.CommentID(commentView.comment.id)
-            let node = CommentNode(id: commentId)
+            commentViewById[Lemmy.CommentID(commentView.comment.id)] = commentView
+        }
 
-            commentViewById[commentId] = commentView
-            commentNodeById[commentId] = node
+        // A comment's parent may appear anywhere in the response — the listing is
+        // only partially ordered — so nodes are looked up (and created on demand)
+        // rather than assumed to already exist. Creating the parent's node here
+        // must NOT replace one a child already attached itself to.
+        var commentNodeById: [Lemmy.CommentID: CommentNode] = [:]
+        func node(for id: Lemmy.CommentID) -> CommentNode {
+            if let existing = commentNodeById[id] {
+                return existing
+            }
+            let created = CommentNode(id: id)
+            commentNodeById[id] = created
+            return created
+        }
+
+        let root = CommentNode(id: 0)
+        for commentView in comments {
+            let commentId = Lemmy.CommentID(commentView.comment.id)
+            let commentNode = node(for: commentId)
 
             let path = CommentPath(path: commentView.comment.path)
-            guard let parentCommentId = path.parent else {
-                root.children.append(node)
+            guard
+                let parentCommentId = path.parent,
+                commentViewById[parentCommentId] != nil
+            else {
+                // Top-level, or an orphan whose parent was not in this response.
+                root.children.append(commentNode)
                 continue
             }
 
-            let parentNode = commentNodeById[parentCommentId] ?? CommentNode(id: parentCommentId)
-            commentNodeById[parentNode.id] = parentNode
-            parentNode.children.append(node)
+            node(for: parentCommentId).children.append(commentNode)
         }
 
         // now flatten the comment tree into a list
         var orderedComments: [Lemmy.CommentView] = []
+        var visited: Set<Lemmy.CommentID> = []
         func visit(_ commentNode: CommentNode) {
-            let commentView = commentViewById[commentNode.id]!
+            // A malformed path (a cycle, or a comment listed twice) must not
+            // recurse forever or duplicate a row.
+            guard visited.insert(commentNode.id).inserted else { return }
+            guard let commentView = commentViewById[commentNode.id] else { return }
             orderedComments.append(commentView)
             for child in commentNode.children {
                 visit(child)

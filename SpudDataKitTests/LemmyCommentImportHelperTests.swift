@@ -263,4 +263,96 @@ struct CommentHelperTests {
             sortedCommentIds == [123, 789, 555, 222, 456, 129, 245, 987, 249]
         )
     }
+
+    /// A child that appears BEFORE its parent in the response must still be
+    /// threaded under that parent, not dropped.
+    ///
+    /// The server's comment listing is only partially ordered (see `sort`'s
+    /// doc comment), so a reply routinely precedes the comment it replies to.
+    @Test
+    func sortThreadsChildThatArrivesBeforeItsParent() {
+        let person = Person.fake
+        let community = Community.fake
+        let post = Post.fake(creator: person, community: community)
+
+        let comments: [CommentView] = [
+            // "0.10.20" -- arrives before its parent "0.10".
+            .fake(
+                comment: .fake(id: 20, post: post, creator: person, parent: .root.appending(10)),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.10"
+            .fake(
+                comment: .fake(id: 10, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 1
+            ),
+        ]
+
+        let sortedCommentIds = LemmyCommentImportHelper.sort(comments: comments).map(\.comment.id)
+        #expect(sortedCommentIds == [10, 20])
+    }
+
+    /// A comment whose ancestors are absent from the response must still be
+    /// rendered, as a display root, in first-appearance order.
+    ///
+    /// Lemmy's `comment/list` returns a partial slice of the tree (it is bounded
+    /// by `limit`, and by `max_depth` when asked for a tree), so a response can
+    /// legitimately contain replies whose parents were not fetched. Dropping
+    /// them silently made a busy post render zero comments under a header
+    /// showing the true server count.
+    @Test
+    func sortKeepsCommentsWhoseParentIsMissing() {
+        let person = Person.fake
+        let community = Community.fake
+        let post = Post.fake(creator: person, community: community)
+
+        let comments: [CommentView] = [
+            // "0.1.2.3" -- both ancestors ("0.1", "0.1.2") are missing.
+            .fake(
+                comment: .fake(
+                    id: 3,
+                    post: post,
+                    creator: person,
+                    parent: .root.appending(1).appending(2)
+                ),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 1
+            ),
+
+            // "0.1.2.3.4" -- a child of the orphan above; travels with it.
+            .fake(
+                comment: .fake(
+                    id: 4,
+                    post: post,
+                    creator: person,
+                    parent: .root.appending(1).appending(2).appending(3)
+                ),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+
+            // "0.5" -- a genuine root.
+            .fake(
+                comment: .fake(id: 5, post: post, creator: person, parent: .root),
+                creator: person,
+                post: post,
+                community: community,
+                childCount: 0
+            ),
+        ]
+
+        let sortedCommentIds = LemmyCommentImportHelper.sort(comments: comments).map(\.comment.id)
+        #expect(sortedCommentIds == [3, 4, 5])
+    }
 }
