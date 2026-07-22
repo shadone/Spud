@@ -77,6 +77,12 @@ final class PostDetailViewModel {
     /// failures are surfaced as a toast instead.
     private(set) var commentFetchError: LoadFailure?
 
+    /// True when the last comment fetch stopped with pages the reader can still
+    /// ask for. Drives the terminal "Load more comments" row. Only
+    /// `.pageBudgetExhausted` sets it: a failed page is a shortfall to report,
+    /// not a cursor to resume from.
+    private(set) var hasOutstandingCommentPages = false
+
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
     ///
@@ -173,7 +179,7 @@ final class PostDetailViewModel {
     }
 
     @ObservationIgnored
-    private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType) async throws -> Void
+    private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType) async throws -> CommentFetchCompletion
 
     /// The seam through which ``loadMoreReplies(elementId:parentServerId:)`` reaches
     /// `LemmyService.fetchMoreComments`. In production it wraps `accountScope`'s live
@@ -256,7 +262,7 @@ final class PostDetailViewModel {
         appDatabase: AppDatabase,
         dependencies: Dependencies,
         lemmy: (any PostDetailLemmyServicing)? = nil,
-        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil,
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> CommentFetchCompletion)? = nil,
         fetchMoreCommentsOperation: (@MainActor (Int64, Lemmy.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
@@ -266,7 +272,7 @@ final class PostDetailViewModel {
         injectedLemmy = lemmy
         commentSortType = dependencies.preferencesService.defaultCommentSortType
         self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
-            _ = try await accountScope.lemmyService
+            try await accountScope.lemmyService
                 .fetchComments(serverPostId: serverPostId, sortType: sortType)
         }
         self.fetchMoreCommentsOperation = fetchMoreCommentsOperation ?? { parentServerId, sortType in
@@ -572,6 +578,14 @@ final class PostDetailViewModel {
         try await fetchMoreCommentsOperation(parentServerId, commentSortType)
     }
 
+    /// Resumes a comment listing that stopped at the page budget, from the
+    /// terminal "Load more comments" row. Reuses the ordinary fetch path: the
+    /// service walks another budget's worth of pages and reports whether any
+    /// remain.
+    func loadMoreCommentPages() async {
+        await fetchComments()
+    }
+
     // MARK: - New-comment delta (view-layer)
 
     /// Number of comments new since the user's last visit.
@@ -642,11 +656,12 @@ final class PostDetailViewModel {
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await fetchCommentsOperation(sortType)
+                let completion = try await fetchCommentsOperation(sortType)
                 if !Task.isCancelled {
                     // A successful (winning) load clears any lingering failure so
                     // the empty / comments state can show.
                     commentFetchError = nil
+                    hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
                 }
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.

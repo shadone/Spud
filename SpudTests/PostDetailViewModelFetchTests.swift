@@ -55,7 +55,7 @@ struct PostDetailViewModelFetchTests {
         alertService: AlertServiceType = AlertService(),
         isOnline: Bool = true,
         reachabilityMonitor: ReachabilityMonitoring? = nil,
-        fetchCommentsOperation: @escaping @MainActor (Lemmy.CommentSortType) async throws -> Void
+        fetchCommentsOperation: @escaping @MainActor (Lemmy.CommentSortType) async throws -> CommentFetchCompletion
     ) -> PostDetailViewModel {
         let dependencies = TestDependencies(
             alertService: alertService,
@@ -77,6 +77,7 @@ struct PostDetailViewModelFetchTests {
         let vm = makeViewModel { _ in
             startedContinuation.yield(())
             await withCheckedContinuation { release = $0 }
+            return .complete
         }
         let fetchTask = Task { await vm.fetchComments() }
         for await _ in started {
@@ -107,6 +108,7 @@ struct PostDetailViewModelFetchTests {
                 started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
+            return .complete
         }
         let t1 = Task { await vm.fetchComments() }
         for await _ in started1 {
@@ -157,6 +159,7 @@ struct PostDetailViewModelFetchTests {
                 started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
+            return .complete
         }
         let t1 = Task { await vm.fetchComments() }
         for await _ in started1 {
@@ -216,7 +219,7 @@ struct PostDetailViewModelFetchTests {
 
     @Test
     func successfulFetchHasNoError() async {
-        let vm = makeViewModel { _ in }
+        let vm = makeViewModel { _ in .complete }
 
         await vm.fetchComments()
 
@@ -232,6 +235,7 @@ struct PostDetailViewModelFetchTests {
         var shouldThrow = true
         let vm = makeViewModel(isOnline: false) { _ in
             if shouldThrow { throw Boom() }
+            return .complete
         }
 
         await vm.fetchComments()
@@ -245,7 +249,7 @@ struct PostDetailViewModelFetchTests {
 
     @Test
     func setCommentSortTypeUpdatesValue() {
-        let vm = makeViewModel { _ in }
+        let vm = makeViewModel { _ in .complete }
         vm.setCommentSortType(.New)
         #expect(vm.commentSortType == .New)
     }
@@ -266,6 +270,7 @@ struct PostDetailViewModelFetchTests {
         let vm = makeViewModel(reachabilityMonitor: monitor) { _ in
             callCount += 1
             if shouldThrow { throw Boom() }
+            return .complete
         }
 
         await vm.fetchComments()

@@ -43,7 +43,7 @@ struct PostDetailViewModelMutationTests {
     /// refresh-path tests later groups add (unused by the report group).
     private func makeViewModel(
         lemmy: any PostDetailLemmyServicing,
-        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> CommentFetchCompletion)? = nil
     ) -> PostDetailViewModel {
         let dependencies = TestDependencies()
         return PostDetailViewModel(
@@ -566,7 +566,10 @@ struct PostDetailViewModelMutationTests {
         let spy = CommentSortTypeSpy()
         let vm = makeViewModel(
             lemmy: recording,
-            fetchCommentsOperation: { sortType in spy.record(sortType) }
+            fetchCommentsOperation: { sortType in
+                spy.record(sortType)
+                return .complete
+            }
         )
         vm.setCommentSortType(.New)
 

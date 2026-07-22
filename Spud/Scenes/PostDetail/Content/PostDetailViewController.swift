@@ -137,6 +137,7 @@ class PostDetailViewController: UIViewController {
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
         tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
         tableView.register(PostDetailCommentsFailedCell.self, forCellReuseIdentifier: PostDetailCommentsFailedCell.reuseIdentifier)
+        tableView.register(PostDetailLoadMoreCommentsCell.self, forCellReuseIdentifier: PostDetailLoadMoreCommentsCell.reuseIdentifier)
         return tableView
     }()
 
@@ -959,6 +960,14 @@ class PostDetailViewController: UIViewController {
         let commentItems = mergedCommentItems(visibleRows: visible.rows)
         let sectionItems = Self.commentsSectionItems(background: background, commentItems: commentItems)
         snapshot.appendItems(sectionItems, toSection: .comments)
+        if viewModel.hasOutstandingCommentPages {
+            snapshot.appendItems([.commentsLoadMore], toSection: .comments)
+            // Reconfigured every pass (like `.newSinceBanner` / `.crossPostedTo`
+            // above): the row's own identity never changes, so without this its
+            // cell would never re-run `setLoading` when `isLoadingComments`
+            // toggles on a re-tap and the spinner would go stale.
+            snapshot.reconfigureItems([.commentsLoadMore])
+        }
         // Only comment rows need reconfiguring; the skeleton / empty rows have no
         // per-row state. When a placeholder is showing, `commentItems` is empty, so
         // this is a no-op.
@@ -2050,6 +2059,9 @@ extension PostDetailViewController {
         /// provider reads the classified failure from the view model when
         /// configuring the cell.
         case commentsFailed
+        /// Terminal row shown when the comment listing stopped with pages still
+        /// outstanding. Tapping it resumes the walk.
+        case commentsLoadMore
         case comment(elementId: Int64)
     }
 
@@ -2199,6 +2211,14 @@ extension PostDetailViewController {
                 cell.onRetry = { [weak self] in
                     Task { await self?.viewModel.fetchComments() }
                 }
+                return cell
+
+            case .commentsLoadMore:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailLoadMoreCommentsCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailLoadMoreCommentsCell
+                cell.setLoading(self?.viewModel.isLoadingComments ?? false)
                 return cell
 
             case let .comment(elementId):
@@ -2366,6 +2386,17 @@ extension PostDetailViewController: UITableViewDelegate {
             return
         }
         FunStats.record(.scrollDistancePoints, amount: points)
+    }
+
+    /// Handles a tap on the terminal "Load more comments" row: the row has no
+    /// nested button (see ``PostDetailLoadMoreCommentsCell``), so the tap is
+    /// driven by ordinary table-row selection instead. Every other row keeps
+    /// `selectionStyle = .none` and drives its own taps (gesture recognizers /
+    /// buttons), so this is the sole consumer of row selection today.
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard dataSource.itemIdentifier(for: indexPath) == .commentsLoadMore else { return }
+        tableView.deselectRow(at: indexPath, animated: true)
+        Task { [weak self] in await self?.viewModel.loadMoreCommentPages() }
     }
 
     func tableView(
