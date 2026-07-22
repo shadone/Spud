@@ -154,6 +154,63 @@ struct LemmyServiceCommentPaginationTests {
         #expect(kept >= 1, "page 1 must survive page 2's failure")
     }
 
+    /// A second call with a LARGER `maxPages` bound must walk MORE pages than
+    /// the first, budget-limited call -- and persist more comments. This is
+    /// the mechanism the "Load more comments" affordance depends on
+    /// (`PostDetailViewModel.loadMoreCommentPages()`): tapping it re-invokes
+    /// `fetchComments` with a bigger bound, and the walk (which always
+    /// restarts at page 1 -- see the doc comment on `fetchComments`) must
+    /// actually go further, not silently stop at the same `maxCommentPages`
+    /// ceiling every time. Every page here advertises a next cursor so
+    /// pagination never stops on its own; only the bound does.
+    @Test
+    func aLargerMaxPagesBoundWalksMorePagesThanTheBaseBudget() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        _ = try await seed(appDatabase, serverPostId: 180, accountKeychainId: "kc-comment-pagination-larger-bound")
+        let endlessPages = (0..<(LemmyService.maxCommentPages * 3)).map { index in
+            SubtreeCommentsFixture.v4Page(
+                commentId: Int64(700 + index),
+                childCount: 0,
+                nextPage: "Pc\(index + 2)"
+            )
+        }
+        let transport = SequencedCommentsTransport(operationID: "GetComments", pages: endlessPages)
+        let service = LemmyServiceHarness.make(
+            accountKeychainId: "kc-comment-pagination-larger-bound",
+            appDatabase: appDatabase,
+            transport: transport,
+            apiVersion: .v4
+        )
+
+        let firstCompletion = try await service.fetchComments(serverPostId: 180, sortType: .Hot)
+
+        #expect(firstCompletion == .partial(.pageBudgetExhausted))
+        let callCountAfterFirst = await transport.callCount
+        #expect(callCountAfterFirst == LemmyService.maxCommentPages)
+        let storedAfterFirst = try await storedCommentCount(appDatabase)
+        #expect(storedAfterFirst == LemmyService.maxCommentPages)
+
+        let secondCompletion = try await service.fetchComments(
+            serverPostId: 180,
+            sortType: .Hot,
+            maxPages: LemmyService.maxCommentPages * 2
+        )
+
+        #expect(secondCompletion == .partial(.pageBudgetExhausted))
+        // Hoist the await out of #expect: SwiftFormat mangles `#expect(await …)`
+        // into invalid syntax (`#expectawait(…)`).
+        let callCountAfterSecond = await transport.callCount
+        #expect(
+            callCountAfterSecond == callCountAfterFirst + LemmyService.maxCommentPages * 2,
+            "the larger bound must fetch strictly more pages than the first, budget-limited call"
+        )
+        let storedAfterSecond = try await storedCommentCount(appDatabase)
+        #expect(
+            storedAfterSecond > storedAfterFirst,
+            "the second, larger-bound call must persist more comments than the first"
+        )
+    }
+
     /// A failure on the FIRST page still throws -- there is nothing to keep, and
     /// the caller needs to drive the inline failed state.
     @Test

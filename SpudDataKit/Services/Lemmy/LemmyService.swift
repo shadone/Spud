@@ -58,16 +58,29 @@ public protocol LemmyServiceType: Actor {
     func fetchFeed(_ feed: FeedHandle, pageCursor: String?, showNsfw: Bool) async throws -> String?
 
     /// Fetch a post's comment listing and mirror it into the database, walking
-    /// every page the server offers (bounded by ``LemmyService/maxCommentPages``).
-    /// Page 1 is imported before the rest of the listing is walked, so a
-    /// multi-page dialect (v4, PieFed) paints after one round trip rather than
-    /// waiting for the whole tree.
+    /// every page the server offers (bounded by `maxPages`). Page 1 is
+    /// imported before the rest of the listing is walked, so a multi-page
+    /// dialect (v4, PieFed) paints after one round trip rather than waiting
+    /// for the whole tree.
     ///
+    /// The walk always starts over at page 1 — there is no persisted-cursor
+    /// resume. See ``LemmyService/fetchComments(serverPostId:sortType:maxPages:)``
+    /// for why: `AppDatabase.upsertComments` treats each call's fetched set as
+    /// the FULL desired state for `(post, sortType)`, so a call seeded from a
+    /// later page would delete every earlier page's rows. The "Load more
+    /// comments" affordance (``PostDetailViewModel/loadMoreCommentPages()``)
+    /// instead re-walks with a larger `maxPages` on each tap.
+    ///
+    /// - Parameter maxPages: bound on how many pages this call walks before
+    ///   giving up and reporting `.partial(.pageBudgetExhausted)`. Defaults to
+    ///   ``LemmyService/maxCommentPages`` (the base budget every caller except
+    ///   the "Load more comments" affordance uses).
     /// - Returns: whether the whole listing was walked, or which shortfall
     ///   stopped it short — see ``CommentFetchCompletion``.
     func fetchComments(
         serverPostId: Lemmy.PostID,
-        sortType: Lemmy.CommentSortType
+        sortType: Lemmy.CommentSortType,
+        maxPages: Int
     ) async throws -> CommentFetchCompletion
 
     /// Fetches the missing reply subtree under `parentServerId` (the "load more replies" action)
@@ -620,6 +633,22 @@ public protocol LemmyServiceType: Actor {
 }
 
 public extension LemmyServiceType {
+    /// Convenience overload of ``fetchComments(serverPostId:sortType:maxPages:)``
+    /// using the base page budget (``LemmyService/maxCommentPages``). Every
+    /// caller except the "Load more comments" affordance
+    /// (``PostDetailViewModel/loadMoreCommentPages()``) wants exactly this —
+    /// keeping it as a protocol-extension overload (rather than a default
+    /// argument on the requirement itself) guarantees it resolves correctly
+    /// both through a concrete `LemmyService` and through the `any
+    /// LemmyServiceType` existential the rest of the app calls through (e.g.
+    /// `AccountScope.lemmyService`, `OfflineDownloadService`).
+    func fetchComments(
+        serverPostId: Lemmy.PostID,
+        sortType: Lemmy.CommentSortType
+    ) async throws -> CommentFetchCompletion {
+        try await fetchComments(serverPostId: serverPostId, sortType: sortType, maxPages: LemmyService.maxCommentPages)
+    }
+
     /// Default: no subtree refresh available - always nil, exactly like a
     /// failed fetch. Only `LemmyService` (the real implementation) and test
     /// doubles that specifically drive `SchedulerService`'s reminder-poll
@@ -1134,14 +1163,31 @@ public actor LemmyService: LemmyServiceType {
     /// ``maxSubtreeChildCountPages``.
     public static let maxCommentPages = 10
 
+    /// - Parameter maxPages: bound on how many pages this call walks before
+    ///   reporting `.partial(.pageBudgetExhausted)`. Callers that don't need a
+    ///   larger bound use the two-parameter convenience overload declared in
+    ///   the `LemmyServiceType` protocol extension (``maxCommentPages``),
+    ///   rather than a default value here — a default on this concrete method
+    ///   PLUS the protocol extension's own 2-parameter overload would give the
+    ///   compiler two viable candidates for a 2-argument call on a concrete
+    ///   `LemmyService`. The walk ALWAYS restarts at page 1, never resuming a
+    ///   previous call's cursor — see the doc comment on
+    ///   ``LemmyServiceType/fetchComments(serverPostId:sortType:maxPages:)``
+    ///   for why (`AppDatabase.upsertComments`'s full-set reconciliation makes
+    ///   a resumed, partial fetch destructive). The "Load more comments" row
+    ///   (`PostDetailViewModel.loadMoreCommentPages()`) accepts the deliberate
+    ///   cost of re-fetching already-seen pages, in exchange for never having
+    ///   to special-case a partial import of a rare deep-thread listing.
     public func fetchComments(
         serverPostId: Lemmy.PostID,
-        sortType: Lemmy.CommentSortType
+        sortType: Lemmy.CommentSortType,
+        maxPages: Int
     ) async throws -> CommentFetchCompletion {
         logger.debug("""
             Fetch comments for account=\(self.accountIdentifierForLogging, privacy: .sensitive(mask: .hash)). \
             postId=\(serverPostId, privacy: .public) \
-            sortType=\(sortType.rawValue, privacy: .public)
+            sortType=\(sortType.rawValue, privacy: .public) \
+            maxPages=\(maxPages, privacy: .public)
             """)
 
         // Page 1 is fetched, imported and rendered before the rest of the
@@ -1181,7 +1227,7 @@ public actor LemmyService: LemmyServiceType {
         var pageCursor = firstPage.nextPage
         var pagesFetched = 1
         while let cursor = pageCursor {
-            guard pagesFetched < Self.maxCommentPages else {
+            guard pagesFetched < maxPages else {
                 completion = .partial(.pageBudgetExhausted)
                 break
             }

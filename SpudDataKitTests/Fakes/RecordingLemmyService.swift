@@ -299,7 +299,8 @@ actor RecordingLemmyService: LemmyServiceType {
 
     func fetchComments(
         serverPostId: Lemmy.PostID,
-        sortType _: Lemmy.CommentSortType
+        sortType _: Lemmy.CommentSortType,
+        maxPages _: Int
     ) async throws -> CommentFetchCompletion {
         // The API id type is Int32; the test records/configures Int64 to match
         // the DB-stored ids.

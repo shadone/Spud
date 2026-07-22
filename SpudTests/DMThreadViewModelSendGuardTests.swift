@@ -31,7 +31,7 @@ private actor RecordingSendLemmyService: LemmyServiceType {
         trap()
     }
 
-    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType) async throws -> CommentFetchCompletion {
+    func fetchComments(serverPostId _: Lemmy.PostID, sortType _: Lemmy.CommentSortType, maxPages _: Int) async throws -> CommentFetchCompletion {
         trap()
     }
 
