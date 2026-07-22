@@ -83,11 +83,30 @@ final class PostDetailViewModel {
     /// not a cursor to resume from.
     private(set) var hasOutstandingCommentPages = false
 
-    /// Set when a fetch ended `.partial(.pageFetchFailed)` -- some pages landed
-    /// and a later one did not. Read-and-clear via
-    /// ``consumePartialCommentLoadFailure()`` so a re-render cannot re-toast it.
-    @ObservationIgnored
-    private var pendingPartialCommentLoadFailure = false
+    /// Monotonically incremented -- never merely set -- each time a winning
+    /// (non-cancelled) comment fetch ends `.partial(.pageFetchFailed)`: some
+    /// pages landed and a later one did not. The view controller observes
+    /// this directly (`ObservationStream.values(of:)`, matching every other
+    /// observation loop in that file) and toasts on each increase; see
+    /// `PostDetailViewController.startPartialCommentLoadFailureObservation()`.
+    ///
+    /// Deliberately a plain `@Observable` counter, NOT `@ObservationIgnored`,
+    /// and NOT a one-shot read-and-clear flag. The prior design used an
+    /// `@ObservationIgnored` bool consumed by an explicit check planted after
+    /// every VC-side `await` of a fetch, plus a "backstop" hung off the
+    /// `commentsRevision` observation loop for the two fetches with no such
+    /// await (the initial load and the composer-success refresh). That
+    /// backstop could not work: `@ObservationIgnored` means setting the flag
+    /// cannot itself wake the loop, and a later-page fetch failure does not
+    /// import (so `commentsRevision` never bumps after it) -- so by the time
+    /// the flag flips, the loop has already run its last iteration for the
+    /// final successful page and sits blocked awaiting a revision that will
+    /// never come. That silently ate the single most common trigger: a post
+    /// whose first page succeeds and a later page fails. A monotonic,
+    /// observation-tracked counter has no such blind spot -- ANY entry point
+    /// that bumps it wakes the observer, including ones with no VC-side await
+    /// to hang a check off of. Do not reintroduce a one-shot flag here.
+    private(set) var partialCommentLoadFailureRevision = 0
 
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
@@ -620,14 +639,6 @@ final class PostDetailViewModel {
         await fetchComments(maxPages: LemmyService.maxCommentPages * commentPageBudgetAttempt)
     }
 
-    /// Returns `true` once after a comment fetch kept earlier pages but lost a
-    /// later one, then clears. The view controller turns this into a toast: the
-    /// inline failed state is wrong here because comments ARE on screen.
-    func consumePartialCommentLoadFailure() -> Bool {
-        defer { pendingPartialCommentLoadFailure = false }
-        return pendingPartialCommentLoadFailure
-    }
-
     // MARK: - New-comment delta (view-layer)
 
     /// Number of comments new since the user's last visit.
@@ -715,7 +726,9 @@ final class PostDetailViewModel {
                     // the empty / comments state can show.
                     commentFetchError = nil
                     hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
-                    pendingPartialCommentLoadFailure = completion == .partial(.pageFetchFailed)
+                    if completion == .partial(.pageFetchFailed) {
+                        partialCommentLoadFailureRevision += 1
+                    }
                 }
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.
@@ -966,7 +979,7 @@ final class PostDetailViewModel {
     /// otherwise the "Load more comments" row goes stale after a refresh: it
     /// lingers when the refreshed walk actually completed the tree, and fails
     /// to appear when the refreshed walk is genuinely partial. Also mirrors that
-    /// branch's ``pendingPartialCommentLoadFailure`` handling -- a refresh
+    /// branch's ``partialCommentLoadFailureRevision`` handling -- a refresh
     /// (pull-to-refresh, or the post-composer-success refresh) can just as
     /// easily lose a later page as the ordinary fetch path can, and the reader
     /// deserves the same toast either way. Guarded by `!Task.isCancelled` for
@@ -977,7 +990,9 @@ final class PostDetailViewModel {
         let completion = try await fetchCommentsOperation(commentSortType, LemmyService.maxCommentPages)
         if !Task.isCancelled {
             hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
-            pendingPartialCommentLoadFailure = completion == .partial(.pageFetchFailed)
+            if completion == .partial(.pageFetchFailed) {
+                partialCommentLoadFailureRevision += 1
+            }
         }
     }
 
