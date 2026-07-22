@@ -34,7 +34,7 @@ packages:
     # is code-complete, reviewed, and live-validated against a test instance, but not yet
     # released. Tag a LemmyKit release + switch this to exactVersion once the human
     # on-device validation pass is done.
-    revision: 02d78acdcb40370c17a5e1f964e66b0c03a72c24
+    revision: 94074389a65afab177188e29cc394c782fae1f74
   DiasporaNodeInfo:
     url: https://github.com/shadone/DiasporaNodeInfo
     exactVersion: 2.0.0
