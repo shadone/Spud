@@ -70,6 +70,10 @@ struct LemmyServiceCommentPaginationTests {
         #expect(completion == .complete)
         let callCount = await transport.callCount
         #expect(callCount == 3, "every page of the listing must be fetched")
+        // Hoist the await out of #expect: SwiftFormat mangles `#expect(await …)`
+        // into invalid syntax (`#expectawait(…)`).
+        let stored = try await storedCommentCount(appDatabase)
+        #expect(stored == 3, "all three pages' comments must be persisted, not just the last one")
     }
 
     /// A v3 listing has no cursor, so exactly one request is made and nothing

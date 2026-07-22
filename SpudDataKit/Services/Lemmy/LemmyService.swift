@@ -1298,17 +1298,15 @@ public actor LemmyService: LemmyServiceType {
     /// SUBTREE branch (`SchedulerService.pollActivityRemindersSweep`), by
     /// paginating `getCommentsNeutral` until `rootCommentServerId` is found.
     ///
-    /// `fetchComments` requests only the first page of a post's comment
-    /// listing — fine on a v3 backend, whose `GetCommentsResponse` always
-    /// returns the whole tree in one response, but only PAGE 1 of a v4
-    /// (cursor-paginated) listing, so a subtree root that sorts past page 1
-    /// would never be refreshed there and its `child_count` would silently go
-    /// stale (a missed "new replies" notification, never a wrong fire). This
-    /// instead follows `Page.nextPage` cursors, bounded to
-    /// `maxSubtreeChildCountPages` pages, and reads the count straight off the
-    /// matching page item rather than round-tripping through the database
-    /// afterward — a deep subtree root may not even have a local `comment` row
-    /// cached yet.
+    /// `fetchComments` now also walks the whole listing (bounded by
+    /// `maxCommentPages`), but it throws on a first-page failure and drives
+    /// the rendered comment tree via `mirrorCommentsToAppDatabase` on every
+    /// page — unsuitable for a background poll that only wants one number and
+    /// must never throw. This instead follows `Page.nextPage` cursors,
+    /// bounded to `maxSubtreeChildCountPages` pages, and reads the count
+    /// straight off the matching page item rather than round-tripping
+    /// through the database afterward — a deep subtree root may not even
+    /// have a local `comment` row cached yet.
     ///
     /// Best-effort: never throws. Returns nil if `rootCommentServerId` isn't
     /// found within the page bound, or if any page fetch fails —

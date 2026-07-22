@@ -340,7 +340,7 @@ struct LemmyServiceFetchPersistenceTests {
         )
 
         do {
-            try await service.fetchComments(
+            _ = try await service.fetchComments(
                 serverPostId: serverPostId,
                 sortType: .Hot
             )
