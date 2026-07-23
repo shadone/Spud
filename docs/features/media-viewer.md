@@ -7,17 +7,25 @@
 ## What it does
 
 Tapping an image in a feed or a post opens a full-screen viewer you can pinch- and
-double-tap-zoom, pan, and swipe down to dismiss. Multi-image posts page side to side with
-dots, and a tap toggles a top bar with close, share, and save-to-Photos controls. Animated
-GIFs play, and save or share with their animation intact. Tapping a playable video
-(mp4 / mov / m4v) opens the system video player inline; formats the device can't play
-(such as webm) open in the browser instead.
+double-tap-zoom, pan, and swipe down to dismiss. Wherever the tapped image is available
+on screen, the viewer expands out of it and, on dismiss, shrinks back into it, rather than
+simply fading in and out. Multi-image posts page side to side with dots, and a tap toggles
+a top bar with close, share, and save-to-Photos controls. Animated GIFs play, and save or
+share with their animation intact. Tapping a playable video (mp4 / mov / m4v) opens the
+system video player inline; formats the device can't play (such as webm) open in the
+browser instead.
 
 ## Behavior and rules
 
-- **Full-screen, cross-dissolve presentation.** The viewer is presented modally over the
-  current screen with a cross-dissolve fade (`MediaViewerTransition`); the status bar is
-  hidden while it is up. Reduce Motion collapses the fade to an instant cut.
+- **Full-screen zoom presentation.** From a feed thumbnail, a post-detail header image, a
+  post or comment body image, a person or community profile description image, a person's
+  "Posts" tab thumbnail, or the Activity screen's post image, the viewer expands out of the
+  tapped image into full screen (Apple's iOS 18 zoom transition) and, on dismiss, shrinks
+  back into it; the status bar is hidden while it is up. The viewer falls back to its
+  original cross-dissolve fade when Reduce Motion is on, when the tapped view can no longer
+  be resolved on screen, or when the image was opened from a classified web link with no
+  on-screen source view — the fallback is always a clean fade, never a broken or stale-frame
+  animation. Reduce Motion additionally collapses the fallback fade to an instant cut.
 - **Zoom.** Each image fits aspect-fit at minimum zoom. Pinch zooms; double-tap toggles
   between fitted and zoomed (centred on the tapped point); a second double-tap returns to
   fit. Maximum zoom is at least 3x the fitted size and never below the image's native
@@ -25,9 +33,20 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 - **Pan.** When zoomed in, dragging pans the image within the scroll view. When not zoomed,
   a downward drag is claimed by swipe-to-dismiss instead.
 - **Swipe down to dismiss.** A downward, mostly-vertical drag (only when the image isn't
-  zoomed) drags the image with your finger and fades the black backdrop proportionally to
-  how far you've dragged. Releasing past a distance or velocity threshold carries the image
-  off-screen and dismisses; a shorter drag springs back into place.
+  zoomed) drags the image with your finger. When the zoom presentation is active, this
+  interactive drag-to-shrink dismiss is provided by the system: the image shrinks back
+  toward its source as you drag, and releasing past a distance or velocity threshold
+  completes the shrink and dismisses, while a shorter drag springs back into place. Where
+  the zoom presentation isn't available, the same gesture instead drives the fallback path
+  — the image rides with your finger and the black backdrop fades proportionally to how far
+  you've dragged, with the same release-to-dismiss / release-to-spring-back thresholds.
+- **Scroll-to-reveal on dismiss.** On a list-backed surface (a feed, a person's "Posts" tab,
+  or the Activity screen), if the source cell has scrolled off screen while the image was
+  open, dismissing scrolls the list to bring that cell back on screen and shrinks the image
+  into it, the way Photos does. If the post is no longer in the list at all, dismissing
+  falls back to the cross-dissolve fade instead. Comment body images and profile
+  description images do not scroll-to-reveal — if their source has scrolled away, dismissing
+  falls back to the fade for the same reason (the source view can't be resolved).
 - **Auto-hiding bar.** A single tap toggles a blurred top bar (close / share / save) and,
   for multi-image posts, the page dots. The bar hides automatically while you drag to
   dismiss.
@@ -88,8 +107,22 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 
 - **Given** a post with an image, in a feed or in the post detail
 - **When** I tap the image
-- **Then** it opens full-screen over a black backdrop with a fade-in
+- **Then** it opens full-screen over a black backdrop
 - **And** a single tap toggles the close / share / save bar
+
+### Open an image with the zoom transition
+
+- **Given** a feed thumbnail (or any resolvable image entry point) on screen
+- **When** I tap it
+- **Then** the viewer expands out of the thumbnail into full screen
+- **And** dragging down shrinks it back into the thumbnail as I drag, releasing past the threshold completing the dismiss
+
+### Dismissing scrolls a scrolled-away post back into view
+
+- **Given** I opened an image from a feed post, then scrolled that post off screen while the image was open
+- **When** I dismiss the viewer
+- **Then** the feed scrolls to bring the post's cell back on screen and the image shrinks into it
+- **And** if the post is no longer in the feed at all, the viewer instead dismisses with a cross-dissolve fade
 
 ### A full-res image that can't load shows a low-res-preview pill
 
@@ -172,8 +205,15 @@ GIFs play, and save or share with their animation intact. Tapping a playable vid
 
 - The viewer is for images and GIFs only — video is never shown inside it; video is a
   separate system-player hand-off.
-- The present/dismiss transition is a cross-dissolve, not a matched-geometry zoom from the
-  source thumbnail.
+- The zoom transition requires an on-screen source view to expand from and shrink into; it
+  is used at every entry point that can resolve one (feed thumbnail, post-detail header,
+  post/comment body image, person/community profile description image, person "Posts" tab
+  thumbnail, Activity post image). The cross-dissolve fade remains as the fallback — for
+  Reduce Motion, for a source view that can't be resolved (a comment or profile description
+  image whose cell has scrolled away — these do not scroll-to-reveal), and for an image
+  opened from a classified web link with no on-screen source. Scroll-to-reveal (bringing an
+  off-screen source cell back into view on dismiss) is limited to list-backed surfaces —
+  feed, person "Posts" tab, and Activity — not comment or profile body images.
 - webm and mkv are not played in-app; AVFoundation cannot decode them, so they are routed to
   the browser as external links.
 - Inline video-host playback covers streamable, PeerTube, loops.video, and the YouTube family
