@@ -819,7 +819,13 @@ class PersonViewController: UIViewController {
                 preloadedImage: thumbnailImage,
                 altText: row.altText,
                 isNsfw: row.isNsfw,
-                dependencies: dependencies.own
+                dependencies: dependencies.own,
+                zoomSource: { [weak self] _ in
+                    guard let self else { return nil }
+                    return listZoomSource(tableView: tableView, dataSource: dataSource, item: .post(serverPostId: serverPostId)) {
+                        ($0 as? PostListPostCell)?.postContentView.thumbnailView
+                    }
+                }
             )
         }
 

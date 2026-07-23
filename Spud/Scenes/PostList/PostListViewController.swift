@@ -1921,12 +1921,15 @@ class PostListViewController: UIViewController {
     /// The on-screen thumbnail image view for `serverPostId`, or nil when that
     /// post's cell is not currently visible. Re-resolved live so the zoom
     /// transition targets whatever cell is showing the post now (diffable cells
-    /// recycle). Scroll-to-reveal is layered on in a later step.
+    /// recycle). Routes through `listZoomSource`, which scrolls the cell back on
+    /// screen first if the user scrolled it away.
     private func visibleThumbnailView(forServerPostId serverPostId: Int64) -> UIView? {
-        guard let indexPath = dataSource?.indexPath(for: .post(serverPostId: serverPostId)),
-              let cell = tableView.cellForRow(at: indexPath) as? PostListPostCell
-        else { return nil }
-        return cell.postContentView.thumbnailView
+        guard let dataSource else { return nil }
+        return listZoomSource(
+            tableView: tableView,
+            dataSource: dataSource,
+            item: .post(serverPostId: serverPostId)
+        ) { ($0 as? PostListPostCell)?.postContentView.thumbnailView }
     }
 
     /// Opens an external-link post's url, honoring the user's "Open External

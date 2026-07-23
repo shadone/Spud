@@ -548,7 +548,13 @@ class ActivityViewController: UIViewController {
                 preloadedImage: thumbnailImage,
                 altText: row.altText,
                 isNsfw: row.isNsfw,
-                dependencies: dependencies.own
+                dependencies: dependencies.own,
+                zoomSource: { [weak self] _ in
+                    guard let self, let dataSource else { return nil }
+                    return listZoomSource(tableView: tableView, dataSource: dataSource, item: item.id) {
+                        ($0 as? ActivityPostRowCell)?.postContentView.thumbnailView
+                    }
+                }
             )
         }
         container.postContentView.videoTapped = { [weak self] videoUrl in
