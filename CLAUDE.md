@@ -17,7 +17,7 @@ The goal is a genuinely great app — top-notch UI/UX that looks and feels like 
 - **Documentation is paramount — three tiers, all expected on every change:**
   1. **API docs** — `///` doc comments on public/`internal` types, methods, and non-trivial properties: what it does, important parameters, and gotchas.
   2. **Internal comments** — explain the *why* of anything non-obvious (concurrency ordering, workarounds, platform quirks, deliberate tradeoffs). Never narrate the obvious.
-  3. **Feature docs** — every user-facing change updates `docs/features/` at a product-manager level: a `<capability>.md` with behavior/rules and **Scenarios** as Given/When/Then user stories, plus the README capability table *and* by-area map (see "Code style" → docs discipline). Keep `Status:` honest and reconcile adjacent docs.
+  3. **Feature docs** — every user-facing change updates `docs/features/` at a product-manager level: shipped behavior as Given/When/Then scenarios, plus both README index sections. Keep `Status:` honest. See "Code style" → docs discipline and the `ddenis:feature-docs` skill.
 - **Verify, don't assume.** Build and run the relevant unit + snapshot tests before claiming done; re-record snapshots on the reference device/runtime when UI changes; run SwiftFormat before the final verify. State outcomes faithfully.
 
 ## Project layout
@@ -223,7 +223,7 @@ Archive with `make release-project` (never `make project` — it strips the test
 - No emojis in code, comments, docs, or commit messages
 - Conventional commit subjects (`feat:`, `fix:`, `refactor:`, `chore:`, `docs:`, `test:`)
 - Small, focused commits; split unrelated changes
-- **Document every feature change in `docs/features/`** — update the per-capability `<capability>.md` **and** `README.md`'s capability table **and** its "Feature coverage by area" map (the two README sections drift independently), plus any adjacent doc the change touches. Convention + `_TEMPLATE.md` in `docs/features/README.md` (no `.swift` links; `Status:` accurate; `Surfaces:` = union of scenario tags).
+- **Document every feature change in `docs/features/`** — the per-capability `<capability>.md` **and** both README index sections (the capability table **and** the "Feature coverage by area" map; they drift independently), plus any adjacent doc the change touches. Conventions and `_TEMPLATE.md` live in `docs/features/README.md`; the `ddenis:feature-docs` skill carries the full workflow and an audit script (`audit_feature_docs.py`) that checks index consistency mechanically.
 - Prefer many small files over few large ones
 - Inside `Task { [weak self] ... guard let self else { return } ... }`, drop the `self.` prefix on subsequent property writes — SwiftFormat's `redundantSelf` rule flags it
 - `@Observable` VMs driving a `start()`/`stop()` observation loop pair `@ObservationIgnored private var …Task` with `deinit { …Task?.cancel() }` (canonical: SummaryViewModel) — copy the pattern in every new VM
