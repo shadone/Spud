@@ -1514,7 +1514,10 @@ class PostListViewController: UIViewController {
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: thumbnailImage,
                         altText: row.altText,
-                        isNsfw: row.isNsfw
+                        isNsfw: row.isNsfw,
+                        zoomSource: { [weak self] _ in
+                            self?.visibleThumbnailView(forServerPostId: serverPostId)
+                        }
                     )
                     // Viewing a post's media counts as opening it, so mark it
                     // read like tapping into the post does (master toggle only).
@@ -1901,7 +1904,8 @@ class PostListViewController: UIViewController {
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
         altText: String? = nil,
-        isNsfw: Bool = false
+        isNsfw: Bool = false,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
     ) {
         presentMediaViewer(
             imageUrl: imageUrl,
@@ -1909,8 +1913,23 @@ class PostListViewController: UIViewController {
             preloadedImage: preloadedImage,
             altText: altText,
             isNsfw: isNsfw,
-            dependencies: dependencies.own
+            dependencies: dependencies.own,
+            zoomSource: zoomSource
         )
+    }
+
+    /// The on-screen thumbnail image view for `serverPostId`, or nil when that
+    /// post's cell is not currently visible. Re-resolved live so the zoom
+    /// transition targets whatever cell is showing the post now (diffable cells
+    /// recycle). Routes through `listZoomSource`, which scrolls the cell back on
+    /// screen first if the user scrolled it away.
+    private func visibleThumbnailView(forServerPostId serverPostId: Int64) -> UIView? {
+        guard let dataSource else { return nil }
+        return listZoomSource(
+            tableView: tableView,
+            dataSource: dataSource,
+            item: .post(serverPostId: serverPostId)
+        ) { ($0 as? PostListPostCell)?.postContentView.thumbnailView }
     }
 
     /// Opens an external-link post's url, honoring the user's "Open External

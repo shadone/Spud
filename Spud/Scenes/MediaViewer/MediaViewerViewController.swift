@@ -22,7 +22,12 @@ private let logger = Logger.app
 ///   - an auto-hiding top bar (close / share / save) toggled by single tap,
 ///   - share (`UIActivityViewController`) and save-to-Photos actions.
 ///
-/// Presented full-screen with a cross-dissolve via `MediaViewerTransition`.
+/// Presented full-screen: when a `zoomSource` resolves an on-screen source
+/// view (and Reduce Motion is off), the presentation uses Apple's iOS 18 zoom
+/// transition (expand from / shrink back to that view, with a system-driven
+/// interactive drag-to-shrink dismiss). Otherwise it falls back to a
+/// cross-dissolve via `MediaViewerTransition` (an instant cut under Reduce
+/// Motion).
 final class MediaViewerViewController: UIViewController {
     typealias OwnDependencies = HasImageService
     typealias Dependencies = OwnDependencies
@@ -32,6 +37,12 @@ final class MediaViewerViewController: UIViewController {
     private let items: [MediaItem]
     private let imageService: ImageServiceType
     private var currentIndex: Int
+
+    /// Whether this presentation uses the iOS 18 zoom transition (expand from /
+    /// shrink back to a source view). When true the system drives the
+    /// interactive dismiss, so the viewer's own swipe-down-to-dismiss pan is not
+    /// installed. When false the viewer keeps its custom cross-dissolve + pan.
+    private let usesZoomTransition: Bool
 
     /// True when any item is NSFW; gates privacy-screen registration.
     private let containsSensitiveContent: Bool
@@ -198,17 +209,63 @@ final class MediaViewerViewController: UIViewController {
 
     // MARK: Functions
 
-    init(items: [MediaItem], startIndex: Int, dependencies: Dependencies) {
+    init(
+        items: [MediaItem],
+        startIndex: Int,
+        dependencies: Dependencies,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
+    ) {
         precondition(!items.isEmpty, "MediaViewer requires at least one item")
         self.items = items
         currentIndex = min(max(0, startIndex), items.count - 1)
         containsSensitiveContent = items.contains { $0.isNsfw }
         imageService = dependencies.imageService
+
+        // Honour Reduce Motion by skipping the zoom and using the cross-dissolve
+        // fallback, which already collapses to an instant cut under Reduce Motion.
+        let zoomSource = UIAccessibility.isReduceMotionEnabled ? nil : zoomSource
+        usesZoomTransition = zoomSource != nil
+
         super.init(nibName: nil, bundle: nil)
 
-        modalPresentationStyle = .custom
         modalPresentationCapturesStatusBarAppearance = true
-        transitioningDelegate = self
+
+        if let zoomSource {
+            // The system's own interactive dismiss has no notion of the page's
+            // zoom state, so gate it explicitly: while the current image is
+            // zoomed in, a downward drag must pan the image (matching the
+            // fallback pan's `gestureRecognizerShouldBegin` gate below) rather
+            // than beginning the system's shrink-to-dismiss. `context.willBegin`
+            // is UIKit's own answer to "would this interaction begin by
+            // default" (e.g. false for an upward or horizontal flick) — the
+            // closure's return value OVERRIDES that, so it must be ANDed in
+            // rather than ignored, or a gesture the system already rejected
+            // could be forced into a dismiss. When the drag is allowed to
+            // begin, snapshot the chrome's current visibility (mirroring the
+            // fallback pan's `.began` case) and hide it up front so the bar /
+            // alt pill / page dots don't visibly morph into the thumbnail
+            // mid-drag; `viewDidAppear` restores it if the drag is cancelled.
+            let options = UIViewController.Transition.ZoomOptions()
+            options.interactiveDismissShouldBegin = { [weak self] context in
+                guard let self else { return context.willBegin }
+                let canBegin = context.willBegin && currentPage?.zoomableImageView.isZoomed != true
+                if canBegin {
+                    barHiddenBeforePan = isBarHidden
+                    setBar(hidden: true, animated: false)
+                }
+                return canBegin
+            }
+            // The system re-invokes this on present and dismiss; read the live
+            // `currentIndex` so a paged-to image dismisses back to its own source
+            // (or fades when that page has no on-screen source).
+            preferredTransition = .zoom(options: options) { [weak self] _ in
+                guard let self else { return nil }
+                return zoomSource(items[currentIndex])
+            }
+        } else {
+            modalPresentationStyle = .custom
+            transitioningDelegate = self
+        }
     }
 
     @available(*, unavailable)
@@ -221,9 +278,15 @@ final class MediaViewerViewController: UIViewController {
     static func make(
         items: [MediaItem],
         startIndex: Int = 0,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
     ) -> MediaViewerViewController {
-        MediaViewerViewController(items: items, startIndex: startIndex, dependencies: dependencies)
+        MediaViewerViewController(
+            items: items,
+            startIndex: startIndex,
+            dependencies: dependencies,
+            zoomSource: zoomSource
+        )
     }
 
     override var prefersStatusBarHidden: Bool {
@@ -268,22 +331,53 @@ final class MediaViewerViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        // While NSFW media is on screen, register it as sensitive so the privacy
-        // screen hides it from the app-switcher snapshot and screen captures.
-        // Registration persists across backgrounding (appear/disappear don't fire
-        // then) and is balanced on dismissal in viewWillDisappear.
-        if containsSensitiveContent, !didRegisterSensitive {
-            didRegisterSensitive = true
-            PrivacyScreenMonitor.shared.beginSensitiveContent()
-        }
+        registerSensitiveContentIfNeeded()
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override func viewDidAppear(_ animated: Bool) {
+        super.viewDidAppear(animated)
+        // The system's interactive zoom dismiss fires viewWillDisappear when the
+        // drag BEGINS, not when it commits, so a CANCELLED drag returns to the
+        // Appeared state via viewDidAppear with no second viewWillAppear. Re-run
+        // the (idempotent) registration here so an NSFW image stays hidden from
+        // the app-switcher snapshot / screen capture after a cancelled dismiss.
+        registerSensitiveContentIfNeeded()
+        // Mirrors the fallback pan's springBack(): a cancelled system zoom
+        // drag returns here (see the comment above) with the chrome forced
+        // hidden by `interactiveDismissShouldBegin`, so restore it to however
+        // it looked before that drag started instead of leaving it hidden.
+        // A no-op on ordinary presentation, since `barHiddenBeforePan` still
+        // holds its default (already-hidden) value then.
+        setBar(hidden: barHiddenBeforePan)
+    }
+
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Unregister here, not in viewWillDisappear: the system's interactive
+        // zoom dismiss fires viewWillDisappear when the drag BEGINS (not when
+        // it commits), so unregistering there would drop NSFW privacy
+        // protection for the whole duration of the drag while the image is
+        // still fully on screen (a screen recording would keep capturing it,
+        // and backgrounding mid-drag would yield an unprotected app-switcher
+        // snapshot). viewDidDisappear only fires once the dismiss actually
+        // completes; a cancelled drag returns via viewDidAppear instead (see
+        // above), so registration correctly stays intact through it.
         if didRegisterSensitive {
             didRegisterSensitive = false
             PrivacyScreenMonitor.shared.endSensitiveContent()
         }
+    }
+
+    /// While NSFW media is on screen, registers it as sensitive so the privacy
+    /// screen hides it from the app-switcher snapshot and screen captures.
+    /// Idempotent (guarded by `didRegisterSensitive`), so it is safe to call
+    /// from both `viewWillAppear` and `viewDidAppear`. Registration persists
+    /// across backgrounding (appear/disappear don't fire then) and is balanced
+    /// on dismissal in `viewWillDisappear`.
+    private func registerSensitiveContentIfNeeded() {
+        guard containsSensitiveContent, !didRegisterSensitive else { return }
+        didRegisterSensitive = true
+        PrivacyScreenMonitor.shared.beginSensitiveContent()
     }
 
     private func setupTopBar() {
@@ -393,6 +487,11 @@ final class MediaViewerViewController: UIViewController {
         singleTap.delegate = self
         singleTapGesture = singleTap
         view.addGestureRecognizer(singleTap)
+
+        // In zoom mode the system provides the interactive drag-to-shrink
+        // dismiss, so installing our own swipe-down pan would fight it. Only the
+        // cross-dissolve fallback needs the custom pan.
+        guard !usesZoomTransition else { return }
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         pan.delegate = self

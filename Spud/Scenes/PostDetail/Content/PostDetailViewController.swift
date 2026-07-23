@@ -1874,7 +1874,8 @@ class PostDetailViewController: UIViewController {
         imageUrl: URL,
         thumbnailUrl: URL?,
         preloadedImage: UIImage?,
-        altText: String? = nil
+        altText: String? = nil,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
     ) {
         presentMediaViewer(
             imageUrl: imageUrl,
@@ -1884,8 +1885,40 @@ class PostDetailViewController: UIViewController {
             // All media opened from this post (header, body, or comment images)
             // inherits the post's NSFW state for the privacy screen.
             isNsfw: viewModel.headerRow?.isNsfw ?? false,
-            dependencies: dependencies.own
+            dependencies: dependencies.own,
+            zoomSource: zoomSource
         )
+    }
+
+    /// The visible post-detail header cell, or nil when the header is not
+    /// currently on screen (scrolled off / not yet dequeued).
+    private func visibleHeaderCell() -> PostDetailHeaderCell? {
+        guard let indexPath = dataSource.indexPath(for: .header) else { return nil }
+        return tableView.cellForRow(at: indexPath) as? PostDetailHeaderCell
+    }
+
+    /// The visible post-detail header cell's post image view, or nil when the
+    /// header is not currently on screen. Re-resolved live so the zoom
+    /// transition targets whatever cell is showing the header now.
+    private func visibleHeaderImageView() -> UIView? {
+        visibleHeaderCell()?.postImageView
+    }
+
+    /// The on-screen box for a body image (`imageURL`) in the visible header
+    /// cell's markdown body, or nil when the header or that image is not
+    /// currently rendered.
+    private func visibleHeaderBodyImageView(forImageURL imageURL: URL) -> UIView? {
+        visibleHeaderCell()?.bodyView.zoomSourceView(forImageURL: imageURL)
+    }
+
+    /// The on-screen box for a body image (`imageURL`) inside the visible
+    /// comment cell for `elementId`, or nil when that comment is not
+    /// currently on screen (scrolled away / recycled).
+    private func visibleCommentBodyImageView(elementId: Int64, forImageURL imageURL: URL) -> UIView? {
+        guard let indexPath = dataSource.indexPath(for: .comment(elementId: elementId)),
+              let cell = tableView.cellForRow(at: indexPath) as? PostDetailCommentCell
+        else { return nil }
+        return cell.bodyView.zoomSourceView(forImageURL: imageURL)
     }
 
     /// The current toggle state a comment row exposes to the swipe presentation
@@ -2183,7 +2216,8 @@ extension PostDetailViewController {
                         imageUrl: imageUrl,
                         thumbnailUrl: thumbnailUrl,
                         preloadedImage: currentImage,
-                        altText: self?.viewModel.headerRow?.altText
+                        altText: self?.viewModel.headerRow?.altText,
+                        zoomSource: { [weak self] _ in self?.visibleHeaderImageView() }
                     )
                 }
                 cell.videoTapped = { [weak self] videoUrl in
@@ -2217,7 +2251,8 @@ extension PostDetailViewController {
                         imageUrl: url,
                         thumbnailUrl: nil,
                         preloadedImage: nil,
-                        altText: altText
+                        altText: altText,
+                        zoomSource: { [weak self] _ in self?.visibleHeaderBodyImageView(forImageURL: url) }
                     )
                 }
                 cell.onBodyVideoTapped = { [weak self] url in
@@ -2369,7 +2404,10 @@ extension PostDetailViewController {
                         imageUrl: url,
                         thumbnailUrl: nil,
                         preloadedImage: nil,
-                        altText: altText
+                        altText: altText,
+                        zoomSource: { [weak self] _ in
+                            self?.visibleCommentBodyImageView(elementId: elementId, forImageURL: url)
+                        }
                     )
                 }
                 cell.onBodyVideoTapped = { [weak self] url in

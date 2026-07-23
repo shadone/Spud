@@ -455,6 +455,16 @@ final class CommunityHeaderView: UIView {
         iconImageView.image = image
     }
 
+    // MARK: Zoom transition
+
+    /// The on-screen view a media viewer should zoom from / back to for a
+    /// description image with `imageURL`, or nil when that image is not
+    /// currently rendered (description rebuilt, image not yet loaded, or
+    /// scrolled away).
+    func zoomSourceView(forImageURL imageURL: URL) -> UIView? {
+        descriptionView.zoomSourceView(forImageURL: imageURL)
+    }
+
     @objc
     private func subscribeButtonTapped() {
         subscribeTapped?()
