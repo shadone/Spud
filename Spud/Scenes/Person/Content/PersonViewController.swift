@@ -243,7 +243,8 @@ class PersonViewController: UIViewController {
                 thumbnailUrl: nil,
                 preloadedImage: nil,
                 altText: altText,
-                dependencies: dependencies.own
+                dependencies: dependencies.own,
+                zoomSource: { [weak self] _ in self?.headerView.zoomSourceView(forImageURL: url) }
             )
         }
         headerView.onBodyVideoTapped = { [weak self] url in

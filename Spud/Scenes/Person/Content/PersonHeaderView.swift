@@ -417,6 +417,15 @@ final class PersonHeaderView: UIView {
         guard let image else { return }
         avatarImageView.image = image
     }
+
+    // MARK: Zoom transition
+
+    /// The on-screen view a media viewer should zoom from / back to for a bio
+    /// image with `imageURL`, or nil when that image is not currently
+    /// rendered (bio rebuilt, image not yet loaded, or scrolled away).
+    func zoomSourceView(forImageURL imageURL: URL) -> UIView? {
+        bodyView.zoomSourceView(forImageURL: imageURL)
+    }
 }
 
 extension PersonHeaderView: MarkdownBodyDelegate {
