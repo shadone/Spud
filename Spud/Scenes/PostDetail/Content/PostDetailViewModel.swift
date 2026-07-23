@@ -701,8 +701,19 @@ final class PostDetailViewModel {
     /// so it resets ``commentPageBudgetAttempt`` to 1: only
     /// ``loadMoreCommentPages()`` should ever ask for more than the base
     /// budget.
+    ///
+    /// Also clears a stale ``hasOutstandingCommentPages`` the instant the
+    /// fetch starts, synchronously — before the tree observation can re-emit
+    /// an empty snapshot for the new sort. Without this, a sort change while
+    /// the terminal "Load more comments" row was showing left the flag true
+    /// through the whole re-walk, so the (still tappable) row rendered
+    /// underneath the fresh skeleton until the walk finished. This is
+    /// deliberately NOT done in the shared ``fetchComments(maxPages:)`` below
+    /// — ``loadMoreCommentPages()`` also funnels through it, and clearing the
+    /// flag there would flicker the row away and back on every tap.
     func fetchComments() async {
         commentPageBudgetAttempt = 1
+        hasOutstandingCommentPages = false
         await fetchComments(maxPages: LemmyService.maxCommentPages)
     }
 

@@ -2466,9 +2466,15 @@ extension PostDetailViewController: UITableViewDelegate {
     /// driven by ordinary table-row selection instead. Every other row keeps
     /// `selectionStyle = .none` and drives its own taps (gesture recognizers /
     /// buttons), so this is the sole consumer of row selection today.
+    ///
+    /// Guarded on ``PostDetailViewModel/isLoadingComments`` (which the row's
+    /// own spinner already reflects) so a tap while its own walk is still in
+    /// flight doesn't grow the page budget again and cancel-and-replace it —
+    /// mirroring the sibling "N more replies" guard in ``handleLoadMoreTap(elementId:parentServerId:)``.
     func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
         guard dataSource.itemIdentifier(for: indexPath) == .commentsLoadMore else { return }
         tableView.deselectRow(at: indexPath, animated: true)
+        guard !viewModel.isLoadingComments else { return }
         Task { [weak self] in
             guard let self else { return }
             // loadMoreCommentPages() resumes the same fetch path as

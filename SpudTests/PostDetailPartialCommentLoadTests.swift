@@ -100,6 +100,91 @@ struct PostDetailPartialCommentLoadTests {
         #expect(!vm.hasOutstandingCommentPages)
     }
 
+    /// A stale outstanding-pages flag must be cleared the INSTANT a fresh fetch
+    /// starts, not only once it resolves -- e.g. a sort change while the
+    /// terminal "Load more comments" row is showing must not paint that
+    /// (still tappable) row underneath the new skeleton for the whole re-walk.
+    @Test
+    func freshFetchClearsOutstandingPagesAsSoonAsItStarts() async {
+        let dependencies = TestDependencies()
+        var release: CheckedContinuation<CommentFetchCompletion, Never>?
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
+        var callCount = 0
+        let vm = PostDetailViewModel(
+            serverPostId: 1,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            appDatabase: dependencies.appDatabase,
+            dependencies: dependencies,
+            fetchCommentsOperation: { _, _ in
+                callCount += 1
+                if callCount == 1 {
+                    return .partial(.pageBudgetExhausted)
+                }
+                startedContinuation.yield(())
+                return await withCheckedContinuation { release = $0 }
+            }
+        )
+
+        // First fetch leaves the outstanding-pages flag set.
+        await vm.fetchComments()
+        #expect(vm.hasOutstandingCommentPages)
+
+        // A second, fresh fetch (e.g. a sort change) must clear the stale flag
+        // the instant it starts -- not only once it resolves.
+        let fetchTask = Task { await vm.fetchComments() }
+        for await _ in started {
+            break
+        }
+        #expect(
+            !vm.hasOutstandingCommentPages,
+            "a fresh fetch must clear a stale outstanding-pages flag as soon as it starts"
+        )
+
+        release?.resume(returning: .complete)
+        await fetchTask.value
+    }
+
+    /// `loadMoreCommentPages()` must NOT clear the flag when its own walk
+    /// starts -- unlike a fresh fetch, it is a continuation of the outstanding-
+    /// pages state, and clearing it would flicker the "Load more comments" row
+    /// away and back on every tap.
+    @Test
+    func loadMoreDoesNotClearOutstandingPagesWhileInFlight() async {
+        let dependencies = TestDependencies()
+        var release: CheckedContinuation<CommentFetchCompletion, Never>?
+        let (started, startedContinuation) = AsyncStream<Void>.makeStream()
+        var callCount = 0
+        let vm = PostDetailViewModel(
+            serverPostId: 1,
+            accountScope: dependencies.accountService.scope(forAccountKeychainId: "kc-1"),
+            appDatabase: dependencies.appDatabase,
+            dependencies: dependencies,
+            fetchCommentsOperation: { _, _ in
+                callCount += 1
+                if callCount == 1 {
+                    return .partial(.pageBudgetExhausted)
+                }
+                startedContinuation.yield(())
+                return await withCheckedContinuation { release = $0 }
+            }
+        )
+
+        await vm.fetchComments()
+        #expect(vm.hasOutstandingCommentPages)
+
+        let loadMoreTask = Task { await vm.loadMoreCommentPages() }
+        for await _ in started {
+            break
+        }
+        #expect(
+            vm.hasOutstandingCommentPages,
+            "load-more must not flicker the row away while its own walk is in flight"
+        )
+
+        release?.resume(returning: .complete)
+        await loadMoreTask.value
+    }
+
     // MARK: - A later-page failure must bump a monotonic revision counter, without touching the inline failed state
 
     /// A later-page failure increments the counter by exactly one. A
