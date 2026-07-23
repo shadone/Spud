@@ -101,9 +101,19 @@ actor RecordingLemmyService: LemmyServiceType {
     /// best-effort-per-item path.
     private let failingCommentPostIds: Set<Int64>
 
+    /// Server post ids whose `fetchComments` should report a shortfall
+    /// (`.partial(.pageBudgetExhausted)`) instead of `.complete`, to exercise
+    /// `OfflineDownloadService`'s handling of an incomplete-but-not-thrown walk.
+    private let partialCommentPostIds: Set<Int64>
+
     // Recorded calls.
     private(set) var fetchFeedCallCount = 0
     private(set) var fetchCommentsPostIds: [Int64] = []
+    /// Server post ids for which the CALLER supplied a non-nil `pageDelay`
+    /// hook — lets a test confirm `OfflineDownloadService` actually threads
+    /// its pacer through, without this fake needing to simulate real
+    /// pagination itself.
+    private(set) var fetchCommentsPageDelayProvidedPostIds: [Int64] = []
 
     /// Fires exactly once, when `fetchFeed` is first called. Lets a test await a
     /// definite "the download has started working" signal instead of polling the
@@ -119,6 +129,7 @@ actor RecordingLemmyService: LemmyServiceType {
         pages: [Page],
         imageUrlForSeededPosts: String? = "https://example.com/image.jpg",
         failingCommentPostIds: Set<Int64> = [],
+        partialCommentPostIds: Set<Int64> = [],
         exhaustedCursor: String? = nil,
         firstServerPostId: Int64 = 1,
         firstPagePosition: Int64 = 0
@@ -130,6 +141,7 @@ actor RecordingLemmyService: LemmyServiceType {
         self.pages = pages
         self.imageUrlForSeededPosts = imageUrlForSeededPosts
         self.failingCommentPostIds = failingCommentPostIds
+        self.partialCommentPostIds = partialCommentPostIds
         self.exhaustedCursor = exhaustedCursor
         nextServerPostId = firstServerPostId
         nextPagePosition = firstPagePosition
@@ -153,6 +165,10 @@ actor RecordingLemmyService: LemmyServiceType {
 
     func recordedFetchCommentsPostIds() -> [Int64] {
         fetchCommentsPostIds
+    }
+
+    func recordedFetchCommentsPageDelayProvidedPostIds() -> [Int64] {
+        fetchCommentsPageDelayProvidedPostIds
     }
 
     // MARK: - LemmyServiceType (used)
@@ -299,18 +315,34 @@ actor RecordingLemmyService: LemmyServiceType {
 
     func fetchComments(
         serverPostId: Lemmy.PostID,
+        sortType: Lemmy.CommentSortType,
+        maxPages: Int
+    ) async throws -> CommentFetchCompletion {
+        try await fetchComments(serverPostId: serverPostId, sortType: sortType, maxPages: maxPages, pageDelay: nil)
+    }
+
+    func fetchComments(
+        serverPostId: Lemmy.PostID,
         sortType _: Lemmy.CommentSortType,
-        maxPages _: Int
+        maxPages _: Int,
+        pageDelay: (@Sendable () async throws -> Void)?
     ) async throws -> CommentFetchCompletion {
         // The API id type is Int32; the test records/configures Int64 to match
         // the DB-stored ids.
         let postId = Int64(serverPostId)
         fetchCommentsPostIds.append(postId)
+        if pageDelay != nil {
+            fetchCommentsPageDelayProvidedPostIds.append(postId)
+        }
         if failingCommentPostIds.contains(postId) {
             throw RecordingLemmyServiceError.commentFetchFailed
         }
-        // This fake never simulates pagination -- callers here don't assert on
-        // the completion value, only on `fetchCommentsPostIds`.
+        if partialCommentPostIds.contains(postId) {
+            return .partial(.pageBudgetExhausted)
+        }
+        // This fake never simulates real pagination -- callers here don't
+        // assert on any of `pageDelay` being invoked, only on it having been
+        // PROVIDED (`fetchCommentsPageDelayProvidedPostIds`).
         return .complete
     }
 

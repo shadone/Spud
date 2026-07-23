@@ -910,10 +910,28 @@ public actor OfflineDownloadService {
                 }
             ) {
                 try await pacer.acquire()
-                _ = try await lemmyService.fetchComments(
+                // `fetchComments` walks the WHOLE listing internally (up to 10
+                // pages) -- `pacer.acquire()` above only paces this call's own
+                // first request, so the `pageDelay` hook is handed the SAME
+                // pacer to gate every additional page too. Without it the walk
+                // would fire its internal page requests back-to-back with no
+                // pacing at all, defeating the point of `pacer`.
+                let completion = try await lemmyService.fetchComments(
                     serverPostId: Lemmy.PostID(target.serverPostId),
-                    sortType: commentSort
+                    sortType: commentSort,
+                    maxPages: LemmyService.maxCommentPages,
+                    pageDelay: pacer.acquire
                 )
+                // A partial completion (page budget exhausted, or a later page
+                // failed) is an incomplete offline copy -- it must not be
+                // reported as a clean success. Throwing here lets `withRetry`
+                // retry it like any other transient failure (an unrecognized
+                // error type classifies `.transient` by default — see
+                // `OfflineImageFetchError` for the same pattern) instead of
+                // silently accepting the shortfall.
+                if case let .partial(reason) = completion {
+                    throw OfflineCommentFetchError.incomplete(reason)
+                }
             }
         } catch {
             commentSucceeded = false
@@ -997,6 +1015,17 @@ public actor OfflineDownloadService {
     /// (a transient warm failure). Lets a warm flow through `withRetry`, which
     /// treats it as transient (`OutboxFailureClass.classify` default).
     private enum OfflineImageFetchError: Error { case notReady }
+
+    /// Thrown when `fetchComments` completes without walking the whole
+    /// listing (the page budget ran out, or a later page failed after earlier
+    /// ones landed). `fetchComments` no longer throws for either shortfall —
+    /// it returns `.partial` so the caller can decide whether a partial tree
+    /// is acceptable — but an offline copy is exactly the case where it
+    /// isn't: the post would otherwise be marked downloaded with comments
+    /// silently missing. Lets the shortfall flow through `withRetry`, which
+    /// treats it as transient (`OutboxFailureClass.classify` default) —
+    /// mirroring `OfflineImageFetchError` above.
+    private enum OfflineCommentFetchError: Error { case incomplete(CommentFetchCompletion.PartialReason) }
 
     /// Drive `imageService.fetch(_:downsampleTo:)` to completion so the bytes
     /// land in the durable disk cache. We use `fetch` (not `startPrefetching`,
