@@ -623,10 +623,12 @@ final class PostDetailViewModel {
     /// terminal "Load more comments" row. Reuses the ordinary fetch path, but
     /// with an ENLARGED page bound rather than a persisted cursor:
     /// `LemmyService.fetchComments` always restarts its walk at page 1 (see
-    /// its doc comment) because `AppDatabase.upsertComments` treats each
-    /// call's fetched set as the FULL desired state for `(post, sortType)`
-    /// and deletes any stored element not in it — resuming from a persisted
-    /// cursor would import only the tail and delete every earlier page's
+    /// its doc comment) because `AppDatabase.upsertComments`'s FINAL call for
+    /// the walk — after every page-by-page call, which is additive and never
+    /// deletes — treats the whole accumulated set as the FULL desired state
+    /// for `(post, sortType)` and deletes any stored element not in it —
+    /// resuming from a persisted cursor would seed that accumulated set with
+    /// only the tail, so the final call would delete every earlier page's
     /// rows. Re-walking from page 1 with a bigger budget on every tap is
     /// strictly more expensive, but it keeps that full-set reconciliation
     /// correct with no importer surgery for what is a rare deep-thread case.
