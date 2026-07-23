@@ -416,17 +416,13 @@ struct InboxViewModelRemoveReminderTests {
         rootCommentServerId: Int64 = ReminderRecord.wholePostSentinel,
         postServerId: Int64 = Self.postServerId
     ) async {
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
-            if appDatabase.reminderSync(
+        await waitUntil("the \(kind) reminder row to be removed") {
+            appDatabase.reminderSync(
                 accountId: accountId,
                 postServerId: postServerId,
                 rootCommentServerId: rootCommentServerId,
                 kind: kind.rawValue
-            ) == nil {
-                return
-            }
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            ) == nil
         }
     }
 

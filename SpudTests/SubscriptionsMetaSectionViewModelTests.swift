@@ -493,11 +493,9 @@ struct SubscriptionsMetaSectionViewModelTests {
         vm.toggleSubscribe(item)
 
         // `toggleSubscribe` fires the network call from a detached `Task`; poll
-        // briefly rather than assuming a fixed delay is enough.
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
-            if await !spy.setSubscribedCalls.isEmpty { break }
-            try? await Task.sleep(nanoseconds: 20_000_000)
+        // rather than assuming a fixed delay is enough.
+        await waitUntil("toggleSubscribe's detached task to call setSubscribed") {
+            await !spy.setSubscribedCalls.isEmpty
         }
 
         let calls = await spy.setSubscribedCalls

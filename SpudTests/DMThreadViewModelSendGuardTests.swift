@@ -478,13 +478,10 @@ struct DMThreadViewModelSendGuardTests {
 
         vm.send("hello")
 
-        // send() enqueues the network call on a detached Task; poll briefly
-        // for it to land rather than assuming a fixed delay is enough.
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
-            let count = await lemmyServiceDouble.sendDirectMessageCallCount
-            if count > 0 { break }
-            try? await Task.sleep(nanoseconds: 20_000_000)
+        // send() enqueues the network call on a detached Task; poll for it to
+        // land rather than assuming a fixed delay is enough.
+        await waitUntil("send()'s detached task to call sendDirectMessage") {
+            await lemmyServiceDouble.sendDirectMessageCallCount > 0
         }
 
         let callCount = await lemmyServiceDouble.sendDirectMessageCallCount

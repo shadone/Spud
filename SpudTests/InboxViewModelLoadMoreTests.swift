@@ -514,13 +514,9 @@ struct InboxViewModelLoadMoreTests {
     /// guarantees the cursor is set.
     private func seedFirstPage(_ fixture: Fixture, expectingMessageId messageId: Int64) async {
         fixture.viewModel.loadMessages()
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
-            let persisted = fixture.appDatabase.privateMessagesSync(accountId: fixture.accountId)
-            if persisted.contains(where: { $0.serverMessageId == messageId }) {
-                return
-            }
-            try? await Task.sleep(nanoseconds: 10_000_000)
+        await waitUntil("page 1 (message #\(messageId)) to be persisted") {
+            fixture.appDatabase.privateMessagesSync(accountId: fixture.accountId)
+                .contains { $0.serverMessageId == messageId }
         }
     }
 

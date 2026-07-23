@@ -187,17 +187,6 @@ struct SubscriptionsNotifyViewModelTests {
         )
     }
 
-    /// Polls a condition until it's true or a couple of seconds pass — the VM's
-    /// observations (`notifyingCommunityIds`) and `toggleNotify`'s durable write
-    /// both land asynchronously off a detached `Task`.
-    private func waitUntil(_ condition: @escaping () async -> Bool) async {
-        let deadline = Date().addingTimeInterval(2)
-        while await !condition() {
-            if Date() > deadline { break }
-            try? await Task.sleep(nanoseconds: 5_000_000)
-        }
-    }
-
     // MARK: toggleNotify(_ item:) — meta-row bell
 
     @Test

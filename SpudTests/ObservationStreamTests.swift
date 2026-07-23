@@ -25,22 +25,29 @@ struct ObservationStreamTests {
         let model = ObservableCounter()
         let stream = ObservationStream.values(of: { model.value })
 
-        let collected = Task { @MainActor () -> [Int] in
+        // Collected values are mirrored into a box so the test can wait on the
+        // stream's progress instead of guessing at a fixed settle delay.
+        @MainActor
+        final class Collector {
             var values: [Int] = []
+        }
+        let collector = Collector()
+        let collected = Task { @MainActor () -> [Int] in
             for await value in stream {
-                values.append(value)
-                if values.count == 2 { break }
+                collector.values.append(value)
+                if collector.values.count == 2 { break }
             }
-            return values
+            return collector.values
         }
 
-        // Let the stream emit its initial value and register the observation.
-        try? await Task.sleep(for: .milliseconds(50))
+        // Wait for the initial value: changing the model before the observation
+        // is registered would drop the very re-emission under test.
+        await waitUntil("the stream to emit its initial value") { !collector.values.isEmpty }
         model.value = 42
 
         // Fail fast instead of hanging if the second emission never arrives.
         let timeout = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: defaultWaitTimeout)
             collected.cancel()
         }
 

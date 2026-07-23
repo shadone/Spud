@@ -180,21 +180,6 @@ struct PostListViewModelObservationTests {
         }
     }
 
-    /// Bounded poll for an async-published condition. Returns as soon as the
-    /// predicate holds, or after `timeout`. The GRDB row observation delivers
-    /// off a global queue and hops back to the main actor, so a fixed
-    /// `Task.yield()` does not always pump it in time.
-    private func poll(
-        timeout: Duration = .seconds(2),
-        until predicate: @MainActor () -> Bool
-    ) async {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
-        while ContinuousClock.now < deadline {
-            if predicate() { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
     // MARK: - instanceActorId accessor
 
     @Test
@@ -311,7 +296,7 @@ struct PostListViewModelObservationTests {
         #expect(vm.orderedRows.isEmpty)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 3 }
+        await waitUntil { vm.orderedRows.count == 3 }
 
         // A DB emit stores the rows then bumps the published signal.
         #expect(vm.rowsRevision >= 1, "a row emit must bump the revision signal")
@@ -340,7 +325,7 @@ struct PostListViewModelObservationTests {
         #expect(vm.row(forServerPostId: 1001) == nil)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
 
         // Everything below is synchronous (no `await`), so no queued observation
         // can interleave between the rows and lookup assertions.
@@ -372,7 +357,7 @@ struct PostListViewModelObservationTests {
         #expect(vm.firstSnapshotReadIds.isEmpty)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 3 }
+        await waitUntil { vm.orderedRows.count == 3 }
 
         #expect(vm.firstSnapshotReadIds == [1001, 1003])
 
@@ -389,7 +374,7 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
         let revisionAfterInitial = vm.rowsRevision
         #expect(revisionAfterInitial >= 1)
         // Nothing was read at the first emit; the pin captured that.
@@ -405,7 +390,7 @@ struct PostListViewModelObservationTests {
             )
         }
 
-        await poll { vm.row(forServerPostId: 1001)?.isRead == true }
+        await waitUntil { vm.row(forServerPostId: 1001)?.isRead == true }
         #expect(vm.rowsRevision > revisionAfterInitial, "a live row change must bump the revision again")
         // The pin is a FIRST-snapshot capture: a later emit must never
         // re-capture it (posts read mid-session stay visible under `onRefresh`
@@ -441,7 +426,7 @@ struct PostListViewModelObservationTests {
         #expect(seed.appDatabase.feedRowIdSync(forFeedKey: "feed-lazy") == nil)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
 
         #expect(fetchCount == 1, "the gate must await the lazy first-page fetch exactly once")
         #expect(vm.orderedRows.map(\.serverPostId) == [2001, 2002])
@@ -481,25 +466,34 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed, fetchFeedOperation: { _, _ in nil })
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 1 }
+        await waitUntil { vm.orderedRows.count == 1 }
         // loadMore()'s precondition; resolveInitialSnapshot flips this to
         // .loaded on the same emit that landed the row above.
         #expect(vm.loadState == .loaded)
         #expect(vm.paginationState == .idle)
 
+        // Collected values are mirrored into a box so the test can wait on the
+        // stream's progress instead of guessing at a fixed settle delay.
+        @MainActor
+        final class Collector {
+            var values: [PaginationState] = []
+        }
+        let collector = Collector()
         let stream = ObservationStream.values(of: { vm.paginationState })
         let collected = Task { @MainActor () -> [PaginationState] in
-            var values: [PaginationState] = []
             for await value in stream {
-                values.append(value)
-                if values.count == 3 { break }
+                collector.values.append(value)
+                if collector.values.count == 3 { break }
             }
-            return values
+            return collector.values
         }
 
-        // Let the stream yield its initial value and register the observation
-        // before driving the real change (mirrors ObservationStreamTests).
-        try? await Task.sleep(for: .milliseconds(50))
+        // Wait for the stream's initial value before driving the real change —
+        // otherwise the change can land before the observation is registered
+        // and the initial `.idle` never appears in `values`.
+        await waitUntil("the pagination stream to yield its initial value") {
+            !collector.values.isEmpty
+        }
 
         // The real transition path: loadMore() sets .loading synchronously,
         // then performPagination() awaits the injected fetch and settles back
@@ -509,7 +503,7 @@ struct PostListViewModelObservationTests {
         // Fail fast instead of hanging if the stream never re-emits (the
         // pre-2138d960 regression this test locks in).
         let timeout = Task { @MainActor in
-            try? await Task.sleep(for: .seconds(2))
+            try? await Task.sleep(for: defaultWaitTimeout)
             collected.cancel()
         }
         let values = await collected.value
@@ -535,7 +529,7 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
 
         // A keeping restart leaves the rows + lookup in place (the refresh
         // control is the only progress indicator) until the new observation's
@@ -558,7 +552,7 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
 
         // A non-keeping restart clears the rows + lookup synchronously so
         // nothing stale renders while the new feed loads. Asserted synchronously
@@ -591,7 +585,7 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
         let revisionBeforeRestart = vm.rowsRevision
         #expect(revisionBeforeRestart >= 1)
 
@@ -607,7 +601,7 @@ struct PostListViewModelObservationTests {
         // The new observation's first emit must carry a STRICTLY GREATER revision,
         // so it clears the guard while any enqueued pre-restart delivery (revision
         // <= the captured value) is skipped.
-        await poll { vm.rowsRevision > revisionBeforeRestart }
+        await waitUntil { vm.rowsRevision > revisionBeforeRestart }
         #expect(vm.orderedRows.count == 2)
         #expect(
             vm.rowsRevision > revisionBeforeRestart,
@@ -634,7 +628,7 @@ struct PostListViewModelObservationTests {
         let vm = makeViewModel(seed)
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 2 }
+        await waitUntil { vm.orderedRows.count == 2 }
         #expect(vm.firstSnapshotReadIds == [1001])
 
         // Restart resets the pin synchronously (a fresh feed session). The view
@@ -644,7 +638,7 @@ struct PostListViewModelObservationTests {
         vm.restartObservations(keepingContent: false)
         #expect(vm.firstSnapshotReadIds.isEmpty, "restart must reset the first-snapshot pin")
 
-        await poll { vm.rowsRevision > revisionBeforeRestart }
+        await waitUntil { vm.rowsRevision > revisionBeforeRestart }
         #expect(
             vm.firstSnapshotReadIds == [1001],
             "the new observation's first emit must re-capture firstSnapshotReadIds"

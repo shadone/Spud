@@ -77,12 +77,10 @@ struct SearchViewModelSubscribeStateTests {
 
     /// Waits until `subscribeStates` has been populated by the live
     /// `observeFollowedCommunities` observation (its first yield lands
-    /// asynchronously), or gives up after a couple of seconds.
+    /// asynchronously).
     private func waitUntilPopulated(_ viewModel: SearchViewModel) async {
-        let deadline = Date().addingTimeInterval(2)
-        while viewModel.subscribeStates.isEmpty {
-            if Date() > deadline { break }
-            try? await Task.sleep(nanoseconds: 5_000_000)
+        await waitUntil("subscribeStates to be populated by the follow observation") {
+            !viewModel.subscribeStates.isEmpty
         }
     }
 

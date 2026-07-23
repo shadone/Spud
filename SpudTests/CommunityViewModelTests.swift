@@ -86,21 +86,6 @@ struct CommunityViewModelTests {
         )
     }
 
-    /// Bounded poll for an async-published condition, mirroring the pattern in
-    /// `PostListViewModelObservationTests` / `PostDetailViewModelObservationTests`:
-    /// the GRDB observation delivers off a global queue and hops back to the
-    /// main actor, so a fixed `Task.yield()` does not always pump it in time.
-    private func poll(
-        timeout: Duration = .seconds(2),
-        until predicate: @MainActor () -> Bool
-    ) async {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
-        while ContinuousClock.now < deadline {
-            if predicate() { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
     // MARK: - Pre-observation (actorId nil) no-op behavior
 
     @Test
@@ -136,7 +121,7 @@ struct CommunityViewModelTests {
     func muteTruthTable() async throws {
         let seed = try await makeSeed()
         let vm = makeViewModel(seed)
-        await poll { vm.actorId != nil }
+        await waitUntil { vm.actorId != nil }
 
         #expect(vm.isMuted() == false)
 
@@ -159,7 +144,7 @@ struct CommunityViewModelTests {
     func muteUntilIsPersistedVerbatim() async throws {
         let seed = try await makeSeed()
         let vm = makeViewModel(seed)
-        await poll { vm.actorId != nil }
+        await waitUntil { vm.actorId != nil }
 
         let until = Date().addingTimeInterval(3600)
         vm.mute(until: until)
@@ -172,7 +157,7 @@ struct CommunityViewModelTests {
     func favoriteTruthTable() async throws {
         let seed = try await makeSeed()
         let vm = makeViewModel(seed)
-        await poll { vm.actorId != nil }
+        await waitUntil { vm.actorId != nil }
 
         #expect(vm.isFavorited() == false)
 
@@ -205,7 +190,7 @@ struct CommunityViewModelTests {
             title: "Announcements"
         )
         let vm = makeViewModel(seed)
-        await poll { vm.actorId != nil }
+        await waitUntil { vm.actorId != nil }
 
         #expect(vm.isMeta)
     }
@@ -218,7 +203,7 @@ struct CommunityViewModelTests {
             title: "Photography"
         )
         let vm = makeViewModel(seed)
-        await poll { vm.actorId != nil }
+        await waitUntil { vm.actorId != nil }
 
         #expect(!vm.isMeta)
     }
