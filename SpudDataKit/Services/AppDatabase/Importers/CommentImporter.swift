@@ -66,12 +66,36 @@ public extension AppDatabase {
     ///
     /// Skips the operation if the post is not yet in AppDatabase — the next
     /// `fetchFeed` or `fetchPostInfo` will land it first.
+    ///
+    /// - Parameter pruningAbsentElements: When `true` (the default), `comments`
+    ///   is treated as the FULL desired state for `(postId, sortType)`:
+    ///   positions are recomputed from a fresh `sort(comments:)` over the
+    ///   whole given set, and any existing element row whose comment is
+    ///   absent from it is deleted. When `false`, this call is ADDITIVE: it
+    ///   only upserts/repositions rows for the comments it was given (a new
+    ///   row is appended after the current maximum position, since its true
+    ///   position relative to rows outside this call's subset can't be known
+    ///   from a partial set) and never deletes anything.
+    ///
+    ///   This exists for `LemmyService.fetchComments`'s mid-walk imports: with
+    ///   pruning always on, the FIRST page of any re-walk (pull-to-refresh,
+    ///   the composer-success refresh, "Load more comments") pruned the
+    ///   stored tree down to just that one page before the rest of the walk
+    ///   regrew it — visibly truncating the on-screen tree, and, because the
+    ///   pruned rows were DELETED, minting fresh element ids for every later
+    ///   page on re-import (silently dropping the reader's collapse state and
+    ///   scroll position). Passing `false` for every mid-walk import and
+    ///   reconciling with pruning back on exactly once, after the walk's last
+    ///   page (success OR failure), keeps the tree additive while it grows
+    ///   and still authoritative once the walk is done — see the doc on
+    ///   `LemmyService.fetchComments`.
     func upsertComments(
         forServerPostId serverPostId: Int64,
         accountId: Int64,
         siteId: Int64,
         sortType: Lemmy.CommentSortType,
-        comments: [Lemmy.CommentView]
+        comments: [Lemmy.CommentView],
+        pruningAbsentElements: Bool = true
     ) async throws {
         guard !comments.isEmpty else { return }
 
@@ -121,7 +145,16 @@ public extension AppDatabase {
             let ordered = LemmyCommentImportHelper.sort(comments: comments)
 
             var survivingElementIds: Set<Int64> = []
-            var elementPosition: Int64 = 0
+            // An authoritative (pruning) import recomputes the FULL ordered
+            // sequence from scratch. An additive import only ever adds rows
+            // for the comments it was given, so a new row is appended after
+            // the current maximum rather than the sequence restarting at 0 —
+            // restarting it would stomp the positions of the untouched rows
+            // this call doesn't even know about (see the doc on
+            // `pruningAbsentElements`).
+            var elementPosition: Int64 = pruningAbsentElements
+                ? 0
+                : (existingElements.map(\.position).max().map { $0 + 1 } ?? 0)
             for view in ordered {
                 let path = CommentPath(path: view.comment.path)
                 let depth = Int64(path.depth)
@@ -174,12 +207,16 @@ public extension AppDatabase {
                 }
             }
 
-            // Delete only the rows that left the tree.
-            try CommentElementRecord
-                .filter(Column("postId") == postRowId)
-                .filter(Column("sortType") == sortTypeRaw)
-                .filter(!survivingElementIds.contains(Column("id")))
-                .deleteAll(db)
+            // Delete only the rows that left the tree. Skipped entirely for an
+            // additive import — it only knows about a subset of the tree, so
+            // anything it didn't touch must be left alone, not deleted.
+            if pruningAbsentElements {
+                try CommentElementRecord
+                    .filter(Column("postId") == postRowId)
+                    .filter(Column("sortType") == sortTypeRaw)
+                    .filter(!survivingElementIds.contains(Column("id")))
+                    .deleteAll(db)
+            }
         }
     }
 

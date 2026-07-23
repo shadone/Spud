@@ -175,4 +175,60 @@ struct CommentImporterStableIdentityTests {
         // already asserted in SpliceMoreCommentsTests.
         #expect(rows.map(\.depth) == [1, 2, 1])
     }
+
+    /// A non-pruning (additive) import must not delete comments absent from
+    /// its own given set, and the walk's later authoritative re-import must
+    /// still find the same rows -- keeping their element ids. This is the
+    /// shape of `LemmyService.fetchComments`'s walk: `a`, `b`, `c` stand in
+    /// for pages 1, 2, 3 of a listing; re-walking sends page 1 (`a`) first,
+    /// additively, before pages 2 and 3 (`b`, `c`) have been re-fetched -- and
+    /// must not prune them away in the meantime.
+    @Test
+    func nonPruningImportPreservesLaterCommentsUntilFinalReconcile() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let seeded = try await seed(appDatabase, serverPostId: 1)
+
+        let a = CommentView.fake(
+            comment: .fake(id: 10, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        let b = CommentView.fake(
+            comment: .fake(id: 11, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        let c = CommentView.fake(
+            comment: .fake(id: 12, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [a, b, c]
+        )
+        let originalIds = try await elements(appDatabase, postRowId: seeded.postRowId).compactMap(\.id)
+        #expect(originalIds.count == 3)
+
+        // Re-import only `a` (page 1) with pruning OFF -- must not delete `b`
+        // and `c` (pages 2 and 3), which this call knows nothing about.
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [a], pruningAbsentElements: false
+        )
+        let afterAdditiveImport = try await elements(appDatabase, postRowId: seeded.postRowId)
+        #expect(
+            afterAdditiveImport.count == 3,
+            "a non-pruning import must not delete comments absent from its own comment set"
+        )
+
+        // The walk completes: the full set is re-imported with pruning back on.
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [a, b, c]
+        )
+        let finalIds = try await elements(appDatabase, postRowId: seeded.postRowId).compactMap(\.id)
+
+        #expect(finalIds.count == 3)
+        #expect(finalIds[1] == originalIds[1], "comment b (page 2) must keep its element id across the re-walk")
+        #expect(finalIds[2] == originalIds[2], "comment c (page 3) must keep its element id across the re-walk")
+    }
 }
