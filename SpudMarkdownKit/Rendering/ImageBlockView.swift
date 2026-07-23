@@ -291,4 +291,13 @@ final class ImageBlockView: UIView {
         zoomTapped()
         return true
     }
+
+    /// The view a media viewer should zoom from / back to for `imageURL`: the
+    /// rounded box holding the loaded image, or nil when this block is a
+    /// different image or hasn't loaded a displayable image yet. Only the loaded
+    /// state is tappable, so a viewer opened from here always has a loaded box.
+    func zoomSourceView(forImageURL imageURL: URL) -> UIView? {
+        guard isLoaded, url == imageURL else { return nil }
+        return box
+    }
 }

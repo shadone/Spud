@@ -107,6 +107,30 @@ public final class MarkdownBodyView: UIView {
         return targetView(for: link)
     }
 
+    /// The on-screen view a media viewer should zoom from / back to for
+    /// `imageURL`: the rounded box of the loaded body image with that URL, or
+    /// nil when no such image is currently rendered (the body was rebuilt /
+    /// scrolled away). A nil result lets the zoom transition fall back to a fade
+    /// rather than animate from a stale frame.
+    public func zoomSourceView(forImageURL imageURL: URL) -> UIView? {
+        imageBlockViews(in: stack)
+            .lazy
+            .compactMap { $0.zoomSourceView(forImageURL: imageURL) }
+            .first
+    }
+
+    private func imageBlockViews(in root: UIView) -> [ImageBlockView] {
+        var result: [ImageBlockView] = []
+        for sub in root.subviews {
+            if let image = sub as? ImageBlockView {
+                result.append(image)
+            } else {
+                result.append(contentsOf: imageBlockViews(in: sub))
+            }
+        }
+        return result
+    }
+
     private func targetView(for link: MarkdownFootnoteLink) -> UIView? {
         switch link {
         case let .toDefinition(label): footnoteDefinitionRows[label]
