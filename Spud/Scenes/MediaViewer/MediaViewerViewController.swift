@@ -235,15 +235,22 @@ final class MediaViewerViewController: UIViewController {
             // zoom state, so gate it explicitly: while the current image is
             // zoomed in, a downward drag must pan the image (matching the
             // fallback pan's `gestureRecognizerShouldBegin` gate below) rather
-            // than beginning the system's shrink-to-dismiss. When the drag is
-            // allowed to begin, also hide the chrome up front (the fallback
-            // pan does the same on `.began`) so the bar / alt pill / page dots
-            // don't visibly morph into the thumbnail mid-drag.
+            // than beginning the system's shrink-to-dismiss. `context.willBegin`
+            // is UIKit's own answer to "would this interaction begin by
+            // default" (e.g. false for an upward or horizontal flick) — the
+            // closure's return value OVERRIDES that, so it must be ANDed in
+            // rather than ignored, or a gesture the system already rejected
+            // could be forced into a dismiss. When the drag is allowed to
+            // begin, snapshot the chrome's current visibility (mirroring the
+            // fallback pan's `.began` case) and hide it up front so the bar /
+            // alt pill / page dots don't visibly morph into the thumbnail
+            // mid-drag; `viewDidAppear` restores it if the drag is cancelled.
             let options = UIViewController.Transition.ZoomOptions()
-            options.interactiveDismissShouldBegin = { [weak self] _ in
-                guard let self else { return true }
-                let canBegin = currentPage?.zoomableImageView.isZoomed != true
+            options.interactiveDismissShouldBegin = { [weak self] context in
+                guard let self else { return context.willBegin }
+                let canBegin = context.willBegin && currentPage?.zoomableImageView.isZoomed != true
                 if canBegin {
+                    barHiddenBeforePan = isBarHidden
                     setBar(hidden: true, animated: false)
                 }
                 return canBegin
@@ -335,10 +342,26 @@ final class MediaViewerViewController: UIViewController {
         // the (idempotent) registration here so an NSFW image stays hidden from
         // the app-switcher snapshot / screen capture after a cancelled dismiss.
         registerSensitiveContentIfNeeded()
+        // Mirrors the fallback pan's springBack(): a cancelled system zoom
+        // drag returns here (see the comment above) with the chrome forced
+        // hidden by `interactiveDismissShouldBegin`, so restore it to however
+        // it looked before that drag started instead of leaving it hidden.
+        // A no-op on ordinary presentation, since `barHiddenBeforePan` still
+        // holds its default (already-hidden) value then.
+        setBar(hidden: barHiddenBeforePan)
     }
 
-    override func viewWillDisappear(_ animated: Bool) {
-        super.viewWillDisappear(animated)
+    override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // Unregister here, not in viewWillDisappear: the system's interactive
+        // zoom dismiss fires viewWillDisappear when the drag BEGINS (not when
+        // it commits), so unregistering there would drop NSFW privacy
+        // protection for the whole duration of the drag while the image is
+        // still fully on screen (a screen recording would keep capturing it,
+        // and backgrounding mid-drag would yield an unprotected app-switcher
+        // snapshot). viewDidDisappear only fires once the dismiss actually
+        // completes; a cancelled drag returns via viewDidAppear instead (see
+        // above), so registration correctly stays intact through it.
         if didRegisterSensitive {
             didRegisterSensitive = false
             PrivacyScreenMonitor.shared.endSensitiveContent()

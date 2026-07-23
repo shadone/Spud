@@ -100,7 +100,7 @@ browser instead.
   decode (such as webm or mkv) is classified as an external link, not a video, so it opens
   in the browser rather than a dead player.
 - **NSFW privacy screen.** When any item in the viewer is NSFW, the viewer registers as sensitive content for the duration of its presentation, so the screen is hidden in the app-switcher snapshot and from screen captures.
-- **Scrolling back into view can mark a post read.** On a list-backed surface, scrolling the list back to the source post on dismiss (see "Scroll-to-reveal on dismiss" above) carries that post through the viewport like any other scroll — so if "mark read on scroll" is enabled, a post that passes under the viewport on the way back into view can be marked read as part of that scroll.
+- **Scrolling back into view can mark a post read.** On a list-backed surface, dismissing jumps the list straight back to the source post (see "Scroll-to-reveal on dismiss" above) rather than animating past the posts in between — so if "mark read on scroll" is enabled, posts you had scrolled to while the image was open can be marked read when the list jumps back to reveal the source post.
 
 ## Scenarios
 
