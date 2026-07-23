@@ -95,12 +95,8 @@ struct DiscoverViewModelMetadataTests {
 
     /// Wait for the async directory observation to fire (rails recompute), so the
     /// "no probe from rendering" assertion covers the render path, not just init.
-    private func waitUntilNotLoading(_ viewModel: DiscoverViewModel) async throws {
-        let deadline = Date().addingTimeInterval(2)
-        while viewModel.isLoading {
-            if Date() > deadline { break }
-            try await Task.sleep(nanoseconds: 5_000_000)
-        }
+    private func waitUntilNotLoading(_ viewModel: DiscoverViewModel) async {
+        await waitUntil("the directory observation to finish loading") { !viewModel.isLoading }
     }
 
     @Test

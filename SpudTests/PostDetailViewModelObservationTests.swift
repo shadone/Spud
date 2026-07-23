@@ -301,22 +301,6 @@ struct PostDetailViewModelObservationTests {
         )
     }
 
-    /// Bounded poll for an async-published condition. Returns as soon as the
-    /// predicate holds, or after `timeout`. Uses a short `Task.sleep` (not a
-    /// fixed wall-clock wait) because the header observation hops from a global
-    /// queue back to the main actor, which a bare `Task.yield()` does not always
-    /// pump in time.
-    private func poll(
-        timeout: Duration = .seconds(2),
-        until predicate: @MainActor () -> Bool
-    ) async {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
-        while ContinuousClock.now < deadline {
-            if predicate() { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
     // MARK: - Header observation
 
     @Test
@@ -332,7 +316,7 @@ struct PostDetailViewModelObservationTests {
         // The row id resolves synchronously during bring-up.
         #expect(vm.postRowId == seed.postRowId)
 
-        await poll { vm.headerRow != nil }
+        await waitUntil { vm.headerRow != nil }
 
         let row = try #require(vm.headerRow)
         #expect(row.title == seed.title)
@@ -364,7 +348,7 @@ struct PostDetailViewModelObservationTests {
 
         #expect(vm.postRowId == nil)
         // `didPrepareObservation` schedules the fetch on a Task; let it run.
-        await poll { fetchCount > 0 }
+        await waitUntil { fetchCount > 0 }
         #expect(fetchCount == 1)
         #expect(vm.headerRow == nil)
 
@@ -436,7 +420,7 @@ struct PostDetailViewModelObservationTests {
 
         vm.startObservations()
 
-        await poll {
+        await waitUntil {
             let current = seed.appDatabase.lastOpenedAtSync(
                 forKeychainId: seed.keychainId,
                 serverPostId: seed.serverPostId
@@ -469,7 +453,7 @@ struct PostDetailViewModelObservationTests {
         vm.startObservations()
         #expect(vm.previousVisitAt == nil)
 
-        await poll {
+        await waitUntil {
             seed.appDatabase.lastOpenedAtSync(
                 forKeychainId: seed.keychainId,
                 serverPostId: seed.serverPostId
@@ -504,7 +488,7 @@ struct PostDetailViewModelObservationTests {
 
         vm.startObservations()
 
-        await poll { vm.orderedComments.count == 3 }
+        await waitUntil { vm.orderedComments.count == 3 }
 
         // A DB emit runs `updateOrderedComments` then bumps the published signal.
         #expect(vm.commentsRevision >= 1, "a comment emit must bump the revision signal")
@@ -528,7 +512,7 @@ struct PostDetailViewModelObservationTests {
         ])
 
         vm.startObservations()
-        await poll { vm.orderedComments.count == 2 }
+        await waitUntil { vm.orderedComments.count == 2 }
 
         let revisionAfterInitial = vm.commentsRevision
         #expect(revisionAfterInitial >= 1)
@@ -539,7 +523,7 @@ struct PostDetailViewModelObservationTests {
             CommentSpec(localId: 103, position: 2, depth: 1, body: "third-live"),
         ])
 
-        await poll { vm.orderedComments.count == 3 }
+        await waitUntil { vm.orderedComments.count == 3 }
 
         #expect(vm.commentsRevision > revisionAfterInitial, "a live insert must bump the revision again")
         #expect(vm.orderedComments.map(\.serverCommentId) == [101, 102, 103])
@@ -568,7 +552,7 @@ struct PostDetailViewModelObservationTests {
         ])
 
         vm.startObservations()
-        await poll { vm.orderedComments.count == 2 }
+        await waitUntil { vm.orderedComments.count == 2 }
 
         // Everything below is synchronous (no `await`), so no queued observation
         // can interleave between the tree and lookup assertions. The lookup must
@@ -585,7 +569,7 @@ struct PostDetailViewModelObservationTests {
         let moreIds = try await seedComments(seed, sortType: sortType, specs: [
             CommentSpec(localId: 103, position: 2, depth: 1, body: "third-live"),
         ])
-        await poll { vm.orderedComments.count == 3 }
+        await waitUntil { vm.orderedComments.count == 3 }
 
         #expect(vm.commentRowsByElementId.count == 3)
         #expect(Set(vm.commentRowsByElementId.keys) == Set(elementIds + moreIds))
@@ -607,7 +591,7 @@ struct PostDetailViewModelObservationTests {
         ])
 
         vm.startObservations()
-        await poll { vm.orderedComments.count == 2 }
+        await waitUntil { vm.orderedComments.count == 2 }
 
         // Snapshot the revision immediately after the emit. Everything below is
         // synchronous (no `await`), so no queued observation can interleave and
@@ -650,7 +634,7 @@ struct PostDetailViewModelObservationTests {
 
         vm.startObservations()
 
-        await poll { vm.pendingOutboundComments.count == 1 }
+        await waitUntil { vm.pendingOutboundComments.count == 1 }
 
         let published = vm.pendingOutboundComments
         #expect(published.count == 1, "only the non-draft row is published")
@@ -668,7 +652,7 @@ struct PostDetailViewModelObservationTests {
         try await seedOutbound(seed, status: .queued, body: "first pending", clientToken: "tok-1")
 
         vm.startObservations()
-        await poll { vm.pendingOutboundComments.count == 1 }
+        await waitUntil { vm.pendingOutboundComments.count == 1 }
         #expect(vm.pendingOutboundComments.first?.body == "first pending")
 
         // Write a second pending row while the observation is live: it must
@@ -676,7 +660,7 @@ struct PostDetailViewModelObservationTests {
         // createdAt order.
         try await seedOutbound(seed, status: .failed, body: "second pending", clientToken: "tok-2")
 
-        await poll { vm.pendingOutboundComments.count == 2 }
+        await waitUntil { vm.pendingOutboundComments.count == 2 }
         #expect(vm.pendingOutboundComments.map(\.body) == ["first pending", "second pending"])
         #expect(vm.pendingOutboundComments.last?.status == OutboundStatus.failed.rawValue)
 

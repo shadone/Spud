@@ -30,7 +30,12 @@ struct PostListViewModelLoadStateTests {
     private func makeViewModel(
         reachabilityMonitor: ReachabilityMonitoring = StaticReachabilityMonitor(isOnline: true),
         slowThreshold: Duration = .milliseconds(20),
-        hardCapTimeout: Duration = .seconds(5),
+        // Load-proof by default: under the full target's parallel execution an
+        // in-memory "fetch" can take seconds of wall clock, and a tight cap
+        // then fires and reports `.failed(.unreachable)` in tests that are not
+        // about the cap at all. The cap's own test passes an explicit short
+        // value; every other test wants a budget it can never hit.
+        hardCapTimeout: Duration = .seconds(120),
         feedKey: String = "feed-1",
         fetchFeedOperation: @escaping @MainActor (FeedHandle, String?) async throws -> String?
     ) -> PostListViewModel {
@@ -135,8 +140,13 @@ struct PostListViewModelLoadStateTests {
             break
         } // wait until the fetch has started
 
-        // Wait past the 20ms slow threshold.
-        try? await Task.sleep(for: .milliseconds(60))
+        // Wait for the 20ms slow-hint timer to fire. Polling rather than
+        // sleeping a fixed 60ms: under parallel load the timer's callback can
+        // land later than any fixed budget, which would fail this as if the
+        // hint never fired.
+        await waitUntil("the slow hint to flip loadState") {
+            vm.loadState == .loading(slow: true)
+        }
         #expect(vm.loadState == .loading(slow: true))
 
         release?.resume(returning: nil)

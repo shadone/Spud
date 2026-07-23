@@ -478,14 +478,12 @@ struct InboxViewModelGatingTests {
 
         vm.loadAll()
         // `loadReplies()`/`loadMentions()` run their fetch in detached Tasks;
-        // poll briefly for both call counts to land rather than assuming a
-        // fixed delay is enough.
-        let deadline = Date().addingTimeInterval(2)
-        while Date() < deadline {
+        // poll for both call counts to land rather than assuming a fixed delay
+        // is enough.
+        await waitUntil("both detached inbox fetches to land") {
             let replies = await lemmyServiceDouble.fetchRepliesCallCount
             let mentions = await lemmyServiceDouble.fetchMentionsCallCount
-            if replies > 0, mentions > 0 { break }
-            try? await Task.sleep(nanoseconds: 20_000_000)
+            return replies > 0 && mentions > 0
         }
 
         let fetchReplies = await lemmyServiceDouble.fetchRepliesCallCount

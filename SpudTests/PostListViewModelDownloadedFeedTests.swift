@@ -120,17 +120,6 @@ struct PostListViewModelDownloadedFeedTests {
         )
     }
 
-    private func poll(
-        timeout: Duration = .seconds(2),
-        until predicate: @MainActor () -> Bool
-    ) async {
-        let deadline = ContinuousClock.now.advanced(by: timeout)
-        while ContinuousClock.now < deadline {
-            if predicate() { return }
-            try? await Task.sleep(for: .milliseconds(5))
-        }
-    }
-
     // MARK: - Title
 
     @Test
@@ -153,7 +142,7 @@ struct PostListViewModelDownloadedFeedTests {
         let vm = makeViewModel(seed) { _, _ in nil }
 
         vm.startObservations()
-        await poll { vm.orderedRows.count == 3 }
+        await waitUntil { vm.orderedRows.count == 3 }
 
         // downloadedAt DESC: last seeded (index 2) is newest, so it sorts first.
         #expect(vm.orderedRows.map(\.serverPostId) == [1003, 1002, 1001])
@@ -171,7 +160,7 @@ struct PostListViewModelDownloadedFeedTests {
         // No downloaded posts: the observation must settle to `.empty` (not spin
         // the skeleton forever), because the Downloaded feed marks its initial
         // fetch complete up front.
-        await poll { vm.loadState == .empty }
+        await waitUntil { vm.loadState == .empty }
         #expect(vm.loadState == .empty)
         #expect(vm.orderedRows.isEmpty)
 
@@ -199,7 +188,7 @@ struct PostListViewModelDownloadedFeedTests {
 
         // Bring-up + every user-driven refresh / pagination path.
         vm.startObservations()
-        await poll { vm.orderedRows.count == 1 }
+        await waitUntil { vm.orderedRows.count == 1 }
         await vm.loadFirstPage()
         await vm.loadMore()
         vm.didClickReload()
@@ -255,7 +244,7 @@ struct PostListViewModelDownloadedFeedTests {
 
         // And it renders offline: observe reaches the downloaded post with no fetch.
         vm.startObservations()
-        await poll { vm.orderedRows.count == 1 }
+        await waitUntil { vm.orderedRows.count == 1 }
         #expect(vm.orderedRows.map(\.serverPostId) == [1001])
         #expect(fetchInvocations == 0, "routing to Downloaded must not call the network")
 
