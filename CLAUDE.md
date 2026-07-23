@@ -69,6 +69,10 @@ GRDB / SQLite, in `SpudDataKit/Services/AppDatabase/`. The DB lives at
 `group.info.ddenis.Spud.shared/AppDatabase/AppDatabase.sqlite` — App Group
 container so the widget and extensions read the same database.
 
+SwiftData was evaluated and rejected: it has no supported multi-process story,
+and this store is opened by four processes. Settled — don't reopen it without
+reading [docs/adr/0001-grdb-over-swiftdata.md](docs/adr/0001-grdb-over-swiftdata.md).
+
 Schema migrations are GRDB `DatabaseMigrator` registrations in
 `AppDatabase+Migrations.swift`. Add a new migration as the next case;
 don't edit existing ones. Migrations are named `vNN_description`; the file itself is the source of truth for what exists — find the latest with `grep registerMigration AppDatabase+Migrations.swift | tail -1` and name your new one the next `vNN`. To test a **backfill** migration, use the `AppDatabase.migrator` seam (a `static var`): build a `DatabaseQueue`, `try await AppDatabase.migrator.migrate(db, upTo: "vNN")` (migrate is **async** here), insert legacy rows, `migrate(db)`, assert. `AppDatabase.inMemory()` applies ALL migrations at once, so it can't exercise an intermediate backfill.
