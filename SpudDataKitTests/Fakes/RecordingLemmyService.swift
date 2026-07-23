@@ -102,9 +102,14 @@ actor RecordingLemmyService: LemmyServiceType {
     private let failingCommentPostIds: Set<Int64>
 
     /// Server post ids whose `fetchComments` should report a shortfall
-    /// (`.partial(.pageBudgetExhausted)`) instead of `.complete`, to exercise
+    /// (`.partial(partialCommentReason)`) instead of `.complete`, to exercise
     /// `OfflineDownloadService`'s handling of an incomplete-but-not-thrown walk.
     private let partialCommentPostIds: Set<Int64>
+    /// The `PartialReason` reported for every id in `partialCommentPostIds`.
+    /// Defaults to `.pageBudgetExhausted` (the permanent, non-retryable
+    /// shortfall); a test exercising the retryable `.pageFetchFailed` path
+    /// overrides it.
+    private let partialCommentReason: CommentFetchCompletion.PartialReason
 
     // Recorded calls.
     private(set) var fetchFeedCallCount = 0
@@ -130,6 +135,7 @@ actor RecordingLemmyService: LemmyServiceType {
         imageUrlForSeededPosts: String? = "https://example.com/image.jpg",
         failingCommentPostIds: Set<Int64> = [],
         partialCommentPostIds: Set<Int64> = [],
+        partialCommentReason: CommentFetchCompletion.PartialReason = .pageBudgetExhausted,
         exhaustedCursor: String? = nil,
         firstServerPostId: Int64 = 1,
         firstPagePosition: Int64 = 0
@@ -142,6 +148,7 @@ actor RecordingLemmyService: LemmyServiceType {
         self.imageUrlForSeededPosts = imageUrlForSeededPosts
         self.failingCommentPostIds = failingCommentPostIds
         self.partialCommentPostIds = partialCommentPostIds
+        self.partialCommentReason = partialCommentReason
         self.exhaustedCursor = exhaustedCursor
         nextServerPostId = firstServerPostId
         nextPagePosition = firstPagePosition
@@ -338,7 +345,7 @@ actor RecordingLemmyService: LemmyServiceType {
             throw RecordingLemmyServiceError.commentFetchFailed
         }
         if partialCommentPostIds.contains(postId) {
-            return .partial(.pageBudgetExhausted)
+            return .partial(partialCommentReason)
         }
         // This fake never simulates real pagination -- callers here don't
         // assert on any of `pageDelay` being invoked, only on it having been

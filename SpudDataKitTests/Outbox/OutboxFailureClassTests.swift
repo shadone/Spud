@@ -88,4 +88,16 @@ struct OutboxFailureClassTests {
         )
         #expect(failureClass == .permanent)
     }
+
+    @Test
+    func commentFetchPageBudgetExhaustedIsPermanent() {
+        let error = OfflineDownloadService.OfflineCommentFetchError.incomplete(.pageBudgetExhausted)
+        #expect(OutboxFailureClass.classify(error, isOnline: true) == .permanent)
+    }
+
+    @Test
+    func commentFetchPageFetchFailedIsTransient() {
+        let error = OfflineDownloadService.OfflineCommentFetchError.incomplete(.pageFetchFailed)
+        #expect(OutboxFailureClass.classify(error, isOnline: true) == .transient)
+    }
 }

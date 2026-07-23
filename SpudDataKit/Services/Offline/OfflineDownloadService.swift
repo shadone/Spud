@@ -925,10 +925,13 @@ public actor OfflineDownloadService {
                 // A partial completion (page budget exhausted, or a later page
                 // failed) is an incomplete offline copy -- it must not be
                 // reported as a clean success. Throwing here lets `withRetry`
-                // retry it like any other transient failure (an unrecognized
-                // error type classifies `.transient` by default — see
-                // `OfflineImageFetchError` for the same pattern) instead of
-                // silently accepting the shortfall.
+                // decide whether it's worth retrying: `.pageFetchFailed` is
+                // transient (a genuinely failed request can succeed on a
+                // later attempt), but `.pageBudgetExhausted` is classified
+                // PERMANENT (see `OfflineCommentFetchError`'s doc) since
+                // retrying the same bounded walk can never yield more pages —
+                // without that distinction this would burn `maxRetryAttempts`
+                // paced walks on a shortfall no retry could ever fix.
                 if case let .partial(reason) = completion {
                     throw OfflineCommentFetchError.incomplete(reason)
                 }
@@ -1023,9 +1026,17 @@ public actor OfflineDownloadService {
     /// is acceptable — but an offline copy is exactly the case where it
     /// isn't: the post would otherwise be marked downloaded with comments
     /// silently missing. Lets the shortfall flow through `withRetry`, which
-    /// treats it as transient (`OutboxFailureClass.classify` default) —
-    /// mirroring `OfflineImageFetchError` above.
-    private enum OfflineCommentFetchError: Error { case incomplete(CommentFetchCompletion.PartialReason) }
+    /// dispatches `.incomplete(.pageFetchFailed)` as transient (a genuinely
+    /// failed request can succeed on a later attempt) and
+    /// `.incomplete(.pageBudgetExhausted)` as PERMANENT (`OutboxFailureClass
+    /// .classify` has an explicit case for it) — the page budget
+    /// (`LemmyService.maxCommentPages`) is a fixed constant, so retrying the
+    /// same walk exhausts it again every time; no amount of backoff changes
+    /// that outcome. Not `private` — `OutboxFailureClass.classify` (a
+    /// different subsystem, `Services/Outbox/`) needs to see the type to
+    /// classify it, the same way it already switches on `LemmyServiceError`
+    /// from `Services/Lemmy/`.
+    enum OfflineCommentFetchError: Error { case incomplete(CommentFetchCompletion.PartialReason) }
 
     /// Drive `imageService.fetch(_:downsampleTo:)` to completion so the bytes
     /// land in the durable disk cache. We use `fetch` (not `startPrefetching`,
