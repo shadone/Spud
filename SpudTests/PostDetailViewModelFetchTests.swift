@@ -55,7 +55,7 @@ struct PostDetailViewModelFetchTests {
         alertService: AlertServiceType = AlertService(),
         isOnline: Bool = true,
         reachabilityMonitor: ReachabilityMonitoring? = nil,
-        fetchCommentsOperation: @escaping @MainActor (Lemmy.CommentSortType) async throws -> Void
+        fetchCommentsOperation: @escaping @MainActor (Lemmy.CommentSortType, Int) async throws -> CommentFetchCompletion
     ) -> PostDetailViewModel {
         let dependencies = TestDependencies(
             alertService: alertService,
@@ -74,9 +74,10 @@ struct PostDetailViewModelFetchTests {
     func loadingFlagTrueWhileFetchingThenFalse() async {
         var release: CheckedContinuation<Void, Never>?
         let (started, startedContinuation) = AsyncStream<Void>.makeStream()
-        let vm = makeViewModel { _ in
+        let vm = makeViewModel { _, _ in
             startedContinuation.yield(())
             await withCheckedContinuation { release = $0 }
+            return .complete
         }
         let fetchTask = Task { await vm.fetchComments() }
         for await _ in started {
@@ -98,7 +99,7 @@ struct PostDetailViewModelFetchTests {
         let (started1, started1Continuation) = AsyncStream<Void>.makeStream()
         let (started2, started2Continuation) = AsyncStream<Void>.makeStream()
 
-        let vm = makeViewModel(alertService: alert) { _ in
+        let vm = makeViewModel(alertService: alert) { _, _ in
             callCount += 1
             if callCount == 1 {
                 started1Continuation.yield(())
@@ -107,6 +108,7 @@ struct PostDetailViewModelFetchTests {
                 started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
+            return .complete
         }
         let t1 = Task { await vm.fetchComments() }
         for await _ in started1 {
@@ -146,7 +148,7 @@ struct PostDetailViewModelFetchTests {
         let (started1, started1Continuation) = AsyncStream<Void>.makeStream()
         let (started2, started2Continuation) = AsyncStream<Void>.makeStream()
 
-        let vm = makeViewModel(alertService: alert) { _ in
+        let vm = makeViewModel(alertService: alert) { _, _ in
             callCount += 1
             if callCount == 1 {
                 started1Continuation.yield(())
@@ -157,6 +159,7 @@ struct PostDetailViewModelFetchTests {
                 started2Continuation.yield(())
                 await withCheckedContinuation { release2 = $0 }
             }
+            return .complete
         }
         let t1 = Task { await vm.fetchComments() }
         for await _ in started1 {
@@ -190,7 +193,7 @@ struct PostDetailViewModelFetchTests {
         // the loading flag; no alert is raised.
         struct Boom: Error { }
         let alert = SpyAlertService()
-        let vm = makeViewModel(alertService: alert, isOnline: true) { _ in throw Boom() }
+        let vm = makeViewModel(alertService: alert, isOnline: true) { _, _ in throw Boom() }
 
         await vm.fetchComments()
 
@@ -206,7 +209,7 @@ struct PostDetailViewModelFetchTests {
         // classified as `.offline` regardless of the underlying error — driving
         // the "You're offline" inline comments state.
         struct Boom: Error { }
-        let vm = makeViewModel(isOnline: false) { _ in throw Boom() }
+        let vm = makeViewModel(isOnline: false) { _, _ in throw Boom() }
 
         await vm.fetchComments()
 
@@ -216,7 +219,7 @@ struct PostDetailViewModelFetchTests {
 
     @Test
     func successfulFetchHasNoError() async {
-        let vm = makeViewModel { _ in }
+        let vm = makeViewModel { _, _ in .complete }
 
         await vm.fetchComments()
 
@@ -230,8 +233,9 @@ struct PostDetailViewModelFetchTests {
         // Retry path) clears it so the comments / empty state can show.
         struct Boom: Error { }
         var shouldThrow = true
-        let vm = makeViewModel(isOnline: false) { _ in
+        let vm = makeViewModel(isOnline: false) { _, _ in
             if shouldThrow { throw Boom() }
+            return .complete
         }
 
         await vm.fetchComments()
@@ -245,7 +249,7 @@ struct PostDetailViewModelFetchTests {
 
     @Test
     func setCommentSortTypeUpdatesValue() {
-        let vm = makeViewModel { _ in }
+        let vm = makeViewModel { _, _ in .complete }
         vm.setCommentSortType(.New)
         #expect(vm.commentSortType == .New)
     }
@@ -263,9 +267,10 @@ struct PostDetailViewModelFetchTests {
         let monitor = StaticReachabilityMonitor(isOnline: false)
         var callCount = 0
         var shouldThrow = true
-        let vm = makeViewModel(reachabilityMonitor: monitor) { _ in
+        let vm = makeViewModel(reachabilityMonitor: monitor) { _, _ in
             callCount += 1
             if shouldThrow { throw Boom() }
+            return .complete
         }
 
         await vm.fetchComments()

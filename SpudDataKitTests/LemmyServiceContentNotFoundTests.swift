@@ -133,7 +133,7 @@ struct LemmyServiceContentNotFoundTests {
 
         var thrown: Error?
         do {
-            try await harness.service.fetchComments(
+            _ = try await harness.service.fetchComments(
                 serverPostId: harness.serverPostId,
                 sortType: .Hot
             )

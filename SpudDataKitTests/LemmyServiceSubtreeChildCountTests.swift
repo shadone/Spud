@@ -20,7 +20,7 @@ import Testing
 /// `getCommentsResponseV4.json`) - known-good payloads the real generated
 /// decoder accepts - with only `id`/`child_count`/`next_page` parameterized
 /// per test.
-private enum SubtreeCommentsFixture {
+enum SubtreeCommentsFixture {
     /// A v3 `GetCommentsResponse` with a single comment. v3 has no cursor
     /// pagination at all, so this always maps to a single, complete `Page`.
     static func v3Page(commentId: Int64, childCount: Int64) -> Data {
@@ -235,7 +235,7 @@ private enum SubtreeCommentsFixture {
 /// that only cares about a bound on the NUMBER of calls doesn't need one
 /// canned page per iteration). Fails the test with a clear error if a
 /// differently-named operation is requested.
-private actor SequencedCommentsTransport: ClientTransport {
+actor SequencedCommentsTransport: ClientTransport {
     private let operationID: String
     private let pages: [Data]
     private(set) var callCount = 0
@@ -268,7 +268,7 @@ private actor SequencedCommentsTransport: ClientTransport {
 
 /// Fails every request with an HTTP 500 - exercises `fetchSubtreeChildCount`'s
 /// best-effort-nil contract on a transport-level failure.
-private final class FailingCommentsTransport: ClientTransport, @unchecked Sendable {
+final class FailingCommentsTransport: ClientTransport, @unchecked Sendable {
     func send(
         _: HTTPRequest,
         body _: HTTPBody?,
@@ -286,8 +286,10 @@ private final class FailingCommentsTransport: ClientTransport, @unchecked Sendab
 
 /// Covers `LemmyService.fetchSubtreeChildCount` (Fix 2 / "reminders loose
 /// ends"): the reminder poll's SUBTREE branch needs a subtree root's live
-/// `child_count` even when it sorts past page 1 of a v4 (cursor-paginated)
-/// comment listing - unlike `fetchComments`, which only ever requests page 1.
+/// `child_count` from a best-effort, never-throwing fetch capped at
+/// `maxSubtreeChildCountPages` - distinct from `fetchComments`, which now
+/// paginates too but throws on a first-page failure and drives the rendered
+/// comment tree.
 @MainActor
 struct LemmyServiceSubtreeChildCountTests {
     /// A single-page v3 response already containing the root comment returns

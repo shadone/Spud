@@ -14,9 +14,13 @@ import LemmyKit
 ///
 /// Permanent cases include: auth errors, invalid/un-sendable content
 /// (`LemmyServiceError.invalidContent`), structured Lemmy server rejections
-/// (deleted/removed entity, banned, not-found, etc.), and client-error HTTP
-/// status codes (4xx excluding 408 and 429). Transient cases include: network
-/// errors, rate-limit rejections, server errors (5xx), 408, and 429.
+/// (deleted/removed entity, banned, not-found, etc.), client-error HTTP
+/// status codes (4xx excluding 408 and 429), and a comment-fetch walk that
+/// exhausted its page budget (`OfflineDownloadService.OfflineCommentFetchError
+/// .incomplete(.pageBudgetExhausted)`) — a fixed, deterministic bound that
+/// retrying cannot change. Transient cases include: network errors,
+/// rate-limit rejections, server errors (5xx), 408, 429, and a comment-fetch
+/// walk whose page request genuinely failed (`.incomplete(.pageFetchFailed)`).
 public enum OutboxFailureClass: Sendable, Equatable {
     case transient
     case permanent
@@ -51,6 +55,18 @@ public enum OutboxFailureClass: Sendable, Equatable {
             return .transient
         case let apiError as LemmyApiError:
             return classify(apiError)
+        case let offlineCommentError as OfflineDownloadService.OfflineCommentFetchError:
+            switch offlineCommentError {
+            case .incomplete(.pageBudgetExhausted):
+                // The page budget (`LemmyService.maxCommentPages`) is a fixed
+                // constant -- re-walking the same thread exhausts it again
+                // every time, so retrying can never succeed.
+                return .permanent
+            case .incomplete(.pageFetchFailed):
+                // A genuinely failed page request (network blip, 5xx, etc.)
+                // can succeed on a later attempt.
+                return .transient
+            }
         default:
             return .transient
         }

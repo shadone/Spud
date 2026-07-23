@@ -93,6 +93,8 @@ struct OfflineDownloadServiceTests {
         pages: [RecordingLemmyService.Page],
         imageUrlForSeededPosts: String? = "https://example.com/image.jpg",
         failingCommentPostIds: Set<Int64> = [],
+        partialCommentPostIds: Set<Int64> = [],
+        partialCommentReason: CommentFetchCompletion.PartialReason = .pageBudgetExhausted,
         exhaustedCursor: String? = nil,
         firstServerPostId: Int64 = 1,
         firstPagePosition: Int64 = 0
@@ -105,6 +107,8 @@ struct OfflineDownloadServiceTests {
             pages: pages,
             imageUrlForSeededPosts: imageUrlForSeededPosts,
             failingCommentPostIds: failingCommentPostIds,
+            partialCommentPostIds: partialCommentPostIds,
+            partialCommentReason: partialCommentReason,
             exhaustedCursor: exhaustedCursor,
             firstServerPostId: firstServerPostId,
             firstPagePosition: firstPagePosition
@@ -374,6 +378,94 @@ struct OfflineDownloadServiceTests {
         let terminal = try #require(progress.last)
         #expect(terminal.phase == .finished)
         #expect(terminal.itemsCompleted == 3, "the failing post still counts as completed")
+    }
+
+    /// `fetchComments` no longer THROWS when a walk stops short (page budget
+    /// exhausted, or a later page failed) -- it returns `.partial` instead. A
+    /// partial completion must not be silently reported as a clean success:
+    /// the offline copy would be incomplete. `.pageBudgetExhausted` is a
+    /// DETERMINISTIC shortfall -- `LemmyService.maxCommentPages` is a fixed
+    /// bound, so re-walking the same thread exhausts it again every time --
+    /// so `OutboxFailureClass.classify` marks it permanent and `withRetry`
+    /// must not retry it: a single attempt, counted as a genuine failure
+    /// (`download.itemFailed`).
+    @Test
+    func budgetExhaustedCommentCompletionFailsWithoutRetry() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            partialCommentPostIds: [1], // post 1's comment fetch always reports partial
+            partialCommentReason: .pageBudgetExhausted
+        )
+        let imageService = RecordingImageService()
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: diagnostics, pacing: .immediate())
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+
+        // A page-budget shortfall must NOT be retried -- exactly one call, not
+        // maxRetryAttempts (retrying a fixed, already-exhausted budget can
+        // never succeed, so doing so would only waste up to
+        // `maxRetryAttempts` paced walks of up to `maxCommentPages` requests
+        // each on a foregone conclusion).
+        let commentIds = await lemmy.recordedFetchCommentsPostIds()
+        #expect(commentIds.count == 1)
+
+        // The failing post still counts as "completed" for progress purposes
+        // (best-effort — matches the thrown-error case above) but is recorded
+        // as a genuine item failure, not swallowed as clean.
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+        #expect(terminal.itemsCompleted == 1)
+        let itemFailedEvents = diagnostics.events(matching: "download.itemFailed")
+        #expect(itemFailedEvents.count == 1)
+        #expect(itemFailedEvents.first?.metadata?["serverPostId"] == "1")
+    }
+
+    /// Unlike a budget shortfall (above), a later page that genuinely FAILED
+    /// to fetch (`.pageFetchFailed`) can succeed on a later attempt, so it
+    /// stays retryable like any other transient failure: one call per
+    /// attempt, up to `maxRetryAttempts`, then counted as a genuine failure.
+    @Test
+    func pageFetchFailedCommentCompletionIsRetriedThenCountsAsFailure() async throws {
+        let lemmy = makeLemmy(
+            pages: [.init(postCount: 1, nextCursor: nil)],
+            partialCommentPostIds: [1], // post 1's comment fetch always reports partial
+            partialCommentReason: .pageFetchFailed
+        )
+        let imageService = RecordingImageService()
+        let diagnostics = DiagnosticLogSpy()
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: imageService, diagnostics: diagnostics, pacing: .immediate())
+
+        let progress = await runDownload(service: service, lemmy: lemmy)
+
+        // A persistently partial completion must be retried like any other
+        // transient failure -- one call per attempt, up to maxRetryAttempts.
+        let commentIds = await lemmy.recordedFetchCommentsPostIds()
+        #expect(commentIds.count == DownloadPacingConfig.immediate().maxRetryAttempts)
+
+        let terminal = try #require(progress.last)
+        #expect(terminal.phase == .finished)
+        #expect(terminal.itemsCompleted == 1)
+        let itemFailedEvents = diagnostics.events(matching: "download.itemFailed")
+        #expect(itemFailedEvents.count == 1)
+        #expect(itemFailedEvents.first?.metadata?["serverPostId"] == "1")
+    }
+
+    /// `OfflineDownloadService` must thread its `RequestPacer` through to
+    /// `fetchComments`'s `pageDelay` hook, not just pace the call's own first
+    /// request -- otherwise a multi-page (v4, PieFed) comment walk fires every
+    /// page after the first with no pacing at all, defeating the point of the
+    /// pacer. This fake doesn't simulate real pagination, so it only confirms
+    /// the hook was PROVIDED (non-nil), not that it was invoked N times.
+    @Test
+    func fetchCommentsIsCalledWithAPageDelayHook() async {
+        let lemmy = makeLemmy(pages: [.init(postCount: 1, nextCursor: nil)])
+        let service = OfflineDownloadService(appDatabase: appDatabase, imageService: RecordingImageService(), diagnostics: DiagnosticLogSpy(), pacing: .immediate())
+
+        _ = await runDownload(service: service, lemmy: lemmy)
+
+        let providedPostIds = await lemmy.recordedFetchCommentsPageDelayProvidedPostIds()
+        #expect(providedPostIds == [1])
     }
 
     /// Cancelling the download from the outside (via `cancelCurrentDownload()`)

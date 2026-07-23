@@ -92,6 +92,7 @@ class PostDetailViewController: UIViewController {
         commentObservationTask?.cancel()
         outboundReactionTask?.cancel()
         loadingObservationTask?.cancel()
+        partialCommentLoadFailureObservationTask?.cancel()
         // Deterministically tear down the outgoing view model's data
         // observations (header, comments, and outbound) before it is replaced
         // (the new view model starts fresh).
@@ -137,6 +138,7 @@ class PostDetailViewController: UIViewController {
         tableView.register(PostDetailCommentLoadingCell.self, forCellReuseIdentifier: PostDetailCommentLoadingCell.reuseIdentifier)
         tableView.register(PostDetailEmptyCommentsCell.self, forCellReuseIdentifier: PostDetailEmptyCommentsCell.reuseIdentifier)
         tableView.register(PostDetailCommentsFailedCell.self, forCellReuseIdentifier: PostDetailCommentsFailedCell.reuseIdentifier)
+        tableView.register(PostDetailLoadMoreCommentsCell.self, forCellReuseIdentifier: PostDetailLoadMoreCommentsCell.reuseIdentifier)
         return tableView
     }()
 
@@ -249,6 +251,9 @@ class PostDetailViewController: UIViewController {
     /// started once in `viewDidLoad` and reads `viewModel` live at fire time
     /// (the view model is swapped on `setPost`).
     private var reachabilityObservationTask: Task<Void, Never>?
+    /// Reacts to the view model's published `partialCommentLoadFailureRevision`
+    /// and toasts on every increase. See `startPartialCommentLoadFailureObservation()`.
+    private var partialCommentLoadFailureObservationTask: Task<Void, Never>?
     /// True once the user has tapped to reveal the NSFW blur for the currently-open
     /// post. Reset to false whenever a different post loads.
     private var headerNsfwRevealed = false
@@ -323,6 +328,7 @@ class PostDetailViewController: UIViewController {
         blurNsfwObservationTask?.cancel()
         loadingObservationTask?.cancel()
         reachabilityObservationTask?.cancel()
+        partialCommentLoadFailureObservationTask?.cancel()
         // Symmetry with `setPost`: proactively tear down the view model's own
         // data observations so they don't outlive the controller. (The view
         // model's `deinit` also cancels them, but that only runs once no live
@@ -451,7 +457,10 @@ class PostDetailViewController: UIViewController {
         // The VC's revision reaction keeps observing across the restart, so the
         // new ordering's first emit flows through the same pipeline.
         viewModel.restartComments(sortType: sortType)
-        Task { await viewModel.fetchComments() }
+        Task { [weak self] in
+            guard let self else { return }
+            await viewModel.fetchComments()
+        }
     }
 
     /// Observes the comment-density preference and reconfigures visible comment
@@ -522,7 +531,9 @@ class PostDetailViewController: UIViewController {
                 wasOnline = online
                 guard shouldRetry else { continue }
                 let viewModel = viewModel
-                Task { await viewModel.fetchComments() }
+                Task {
+                    await viewModel.fetchComments()
+                }
             }
         }
     }
@@ -667,6 +678,12 @@ class PostDetailViewController: UIViewController {
         // the matching observation in `startObservations()`).
         startOutboundReaction()
 
+        // Same reasoning as `startOutboundReaction()` above: the view model can
+        // fire its own initial comment fetch (below) before the `postRowId` gate
+        // is even reached, so this must already be observing by then to catch a
+        // later-page failure on that fetch.
+        startPartialCommentLoadFailureObservation()
+
         // The view model owns the header GRDB observation + visit recording: it
         // resolves the post's local row id, records the visit, and starts
         // publishing `headerRow`. When the post is not yet mirrored it fires the
@@ -754,6 +771,45 @@ class PostDetailViewController: UIViewController {
                     hasReceivedFirstCommentSnapshot = true
                     viewModel.didPrepareObservation(numberOfFetchedComments: rows.count)
                 }
+            }
+        }
+    }
+
+    /// Reacts to the view model's published `partialCommentLoadFailureRevision`
+    /// and shows a toast on every increase (never on the seed emission at
+    /// subscribe time). The view model bumps this counter -- never sets a
+    /// one-shot flag -- exactly once per winning (non-cancelled) fetch that ends
+    /// `.partial(.pageFetchFailed)`, from EVERY comment-fetch entry point
+    /// (``PostDetailViewModel/fetchComments(maxPages:)`` and
+    /// ``PostDetailViewModel/refreshComments()``), including the two that have
+    /// no VC-side `await` to hang an explicit per-call-site check on: the
+    /// initial fetch `didPrepareObservation` kicks off (which the view model can
+    /// itself fire from inside `startObservations()` before the post is even
+    /// mirrored) and the composer-success refresh (an internal subscription in
+    /// the view model, see `refreshAfterComposerSuccess()`). One observation of
+    /// this counter is therefore the SOLE mechanism, replacing what used to be
+    /// five separate explicit checks plus a backstop in `startCommentReaction()`
+    /// that could never actually fire -- see
+    /// ``PostDetailViewModel/partialCommentLoadFailureRevision`` for why.
+    ///
+    /// Started from `startObservations()` before the `postRowId` gate (like
+    /// `startOutboundReaction()`), for the same reason: the view model's own
+    /// initial fetch can land before that gate is even reached.
+    private func startPartialCommentLoadFailureObservation() {
+        partialCommentLoadFailureObservationTask?.cancel()
+        partialCommentLoadFailureObservationTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            // The stream yields synchronously on subscribe (the current
+            // revision, before any fetch has run). Skip that seed: only a
+            // genuine increase is a new failure to report.
+            var lastSeenRevision = 0
+            for await revision in ObservationStream.values(of: { [weak self] in
+                self?.viewModel.partialCommentLoadFailureRevision ?? 0
+            }) {
+                if Task.isCancelled { break }
+                guard revision > lastSeenRevision else { continue }
+                lastSeenRevision = revision
+                showPartialCommentLoadToast()
             }
         }
     }
@@ -959,6 +1015,14 @@ class PostDetailViewController: UIViewController {
         let commentItems = mergedCommentItems(visibleRows: visible.rows)
         let sectionItems = Self.commentsSectionItems(background: background, commentItems: commentItems)
         snapshot.appendItems(sectionItems, toSection: .comments)
+        if viewModel.hasOutstandingCommentPages {
+            snapshot.appendItems([.commentsLoadMore], toSection: .comments)
+            // Reconfigured every pass (like `.newSinceBanner` / `.crossPostedTo`
+            // above): the row's own identity never changes, so without this its
+            // cell would never re-run `setLoading` when `isLoadingComments`
+            // toggles on a re-tap and the spinner would go stale.
+            snapshot.reconfigureItems([.commentsLoadMore])
+        }
         // Only comment rows need reconfiguring; the skeleton / empty rows have no
         // per-row state. When a placeholder is showing, `commentItems` is empty, so
         // this is a no-op.
@@ -1193,6 +1257,21 @@ class PostDetailViewController: UIViewController {
         guard let window = view.window else { return }
         ToastPresenter.shared.show(
             NSLocalizedString("Couldn't load more replies", comment: "Toast when loading more comment replies fails"),
+            in: window
+        )
+    }
+
+    /// Shown when a comment fetch kept the pages that arrived but lost a later
+    /// one. A toast rather than the inline failed state: comments ARE on screen,
+    /// and `CommentsBackground.decide` correctly suppresses `.failed` in that
+    /// case, so without this the shortfall would be entirely silent.
+    private func showPartialCommentLoadToast() {
+        guard let window = view.window else { return }
+        ToastPresenter.shared.show(
+            NSLocalizedString(
+                "Some comments couldn't be loaded",
+                comment: "Toast when part of a post's comment listing fails to load"
+            ),
             in: window
         )
     }
@@ -2050,6 +2129,9 @@ extension PostDetailViewController {
         /// provider reads the classified failure from the view model when
         /// configuring the cell.
         case commentsFailed
+        /// Terminal row shown when the comment listing stopped with pages still
+        /// outstanding. Tapping it resumes the walk.
+        case commentsLoadMore
         case comment(elementId: Int64)
     }
 
@@ -2197,8 +2279,19 @@ extension PostDetailViewController {
                     ?? LoadFailure(kind: .unreachable, diagnostics: "")
                 cell.configure(with: failure)
                 cell.onRetry = { [weak self] in
-                    Task { await self?.viewModel.fetchComments() }
+                    Task { [weak self] in
+                        guard let self else { return }
+                        await viewModel.fetchComments()
+                    }
                 }
+                return cell
+
+            case .commentsLoadMore:
+                let cell = tableView.dequeueReusableCell(
+                    withIdentifier: PostDetailLoadMoreCommentsCell.reuseIdentifier,
+                    for: indexPath
+                ) as! PostDetailLoadMoreCommentsCell
+                cell.setLoading(self?.viewModel.isLoadingComments ?? false)
                 return cell
 
             case let .comment(elementId):
@@ -2366,6 +2459,30 @@ extension PostDetailViewController: UITableViewDelegate {
             return
         }
         FunStats.record(.scrollDistancePoints, amount: points)
+    }
+
+    /// Handles a tap on the terminal "Load more comments" row: the row has no
+    /// nested button (see ``PostDetailLoadMoreCommentsCell``), so the tap is
+    /// driven by ordinary table-row selection instead. Every other row keeps
+    /// `selectionStyle = .none` and drives its own taps (gesture recognizers /
+    /// buttons), so this is the sole consumer of row selection today.
+    ///
+    /// Guarded on ``PostDetailViewModel/isLoadingComments`` (which the row's
+    /// own spinner already reflects) so a tap while its own walk is still in
+    /// flight doesn't grow the page budget again and cancel-and-replace it —
+    /// mirroring the sibling "N more replies" guard in ``handleLoadMoreTap(elementId:parentServerId:)``.
+    func tableView(_ tableView: UITableView, didSelectRowAt indexPath: IndexPath) {
+        guard dataSource.itemIdentifier(for: indexPath) == .commentsLoadMore else { return }
+        tableView.deselectRow(at: indexPath, animated: true)
+        guard !viewModel.isLoadingComments else { return }
+        Task { [weak self] in
+            guard let self else { return }
+            // loadMoreCommentPages() resumes the same fetch path as
+            // fetchComments() (a bigger page bound), so a later page in ITS
+            // walk can fail too -- the shared partial-load-failure observation
+            // (`startPartialCommentLoadFailureObservation()`) covers it.
+            await viewModel.loadMoreCommentPages()
+        }
     }
 
     func tableView(

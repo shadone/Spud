@@ -297,7 +297,7 @@ struct PostDetailViewModelObservationTests {
             // Neutralize the network comment fetch the observation bring-up
             // kicks; these tests exercise the header observation + visit
             // recording only.
-            fetchCommentsOperation: { _ in }
+            fetchCommentsOperation: { _, _ in .complete }
         )
     }
 
@@ -354,7 +354,10 @@ struct PostDetailViewModelObservationTests {
             accountScope: seed.dependencies.accountService.scope(forAccountKeychainId: seed.keychainId),
             appDatabase: seed.appDatabase,
             dependencies: seed.dependencies,
-            fetchCommentsOperation: { _ in fetchCount += 1 }
+            fetchCommentsOperation: { _, _ in
+                fetchCount += 1
+                return .complete
+            }
         )
 
         vm.startObservations()

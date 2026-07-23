@@ -17,43 +17,15 @@ private typealias CommentView = Lemmy.CommentView
 
 @MainActor
 struct SpliceMoreCommentsTests {
-    /// Seeds instance/site/account/post and returns the ids needed to import comments.
     private func seed(
         _ appDatabase: AppDatabase,
         serverPostId: Int64
     ) async throws -> (accountId: Int64, siteId: Int64, postRowId: Int64, person: Person, community: Community, post: Post) {
-        let (accountId, siteId) = try await appDatabase.writer.write { db -> (Int64, Int64) in
-            var instance = InstanceRecord(actorId: "https://example.com")
-            try instance.insert(db)
-            var site = SiteRecord(instanceId: instance.id!)
-            try site.insert(db)
-            var account = AccountRecord(
-                siteId: site.id!,
-                accountKeychainId: "keychain-1",
-                isSignedOutAccountType: false
-            )
-            try account.insert(db)
-            return (account.id!, site.id!)
-        }
-        let person = Person.fake
-        let community = Community.fake
-        let post = Post.fake(creator: person, community: community, id: Lemmy.PostID(serverPostId))
-        let postRowId = try await appDatabase.upsertPost(
-            from: .fake(post: post, creator: person, community: community),
-            accountId: accountId,
-            siteId: siteId
-        )
-        return (accountId, siteId, postRowId, person, community, post)
+        try await CommentSeed.seed(appDatabase, serverPostId: serverPostId, accountKeychainId: "keychain-1")
     }
 
     private func elements(_ appDatabase: AppDatabase, postRowId: Int64) async throws -> [CommentElementRecord] {
-        try await appDatabase.writer.read { db in
-            try CommentElementRecord
-                .filter(Column("postId") == postRowId)
-                .filter(Column("sortType") == Lemmy.CommentSortType.Hot.rawValue)
-                .order(Column("position"))
-                .fetchAll(db)
-        }
+        try await CommentSeed.elements(appDatabase, postRowId: postRowId)
     }
 
     @Test

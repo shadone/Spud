@@ -77,6 +77,37 @@ final class PostDetailViewModel {
     /// failures are surfaced as a toast instead.
     private(set) var commentFetchError: LoadFailure?
 
+    /// True when the last comment fetch stopped with pages the reader can still
+    /// ask for. Drives the terminal "Load more comments" row. Only
+    /// `.pageBudgetExhausted` sets it: a failed page is a shortfall to report,
+    /// not a cursor to resume from.
+    private(set) var hasOutstandingCommentPages = false
+
+    /// Monotonically incremented -- never merely set -- each time a winning
+    /// (non-cancelled) comment fetch ends `.partial(.pageFetchFailed)`: some
+    /// pages landed and a later one did not. The view controller observes
+    /// this directly (`ObservationStream.values(of:)`, matching every other
+    /// observation loop in that file) and toasts on each increase; see
+    /// `PostDetailViewController.startPartialCommentLoadFailureObservation()`.
+    ///
+    /// Deliberately a plain `@Observable` counter, NOT `@ObservationIgnored`,
+    /// and NOT a one-shot read-and-clear flag. The prior design used an
+    /// `@ObservationIgnored` bool consumed by an explicit check planted after
+    /// every VC-side `await` of a fetch, plus a "backstop" hung off the
+    /// `commentsRevision` observation loop for the two fetches with no such
+    /// await (the initial load and the composer-success refresh). That
+    /// backstop could not work: `@ObservationIgnored` means setting the flag
+    /// cannot itself wake the loop, and a later-page fetch failure does not
+    /// import (so `commentsRevision` never bumps after it) -- so by the time
+    /// the flag flips, the loop has already run its last iteration for the
+    /// final successful page and sits blocked awaiting a revision that will
+    /// never come. That silently ate the single most common trigger: a post
+    /// whose first page succeeds and a later page fails. A monotonic,
+    /// observation-tracked counter has no such blind spot -- ANY entry point
+    /// that bumps it wakes the observer, including ones with no VC-side await
+    /// to hang a check off of. Do not reintroduce a one-shot flag here.
+    private(set) var partialCommentLoadFailureRevision = 0
+
     /// The full, ordered comment tree as last emitted by the GRDB observation.
     /// Collapse is computed against this; it is never mutated by collapse.
     ///
@@ -172,8 +203,24 @@ final class PostDetailViewModel {
         injectedLemmy ?? PostDetailLemmyServiceAdapter(lemmyService: accountScope.lemmyService)
     }
 
+    /// - Parameter maxPages: forwarded to `LemmyService.fetchComments(maxPages:)`
+    ///   as-is — see ``commentPageBudgetAttempt`` for who computes it.
     @ObservationIgnored
-    private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType) async throws -> Void
+    private let fetchCommentsOperation: @MainActor (Lemmy.CommentSortType, Int) async throws -> CommentFetchCompletion
+
+    /// How many page-budget "attempts" have been spent on the CURRENT
+    /// post+sort comment listing: 1 for an ordinary fetch, incremented once
+    /// per "Load more comments" tap so each tap's bound
+    /// (``LemmyService/maxCommentPages`` * this) is strictly larger than the
+    /// last — otherwise every tap would re-walk the identical first N pages
+    /// and the terminal row could never clear (the defect this exists to
+    /// fix). Reset to 1 by every FRESH fetch — ``fetchComments()`` (initial
+    /// load, sort change, retry) and ``refreshComments()`` (pull-to-refresh)
+    /// — so an inflated bound never bleeds into an unrelated listing.
+    /// ``loadMoreCommentPages()`` is the only place that increments it
+    /// without resetting.
+    @ObservationIgnored
+    private var commentPageBudgetAttempt = 1
 
     /// The seam through which ``loadMoreReplies(elementId:parentServerId:)`` reaches
     /// `LemmyService.fetchMoreComments`. In production it wraps `accountScope`'s live
@@ -256,7 +303,7 @@ final class PostDetailViewModel {
         appDatabase: AppDatabase,
         dependencies: Dependencies,
         lemmy: (any PostDetailLemmyServicing)? = nil,
-        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType) async throws -> Void)? = nil,
+        fetchCommentsOperation: (@MainActor (Lemmy.CommentSortType, Int) async throws -> CommentFetchCompletion)? = nil,
         fetchMoreCommentsOperation: (@MainActor (Int64, Lemmy.CommentSortType) async throws -> Void)? = nil
     ) {
         self.dependencies = dependencies
@@ -265,9 +312,9 @@ final class PostDetailViewModel {
         self.accountScope = accountScope
         injectedLemmy = lemmy
         commentSortType = dependencies.preferencesService.defaultCommentSortType
-        self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType in
+        self.fetchCommentsOperation = fetchCommentsOperation ?? { sortType, maxPages in
             try await accountScope.lemmyService
-                .fetchComments(serverPostId: serverPostId, sortType: sortType)
+                .fetchComments(serverPostId: serverPostId, sortType: sortType, maxPages: maxPages)
         }
         self.fetchMoreCommentsOperation = fetchMoreCommentsOperation ?? { parentServerId, sortType in
             try await accountScope.lemmyService.fetchMoreComments(
@@ -572,6 +619,28 @@ final class PostDetailViewModel {
         try await fetchMoreCommentsOperation(parentServerId, commentSortType)
     }
 
+    /// Resumes a comment listing that stopped at the page budget, from the
+    /// terminal "Load more comments" row. Reuses the ordinary fetch path, but
+    /// with an ENLARGED page bound rather than a persisted cursor:
+    /// `LemmyService.fetchComments` always restarts its walk at page 1 (see
+    /// its doc comment) because `AppDatabase.upsertComments`'s FINAL call for
+    /// the walk — after every page-by-page call, which is additive and never
+    /// deletes — treats the whole accumulated set as the FULL desired state
+    /// for `(post, sortType)` and deletes any stored element not in it —
+    /// resuming from a persisted cursor would seed that accumulated set with
+    /// only the tail, so the final call would delete every earlier page's
+    /// rows. Re-walking from page 1 with a bigger budget on every tap is
+    /// strictly more expensive, but it keeps that full-set reconciliation
+    /// correct with no importer surgery for what is a rare deep-thread case.
+    /// ``commentPageBudgetAttempt`` grows the bound by another
+    /// `LemmyService.maxCommentPages` pages on every tap (10, 20, 30, ...),
+    /// so each tap makes real forward progress instead of re-fetching the
+    /// identical first N pages forever.
+    func loadMoreCommentPages() async {
+        commentPageBudgetAttempt += 1
+        await fetchComments(maxPages: LemmyService.maxCommentPages * commentPageBudgetAttempt)
+    }
+
     // MARK: - New-comment delta (view-layer)
 
     /// Number of comments new since the user's last visit.
@@ -628,7 +697,29 @@ final class PostDetailViewModel {
         Task { await fetchComments() }
     }
 
+    /// Fetches this post's comments at the current sort type, using the base
+    /// page budget. The entry point for every FRESH (non-continuation) fetch
+    /// — initial load, sort change, and Retry from the inline failed state —
+    /// so it resets ``commentPageBudgetAttempt`` to 1: only
+    /// ``loadMoreCommentPages()`` should ever ask for more than the base
+    /// budget.
+    ///
+    /// Also clears a stale ``hasOutstandingCommentPages`` the instant the
+    /// fetch starts, synchronously — before the tree observation can re-emit
+    /// an empty snapshot for the new sort. Without this, a sort change while
+    /// the terminal "Load more comments" row was showing left the flag true
+    /// through the whole re-walk, so the (still tappable) row rendered
+    /// underneath the fresh skeleton until the walk finished. This is
+    /// deliberately NOT done in the shared ``fetchComments(maxPages:)`` below
+    /// — ``loadMoreCommentPages()`` also funnels through it, and clearing the
+    /// flag there would flicker the row away and back on every tap.
     func fetchComments() async {
+        commentPageBudgetAttempt = 1
+        hasOutstandingCommentPages = false
+        await fetchComments(maxPages: LemmyService.maxCommentPages)
+    }
+
+    private func fetchComments(maxPages: Int) async {
         // Cancel-and-replace: a new fetch (e.g. a sort change, or a Retry from
         // the inline failed state) supersedes the in-flight one. The flag is set
         // synchronously and only the winning (non-cancelled) task clears it or
@@ -642,11 +733,15 @@ final class PostDetailViewModel {
         let task = Task { @MainActor [weak self] in
             guard let self else { return }
             do {
-                try await fetchCommentsOperation(sortType)
+                let completion = try await fetchCommentsOperation(sortType, maxPages)
                 if !Task.isCancelled {
                     // A successful (winning) load clears any lingering failure so
                     // the empty / comments state can show.
                     commentFetchError = nil
+                    hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
+                    if completion == .partial(.pageFetchFailed) {
+                        partialCommentLoadFailureRevision += 1
+                    }
                 }
             } catch is CancellationError {
                 // Superseded — leave the flag to the winning fetch.
@@ -887,8 +982,31 @@ final class PostDetailViewModel {
     /// cancel-and-replace state machine (``isLoadingComments`` /
     /// ``commentFetchError`` / ``fetchTask``). Rethrows the fetch error unchanged
     /// so the view controller can surface it with the `.fetchComments` alert tag.
+    ///
+    /// Resets ``commentPageBudgetAttempt`` to 1 like every other fresh fetch —
+    /// a pull-to-refresh must not inherit an inflated bound left over from a
+    /// prior "Load more comments" streak.
+    ///
+    /// Captures the returned completion and updates ``hasOutstandingCommentPages``
+    /// from it, mirroring the winning branch of `fetchComments(maxPages:)` --
+    /// otherwise the "Load more comments" row goes stale after a refresh: it
+    /// lingers when the refreshed walk actually completed the tree, and fails
+    /// to appear when the refreshed walk is genuinely partial. Also mirrors that
+    /// branch's ``partialCommentLoadFailureRevision`` handling -- a refresh
+    /// (pull-to-refresh, or the post-composer-success refresh) can just as
+    /// easily lose a later page as the ordinary fetch path can, and the reader
+    /// deserves the same toast either way. Guarded by `!Task.isCancelled` for
+    /// the same reason as that winning branch: only a completed (non-cancelled)
+    /// refresh should write either flag.
     func refreshComments() async throws {
-        try await fetchCommentsOperation(commentSortType)
+        commentPageBudgetAttempt = 1
+        let completion = try await fetchCommentsOperation(commentSortType, LemmyService.maxCommentPages)
+        if !Task.isCancelled {
+            hasOutstandingCommentPages = completion == .partial(.pageBudgetExhausted)
+            if completion == .partial(.pageFetchFailed) {
+                partialCommentLoadFailureRevision += 1
+            }
+        }
     }
 
     /// Casts (or clears) a vote on the comment `serverCommentId` for the backing
