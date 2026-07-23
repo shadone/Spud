@@ -1322,6 +1322,12 @@ public actor LemmyService: LemmyServiceType {
             // `OfflineDownloadService`'s `RequestPacer`) is expected to have
             // already paced its own call before entering this method, the
             // same way it paces every other first request of a unit of work.
+            // `pageDelay` can itself throw (e.g. `RequestPacer.acquire` on
+            // cancellation) — that propagates straight out of this method,
+            // skipping the final authoritative (pruning) import below and
+            // leaving whatever pages already landed with their additive,
+            // tail-shifted positions persisted until the next walk reconciles
+            // them.
             try await pageDelay?()
             let page: Page<Lemmy.CommentView>
             do {

@@ -72,10 +72,20 @@ public extension AppDatabase {
     ///   positions are recomputed from a fresh `sort(comments:)` over the
     ///   whole given set, and any existing element row whose comment is
     ///   absent from it is deleted. When `false`, this call is ADDITIVE: it
-    ///   only upserts/repositions rows for the comments it was given (a new
-    ///   row is appended after the current maximum position, since its true
+    ///   only upserts rows for the comments it was given and never deletes
+    ///   anything. A row that already exists (matched by its local comment
+    ///   row id, or by `moreParentId` for a placeholder) keeps its stored
+    ///   `position` untouched — only its other fields (depth, and for
+    ///   placeholders the child count) are refreshed. A genuinely new row is
+    ///   appended after the current maximum position, since its true
     ///   position relative to rows outside this call's subset can't be known
-    ///   from a partial set) and never deletes anything.
+    ///   from a partial set. Preserving matched rows' positions is what keeps
+    ///   a mid-walk import from visibly reshuffling the whole on-screen tree
+    ///   (see `LemmyService.fetchComments`'s doc): the position would
+    ///   otherwise jump to the tail on every additive import that re-touches
+    ///   an already-stored row, only to self-heal once the walk's final
+    ///   pruning import restores 0..N — a live `ValueObservation` reader
+    ///   would watch that reshuffle happen for the whole walk.
     ///
     ///   This exists for `LemmyService.fetchComments`'s mid-walk imports: with
     ///   pruning always on, the FIRST page of any re-walk (pull-to-refresh,
@@ -97,7 +107,13 @@ public extension AppDatabase {
         comments: [Lemmy.CommentView],
         pruningAbsentElements: Bool = true
     ) async throws {
-        guard !comments.isEmpty else { return }
+        // An additive call with nothing to add is a genuine no-op (it has no
+        // license to delete anything it wasn't given). A PRUNING call with an
+        // empty set is different: `comments` being empty because the server's
+        // tree really did go empty is exactly the state the final call must
+        // reconcile to, so it falls through and deletes every stored element
+        // below instead of leaving the stale tree behind.
+        guard !comments.isEmpty || pruningAbsentElements else { return }
 
         try await writer.write { db in
             guard
@@ -168,14 +184,28 @@ public extension AppDatabase {
                     in: db
                 )
 
-                var element = elementByCommentRowId[commentRowId] ?? CommentElementRecord(
+                // A matched row (this comment already has a stored element)
+                // keeps its existing `position` in an additive import — only a
+                // genuinely new row is placed at the tail. Reassigning every
+                // matched row's position to the tail on every mid-walk import
+                // would visibly reshuffle the whole on-screen tree for the
+                // duration of the walk (see the doc on `pruningAbsentElements`
+                // above); a pruning import always recomputes positions from
+                // the full ordered sequence, so it keeps assigning
+                // `elementPosition` to every row regardless of whether it
+                // matched.
+                let existingElement = elementByCommentRowId[commentRowId]
+                let isNewElement = existingElement == nil
+                var element = existingElement ?? CommentElementRecord(
                     postId: postRowId,
                     commentId: commentRowId,
                     position: elementPosition,
                     depth: depth,
                     sortType: sortTypeRaw
                 )
-                element.position = elementPosition
+                if pruningAbsentElements || isNewElement {
+                    element.position = elementPosition
+                }
                 element.depth = depth
                 // A row that was a comment stays a comment; clear any stale
                 // placeholder fields defensively.
@@ -183,11 +213,13 @@ public extension AppDatabase {
                 element.moreParentId = nil
                 try element.save(db)
                 if let id = element.id { survivingElementIds.insert(id) }
-                elementPosition += 1
+                if pruningAbsentElements || isNewElement { elementPosition += 1 }
 
                 if commentsWithMissingChildren.contains(Lemmy.CommentID(view.comment.id)) {
                     let moreParentId = Int64(view.comment.id)
-                    var placeholder = elementByMoreParentId[moreParentId] ?? CommentElementRecord(
+                    let existingPlaceholder = elementByMoreParentId[moreParentId]
+                    let isNewPlaceholder = existingPlaceholder == nil
+                    var placeholder = existingPlaceholder ?? CommentElementRecord(
                         postId: postRowId,
                         commentId: nil,
                         position: elementPosition,
@@ -196,14 +228,16 @@ public extension AppDatabase {
                         moreChildCount: view.comment.childCount,
                         moreParentId: moreParentId
                     )
+                    if pruningAbsentElements || isNewPlaceholder {
+                        placeholder.position = elementPosition
+                    }
                     placeholder.commentId = nil
-                    placeholder.position = elementPosition
                     placeholder.depth = depth + 1
                     placeholder.moreChildCount = view.comment.childCount
                     placeholder.moreParentId = moreParentId
                     try placeholder.save(db)
                     if let id = placeholder.id { survivingElementIds.insert(id) }
-                    elementPosition += 1
+                    if pruningAbsentElements || isNewPlaceholder { elementPosition += 1 }
                 }
             }
 

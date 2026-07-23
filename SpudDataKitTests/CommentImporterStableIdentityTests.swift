@@ -231,4 +231,127 @@ struct CommentImporterStableIdentityTests {
         #expect(finalIds[1] == originalIds[1], "comment b (page 2) must keep its element id across the re-walk")
         #expect(finalIds[2] == originalIds[2], "comment c (page 3) must keep its element id across the re-walk")
     }
+
+    /// An additive (non-pruning) import must not reposition rows it already
+    /// has. `elementPosition` in additive mode starts at `max(existing
+    /// .position) + 1`, so unconditionally overwriting every matched row's
+    /// `position` (as a pruning import correctly does, recomputing the whole
+    /// sequence from scratch) would move every row this call re-touches to
+    /// the tail -- on a multi-page walk, page 1's mid-walk import would push
+    /// page 1's own rows below pages 2 and 3, page 2's import below page 3,
+    /// and so on, visibly reshuffling the whole on-screen tree under a live
+    /// `ValueObservation` reader for the duration of the walk (it
+    /// self-heals only once the walk's final pruning import restores 0..N).
+    /// Only a genuinely NEW row may take a tail position.
+    @Test
+    func additiveImportPreservesExistingPositions() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let seeded = try await seed(appDatabase, serverPostId: 1)
+
+        let a = CommentView.fake(
+            comment: .fake(id: 10, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        let b = CommentView.fake(
+            comment: .fake(id: 11, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        let c = CommentView.fake(
+            comment: .fake(id: 12, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+
+        // Authoritative seed: a, b, c land at positions 0, 1, 2 (flat root
+        // siblings sort in the given order -- see `reimportKeepsTreeOrder`).
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [a, b, c]
+        )
+        let seededRows = try await elements(appDatabase, postRowId: seeded.postRowId)
+        #expect(seededRows.map(\.position) == [0, 1, 2])
+        let rowIdA = try #require(seededRows[0].commentId)
+        let rowIdB = try #require(seededRows[1].commentId)
+        let rowIdC = try #require(seededRows[2].commentId)
+
+        let d = CommentView.fake(
+            comment: .fake(id: 13, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+
+        // Additive re-import re-touches the already-stored `a` and `c` plus
+        // a brand-new comment `d`; `b` is outside this call's set entirely.
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [a, c, d], pruningAbsentElements: false
+        )
+
+        let rows = try await elements(appDatabase, postRowId: seeded.postRowId)
+        let rowByCommentId = Dictionary(uniqueKeysWithValues: rows.compactMap { row in
+            row.commentId.map { ($0, row) }
+        })
+
+        #expect(rowByCommentId[rowIdA]?.position == 0, "a matched row re-touched by an additive import must keep its original position")
+        #expect(rowByCommentId[rowIdC]?.position == 2, "a matched row re-touched by an additive import must keep its original position")
+        #expect(rowByCommentId[rowIdB]?.position == 1, "a row untouched by an additive import (outside its set) must keep its position")
+
+        // The genuinely new row must land after the previous maximum position (2).
+        let existingRowIds: Set<Int64> = [rowIdA, rowIdB, rowIdC]
+        let newRow = try #require(rows.first { row in row.commentId.map { !existingRowIds.contains($0) } ?? false })
+        #expect(newRow.position == 3, "a genuinely new row must be appended after the current maximum position")
+    }
+
+    /// A pruning import with an EMPTY `comments` set is the honest terminal
+    /// state of a thread that went empty server-side (every comment removed
+    /// or the post's own tree wiped), not a no-op -- the early-return guard
+    /// used to skip the whole method for an empty set regardless of
+    /// `pruningAbsentElements`, so the walk's final authoritative import
+    /// silently left the stale tree in place instead of pruning it.
+    @Test
+    func pruningImportWithEmptyCommentsDeletesStaleTree() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let seeded = try await seed(appDatabase, serverPostId: 1)
+
+        let one = CommentView.fake(
+            comment: .fake(id: 10, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [one]
+        )
+        let beforeCount = try await elements(appDatabase, postRowId: seeded.postRowId).count
+        #expect(beforeCount == 1)
+
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [], pruningAbsentElements: true
+        )
+        let afterCount = try await elements(appDatabase, postRowId: seeded.postRowId).count
+        #expect(afterCount == 0, "an authoritative import of an empty tree must prune every stored row")
+    }
+
+    /// The additive counterpart: an empty set with pruning OFF has no license
+    /// to delete anything (it wasn't given a full desired state), so it stays
+    /// a genuine no-op.
+    @Test
+    func nonPruningImportWithEmptyCommentsIsANoOp() async throws {
+        let appDatabase = try AppDatabase.inMemory()
+        let seeded = try await seed(appDatabase, serverPostId: 1)
+
+        let one = CommentView.fake(
+            comment: .fake(id: 10, post: seeded.post, creator: seeded.person, parent: .root),
+            creator: seeded.person, post: seeded.post, community: seeded.community, childCount: 0
+        )
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [one]
+        )
+
+        try await appDatabase.upsertComments(
+            forServerPostId: 1, accountId: seeded.accountId, siteId: seeded.siteId,
+            sortType: .Hot, comments: [], pruningAbsentElements: false
+        )
+        let afterCount = try await elements(appDatabase, postRowId: seeded.postRowId).count
+        #expect(afterCount == 1, "an additive import given nothing must not delete the existing row")
+    }
 }
