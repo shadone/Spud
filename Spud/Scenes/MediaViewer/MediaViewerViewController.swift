@@ -33,6 +33,12 @@ final class MediaViewerViewController: UIViewController {
     private let imageService: ImageServiceType
     private var currentIndex: Int
 
+    /// Whether this presentation uses the iOS 18 zoom transition (expand from /
+    /// shrink back to a source view). When true the system drives the
+    /// interactive dismiss, so the viewer's own swipe-down-to-dismiss pan is not
+    /// installed. When false the viewer keeps its custom cross-dissolve + pan.
+    private let usesZoomTransition: Bool
+
     /// True when any item is NSFW; gates privacy-screen registration.
     private let containsSensitiveContent: Bool
     /// Tracks the balanced begin/end of the sensitive-content registration.
@@ -198,17 +204,39 @@ final class MediaViewerViewController: UIViewController {
 
     // MARK: Functions
 
-    init(items: [MediaItem], startIndex: Int, dependencies: Dependencies) {
+    init(
+        items: [MediaItem],
+        startIndex: Int,
+        dependencies: Dependencies,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
+    ) {
         precondition(!items.isEmpty, "MediaViewer requires at least one item")
         self.items = items
         currentIndex = min(max(0, startIndex), items.count - 1)
         containsSensitiveContent = items.contains { $0.isNsfw }
         imageService = dependencies.imageService
+
+        // Honour Reduce Motion by skipping the zoom and using the cross-dissolve
+        // fallback, which already collapses to an instant cut under Reduce Motion.
+        let zoomSource = UIAccessibility.isReduceMotionEnabled ? nil : zoomSource
+        usesZoomTransition = zoomSource != nil
+
         super.init(nibName: nil, bundle: nil)
 
-        modalPresentationStyle = .custom
         modalPresentationCapturesStatusBarAppearance = true
-        transitioningDelegate = self
+
+        if let zoomSource {
+            // The system re-invokes this on present and dismiss; read the live
+            // `currentIndex` so a paged-to image dismisses back to its own source
+            // (or fades when that page has no on-screen source).
+            preferredTransition = .zoom { [weak self] _ in
+                guard let self else { return nil }
+                return zoomSource(items[currentIndex])
+            }
+        } else {
+            modalPresentationStyle = .custom
+            transitioningDelegate = self
+        }
     }
 
     @available(*, unavailable)
@@ -221,9 +249,15 @@ final class MediaViewerViewController: UIViewController {
     static func make(
         items: [MediaItem],
         startIndex: Int = 0,
-        dependencies: Dependencies
+        dependencies: Dependencies,
+        zoomSource: ((MediaItem) -> UIView?)? = nil
     ) -> MediaViewerViewController {
-        MediaViewerViewController(items: items, startIndex: startIndex, dependencies: dependencies)
+        MediaViewerViewController(
+            items: items,
+            startIndex: startIndex,
+            dependencies: dependencies,
+            zoomSource: zoomSource
+        )
     }
 
     override var prefersStatusBarHidden: Bool {
@@ -393,6 +427,11 @@ final class MediaViewerViewController: UIViewController {
         singleTap.delegate = self
         singleTapGesture = singleTap
         view.addGestureRecognizer(singleTap)
+
+        // In zoom mode the system provides the interactive drag-to-shrink
+        // dismiss, so installing our own swipe-down pan would fight it. Only the
+        // cross-dissolve fallback needs the custom pan.
+        guard !usesZoomTransition else { return }
 
         let pan = UIPanGestureRecognizer(target: self, action: #selector(handlePan(_:)))
         pan.delegate = self
