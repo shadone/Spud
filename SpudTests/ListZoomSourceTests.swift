@@ -50,4 +50,16 @@ struct ListZoomSourceTests {
         #expect(result != nil)
         #expect(table.indexPathsForVisibleRows?.contains(IndexPath(row: 190, section: 0)) == true)
     }
+
+    @Test
+    func returnsNilWhenTheResolvedIndexPathIsOutOfBoundsForTheTable() {
+        // Simulates a live snapshot apply racing this provider (the feed can
+        // keep applying snapshots while the viewer is open): the data source
+        // resolves a valid index path, but the table it's paired with here
+        // has no rows for it — `scrollToRow(at:)` would otherwise raise.
+        let (_, ds) = makeTable(items: [1, 2, 3])
+        let staleTable = UITableView(frame: CGRect(x: 0, y: 0, width: 320, height: 480))
+        let result = listZoomSource(tableView: staleTable, dataSource: ds, item: 1) { $0.contentView }
+        #expect(result == nil)
+    }
 }

@@ -1890,25 +1890,25 @@ class PostDetailViewController: UIViewController {
         )
     }
 
+    /// The visible post-detail header cell, or nil when the header is not
+    /// currently on screen (scrolled off / not yet dequeued).
+    private func visibleHeaderCell() -> PostDetailHeaderCell? {
+        guard let indexPath = dataSource.indexPath(for: .header) else { return nil }
+        return tableView.cellForRow(at: indexPath) as? PostDetailHeaderCell
+    }
+
     /// The visible post-detail header cell's post image view, or nil when the
-    /// header is not currently on screen (scrolled off / not yet dequeued).
-    /// Re-resolved live so the zoom transition targets whatever cell is
-    /// showing the header now.
+    /// header is not currently on screen. Re-resolved live so the zoom
+    /// transition targets whatever cell is showing the header now.
     private func visibleHeaderImageView() -> UIView? {
-        guard let indexPath = dataSource.indexPath(for: .header),
-              let cell = tableView.cellForRow(at: indexPath) as? PostDetailHeaderCell
-        else { return nil }
-        return cell.postImageView
+        visibleHeaderCell()?.postImageView
     }
 
     /// The on-screen box for a body image (`imageURL`) in the visible header
     /// cell's markdown body, or nil when the header or that image is not
     /// currently rendered.
     private func visibleHeaderBodyImageView(forImageURL imageURL: URL) -> UIView? {
-        guard let indexPath = dataSource.indexPath(for: .header),
-              let cell = tableView.cellForRow(at: indexPath) as? PostDetailHeaderCell
-        else { return nil }
-        return cell.bodyView.zoomSourceView(forImageURL: imageURL)
+        visibleHeaderCell()?.bodyView.zoomSourceView(forImageURL: imageURL)
     }
 
     /// The on-screen box for a body image (`imageURL`) inside the visible

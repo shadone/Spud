@@ -820,12 +820,7 @@ class PersonViewController: UIViewController {
                 altText: row.altText,
                 isNsfw: row.isNsfw,
                 dependencies: dependencies.own,
-                zoomSource: { [weak self] _ in
-                    guard let self else { return nil }
-                    return listZoomSource(tableView: tableView, dataSource: dataSource, item: .post(serverPostId: serverPostId)) {
-                        ($0 as? PostListPostCell)?.postContentView.thumbnailView
-                    }
-                }
+                zoomSource: { [weak self] _ in self?.visibleThumbnailView(forServerPostId: serverPostId) }
             )
         }
 
@@ -865,6 +860,23 @@ class PersonViewController: UIViewController {
         }
 
         return cell
+    }
+
+    /// The on-screen thumbnail for the post row identified by `serverPostId`,
+    /// scrolling it back into view when it was scrolled off. Resolved live so
+    /// the zoom transition targets whatever cell shows the post now; nil when
+    /// the row is gone from the list (the transition then falls back to a
+    /// fade).
+    ///
+    /// Called through the already-weak `self` from the `zoomSource` closure
+    /// rather than capturing the cell-provider's `tableView` parameter, which
+    /// shadows this VC's `tableView` property and would otherwise be captured
+    /// strongly for the lifetime of the closure (a table -> cell ->
+    /// `imageTapped` -> `tableView` retain cycle).
+    private func visibleThumbnailView(forServerPostId serverPostId: Int64) -> UIView? {
+        listZoomSource(tableView: tableView, dataSource: dataSource, item: .post(serverPostId: serverPostId)) {
+            ($0 as? PostListPostCell)?.postContentView.thumbnailView
+        }
     }
 
     // MARK: Post actions (feed parity)

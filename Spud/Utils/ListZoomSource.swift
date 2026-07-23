@@ -14,8 +14,9 @@ import UIKit
 /// source view, and if the user scrolled the originating cell out of sight we
 /// bring it back — non-animated, so the reveal does not compound with the zoom —
 /// then hand back its thumbnail. Returns nil when `item` is no longer in the
-/// snapshot (e.g. the feed refreshed the post away), which degrades the
-/// transition to a plain fade.
+/// snapshot (e.g. the feed refreshed the post away) or when its cell still
+/// can't be resolved after scrolling it into view, either of which degrades
+/// the transition to a plain fade.
 @MainActor
 func listZoomSource<Item: Hashable>(
     tableView: UITableView,
@@ -24,6 +25,15 @@ func listZoomSource<Item: Hashable>(
     thumbnail: (UITableViewCell) -> UIView?
 ) -> UIView? {
     guard let indexPath = dataSource.indexPath(for: item) else { return nil }
+    // A live snapshot apply can land between the data source resolving this
+    // index path and the scroll below (this provider is invoked mid-drag
+    // while the feed keeps applying snapshots), so re-validate the index path
+    // against the table's current section/row counts before scrolling to it —
+    // `scrollToRow(at:)` otherwise raises for a now-out-of-range path.
+    guard
+        indexPath.section < tableView.numberOfSections,
+        indexPath.row < tableView.numberOfRows(inSection: indexPath.section)
+    else { return nil }
     if tableView.cellForRow(at: indexPath) == nil {
         // Off screen: bring it on, synchronously, before the morph commits.
         tableView.scrollToRow(at: indexPath, at: .none, animated: false)

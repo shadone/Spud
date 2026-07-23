@@ -549,12 +549,7 @@ class ActivityViewController: UIViewController {
                 altText: row.altText,
                 isNsfw: row.isNsfw,
                 dependencies: dependencies.own,
-                zoomSource: { [weak self] _ in
-                    guard let self, let dataSource else { return nil }
-                    return listZoomSource(tableView: tableView, dataSource: dataSource, item: item.id) {
-                        ($0 as? ActivityPostRowCell)?.postContentView.thumbnailView
-                    }
-                }
+                zoomSource: { [weak self] _ in self?.visibleThumbnailView(forItemId: item.id) }
             )
         }
         container.postContentView.videoTapped = { [weak self] videoUrl in
@@ -569,6 +564,24 @@ class ActivityViewController: UIViewController {
             Task { await self.vote(serverPostId: serverPostId, action: action) }
         }
         return container
+    }
+
+    /// The on-screen thumbnail for the post row identified by `itemId`,
+    /// scrolling it back into view when it was scrolled off. Resolved live so
+    /// the zoom transition targets whatever cell shows the post now; nil when
+    /// the row is gone from the list (the transition then falls back to a
+    /// fade).
+    ///
+    /// Called through the already-weak `self` from the `zoomSource` closure
+    /// rather than capturing the cell-provider's `tableView` parameter, which
+    /// shadows this VC's `tableView` property and would otherwise be captured
+    /// strongly for the lifetime of the closure (a table -> cell ->
+    /// `imageTapped` -> `tableView` retain cycle).
+    private func visibleThumbnailView(forItemId itemId: String) -> UIView? {
+        guard let dataSource else { return nil }
+        return listZoomSource(tableView: tableView, dataSource: dataSource, item: itemId) {
+            ($0 as? ActivityPostRowCell)?.postContentView.thumbnailView
+        }
     }
 
     private func makeCommentCell(
