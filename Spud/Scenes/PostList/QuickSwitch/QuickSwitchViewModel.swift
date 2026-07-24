@@ -5,6 +5,7 @@
 //
 
 import LemmyKit
+import SpudDataKit
 import SpudUIKit
 
 /// Backs the Quick Switch popover. Reads the current feed-display preferences
@@ -33,6 +34,22 @@ final class QuickSwitchViewModel {
     var hasAcknowledgedNsfwAge: Bool
     var currentSort: Lemmy.SortType
 
+    var hideReadPosts: Bool
+    var hideReadPostsMode: HideReadPostsFilter.Mode
+
+    /// The master "mark posts as read" and its scroll sub-option, tracked as raw
+    /// stored prefs. The popover doesn't expose them directly — it presents the
+    /// single ``markReadOnScroll`` effective toggle over them.
+    private(set) var markPostsRead: Bool
+    private(set) var markPostsReadOnScroll: Bool
+
+    /// Whether posts are marked read as they scroll past — the effective state
+    /// the popover's single toggle presents. Scroll marking only takes effect
+    /// when the master ``markPostsRead`` is also on, so both must be true.
+    var markReadOnScroll: Bool {
+        markPostsRead && markPostsReadOnScroll
+    }
+
     init(
         preferencesService: PreferencesServiceType,
         currentSort: Lemmy.SortType,
@@ -49,6 +66,10 @@ final class QuickSwitchViewModel {
         showNsfw = preferencesService.showNsfw
         blurNsfw = preferencesService.blurNsfw
         hasAcknowledgedNsfwAge = preferencesService.hasAcknowledgedNsfwAge
+        hideReadPosts = preferencesService.hideReadPosts
+        hideReadPostsMode = preferencesService.hideReadPostsMode
+        markPostsRead = preferencesService.markPostsRead
+        markPostsReadOnScroll = preferencesService.markPostsReadOnScroll
     }
 
     func updatePostDensity(_ value: PostDensity) {
@@ -90,6 +111,38 @@ final class QuickSwitchViewModel {
     func updateBlurNsfw(_ value: Bool) {
         blurNsfw = value
         preferencesService.blurNsfw = value
+        Haptics.tap()
+    }
+
+    /// Toggles hiding read posts from the feed. Writes straight through
+    /// `PreferencesService`; the hosting `PostListViewController` observes
+    /// `hideReadPostsStream` and re-flows the visible feed live.
+    func updateHideReadPosts(_ value: Bool) {
+        hideReadPosts = value
+        preferencesService.hideReadPosts = value
+        Haptics.tap()
+    }
+
+    /// Chooses when read posts are hidden (immediately vs at the next refresh).
+    /// Observed live via `hideReadPostsModeStream`.
+    func updateHideReadPostsMode(_ value: HideReadPostsFilter.Mode) {
+        hideReadPostsMode = value
+        preferencesService.hideReadPostsMode = value
+        Haptics.tap()
+    }
+
+    /// Toggles marking posts read as they scroll past. Scroll marking only takes
+    /// effect while the master ``markPostsRead`` is on, so turning this on also
+    /// enables the master — the popover never presents a dead, disabled toggle,
+    /// and any stale "scroll on while master off" state is resolved. Turning it
+    /// off leaves the master on, preserving mark-on-open.
+    func updateMarkReadOnScroll(_ value: Bool) {
+        markPostsReadOnScroll = value
+        preferencesService.markPostsReadOnScroll = value
+        if value, !markPostsRead {
+            markPostsRead = true
+            preferencesService.markPostsRead = true
+        }
         Haptics.tap()
     }
 

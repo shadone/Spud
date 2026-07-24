@@ -5,6 +5,7 @@
 //
 
 import LemmyKit
+import SpudDataKit
 import SpudUIKit
 import SwiftUI
 
@@ -45,6 +46,18 @@ struct QuickSwitchView: View {
         .init { viewModel.blurNsfw } set: { viewModel.updateBlurNsfw($0) }
     }
 
+    private var hideReadPosts: Binding<Bool> {
+        .init { viewModel.hideReadPosts } set: { viewModel.updateHideReadPosts($0) }
+    }
+
+    private var hideReadPostsMode: Binding<HideReadPostsFilter.Mode> {
+        .init { viewModel.hideReadPostsMode } set: { viewModel.updateHideReadPostsMode($0) }
+    }
+
+    private var markReadOnScroll: Binding<Bool> {
+        .init { viewModel.markReadOnScroll } set: { viewModel.updateMarkReadOnScroll($0) }
+    }
+
     var body: some View {
         NavigationStack {
             Form {
@@ -69,6 +82,30 @@ struct QuickSwitchView: View {
                 Section {
                     Toggle(isOn: showVoteButtons) {
                         Label("Vote Buttons", systemImage: "arrow.up.arrow.down")
+                    }
+                }
+
+                Section {
+                    Toggle("Hide Read Posts", isOn: hideReadPosts)
+
+                    if viewModel.hideReadPosts {
+                        Picker("When", selection: hideReadPostsMode) {
+                            Text("On Refresh").tag(HideReadPostsFilter.Mode.onRefresh)
+                            Text("Immediately").tag(HideReadPostsFilter.Mode.live)
+                        }
+                    }
+
+                    Toggle("Mark as Read on Scroll", isOn: markReadOnScroll)
+                } header: {
+                    Text("Read Posts")
+                } footer: {
+                    if viewModel.hideReadPosts {
+                        switch viewModel.hideReadPostsMode {
+                        case .onRefresh:
+                            Text("Read posts are hidden when the feed next refreshes.")
+                        case .live:
+                            Text("Read posts are hidden the moment they're read.")
+                        }
                     }
                 }
 

@@ -5,6 +5,7 @@
 //
 
 import LemmyKit
+import SpudDataKit
 import SpudUIKit
 import Testing
 @testable import Spud
@@ -91,6 +92,98 @@ struct QuickSwitchViewModelTests {
 
         #expect(viewModel.showNsfw == true)
         #expect(prefs.showNsfw == true)
+    }
+
+    @Test
+    func seedsReadPostPreferences() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.hideReadPosts = true
+        prefs.hideReadPostsMode = .live
+        prefs.markPostsRead = true
+        prefs.markPostsReadOnScroll = true
+
+        let viewModel = makeViewModel(preferences: prefs)
+
+        #expect(viewModel.hideReadPosts == true)
+        #expect(viewModel.hideReadPostsMode == .live)
+        #expect(viewModel.markReadOnScroll == true)
+    }
+
+    @Test
+    func updateHideReadPostsWritesThrough() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.hideReadPosts = false
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateHideReadPosts(true)
+
+        #expect(viewModel.hideReadPosts == true)
+        #expect(prefs.hideReadPosts == true)
+    }
+
+    @Test
+    func updateHideReadPostsModeWritesThrough() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.hideReadPostsMode = .onRefresh
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateHideReadPostsMode(.live)
+
+        #expect(viewModel.hideReadPostsMode == .live)
+        #expect(prefs.hideReadPostsMode == .live)
+    }
+
+    @Test
+    func markReadOnScrollEffectiveRequiresMasterAndScroll() {
+        let prefs = PreferencesService.ephemeral()
+        // Scroll pref stored on, but the master is off: not effectively active.
+        prefs.markPostsRead = false
+        prefs.markPostsReadOnScroll = true
+        let viewModel = makeViewModel(preferences: prefs)
+
+        #expect(viewModel.markReadOnScroll == false)
+    }
+
+    @Test
+    func updateMarkReadOnScrollOnEnablesMasterAndScroll() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.markPostsRead = false
+        prefs.markPostsReadOnScroll = false
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateMarkReadOnScroll(true)
+
+        #expect(viewModel.markReadOnScroll == true)
+        #expect(prefs.markPostsReadOnScroll == true)
+        #expect(prefs.markPostsRead == true)
+    }
+
+    @Test
+    func updateMarkReadOnScrollOnLeavesMasterOnWhenAlreadyOn() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.markPostsRead = true
+        prefs.markPostsReadOnScroll = false
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateMarkReadOnScroll(true)
+
+        #expect(prefs.markPostsReadOnScroll == true)
+        #expect(prefs.markPostsRead == true)
+    }
+
+    @Test
+    func updateMarkReadOnScrollOffLeavesMasterOn() {
+        let prefs = PreferencesService.ephemeral()
+        prefs.markPostsRead = true
+        prefs.markPostsReadOnScroll = true
+        let viewModel = makeViewModel(preferences: prefs)
+
+        viewModel.updateMarkReadOnScroll(false)
+
+        #expect(viewModel.markReadOnScroll == false)
+        #expect(prefs.markPostsReadOnScroll == false)
+        // Master stays on so mark-on-open still works.
+        #expect(prefs.markPostsRead == true)
     }
 
     @Test
