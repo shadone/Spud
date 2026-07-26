@@ -326,7 +326,7 @@ class ActivityViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         title = NSLocalizedString("Activity", comment: "Activity screen title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = true

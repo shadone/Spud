@@ -113,7 +113,7 @@ final class RecipientPickerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString(
             "New Message",
             comment: "Recipient picker navigation title"

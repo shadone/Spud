@@ -86,7 +86,7 @@ final class SummaryStatTileView: UIView {
     // MARK: Layout
 
     private func setupLayout() {
-        backgroundColor = Theme.secondaryGroupedBackground
+        backgroundColor = .secondarySystemGroupedBackground
         layer.cornerRadius = 12
         layer.masksToBounds = true
 

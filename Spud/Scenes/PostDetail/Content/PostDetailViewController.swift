@@ -342,7 +342,7 @@ class PostDetailViewController: UIViewController {
         // which requires a non-nil `dataSource`.
         setupDataSource()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         overflowBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis"),

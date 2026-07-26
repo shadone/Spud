@@ -254,7 +254,7 @@ final class NewPostViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         navigationItem.title = viewModel.navigationTitle
         postButton.title = viewModel.submitButtonTitle

@@ -35,7 +35,7 @@ struct FunStatsView: View {
             }
             .padding()
         }
-        .background(Color(Theme.groupedBackground))
+        .background(Color(.systemGroupedBackground))
         .navigationTitle("Fun Stats")
         .navigationBarTitleDisplayMode(.inline)
         .toolbar {
@@ -83,7 +83,7 @@ struct FunStatsView: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 24)
-        .background(Color(Theme.secondaryGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
     }
 
@@ -105,7 +105,7 @@ struct FunStatsView: View {
             }
         }
         .padding(.horizontal)
-        .background(Color(Theme.secondaryGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
     }
 
     private var footer: some View {
@@ -146,7 +146,7 @@ private struct FunStatTile: View {
         .frame(maxWidth: .infinity)
         .padding(.vertical, 14)
         .padding(.horizontal, 8)
-        .background(Color(Theme.secondaryGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
+        .background(Color(.secondarySystemGroupedBackground), in: RoundedRectangle(cornerRadius: 12))
         .accessibilityElement(children: .combine)
         .accessibilityLabel("\(stat.label): \(stat.value)")
     }

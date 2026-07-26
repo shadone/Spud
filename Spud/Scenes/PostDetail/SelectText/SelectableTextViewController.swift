@@ -44,7 +44,7 @@ final class SelectableTextViewController: UIViewController {
         super.viewDidLoad()
 
         title = NSLocalizedString("Select Text", comment: "Title of the post text-selection screen")
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         navigationItem.rightBarButtonItem = UIBarButtonItem(
             barButtonSystemItem: .done,

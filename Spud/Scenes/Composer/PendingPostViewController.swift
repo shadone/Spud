@@ -206,7 +206,7 @@ final class PendingPostViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Posting", comment: "Title of the pending-post screen")
 
         let bannerContent = UIStackView(arrangedSubviews: [bannerSpinner, bannerIcon, bannerLabel])
@@ -330,7 +330,7 @@ final class PendingPostViewController: UIViewController {
     private func applyBanner(status: OutboundStatus) {
         switch status {
         case .draft, .queued, .sending:
-            bannerView.backgroundColor = Theme.secondaryGroupedBackground
+            bannerView.backgroundColor = .secondarySystemGroupedBackground
             bannerSpinner.startAnimating()
             bannerIcon.isHidden = true
             bannerLabel.textColor = .secondaryLabel

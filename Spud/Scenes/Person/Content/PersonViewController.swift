@@ -153,7 +153,7 @@ class PersonViewController: UIViewController {
     /// (a tall bio in particular), rather than overflowing a fixed top region.
     private lazy var headerContainer: UIView = {
         let container = UIView()
-        container.backgroundColor = Theme.background
+        container.backgroundColor = .systemBackground
         container.addSubview(headerView)
         container.addSubview(segmentedControl)
         NSLayoutConstraint.activate([
@@ -229,7 +229,7 @@ class PersonViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         headerView.translatesAutoresizingMaskIntoConstraints = false
         headerView.imageService = imageService

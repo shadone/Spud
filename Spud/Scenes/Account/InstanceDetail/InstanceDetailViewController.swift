@@ -214,14 +214,14 @@ final class InstanceDetailViewController: UIViewController {
     }
 
     private func refreshDynamicBorders() {
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         noticeBannerContainer?.layer.borderColor = noticeBannerColor?.withAlphaComponent(0.26).cgColor
     }
 
     // MARK: Setup
 
     private func setup() {
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
         navigationItem.title = record.baseurl
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -296,7 +296,7 @@ final class InstanceDetailViewController: UIViewController {
         iconImageView.layer.cornerRadius = 16
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.layer.borderWidth = 3
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         iconImageView.backgroundColor = placeholderColor(saturation: 0.45, brightness: 0.55)
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconLetterLabel.text = String(record.name.prefix(1)).uppercased()
@@ -617,7 +617,7 @@ final class InstanceDetailViewController: UIViewController {
         label.font = .systemFont(ofSize: 12.5, weight: .semibold)
         label.textColor = .secondaryLabel
         let container = UIView()
-        container.backgroundColor = Theme.secondaryBackground
+        container.backgroundColor = .secondarySystemBackground
         container.layer.cornerRadius = 9
         label.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(label)
@@ -730,7 +730,7 @@ final class InstanceDetailViewController: UIViewController {
     private func makePrimaryButton(title: String, enabled: Bool) -> UIButton {
         var config = UIButton.Configuration.filled()
         config.title = title
-        config.baseBackgroundColor = enabled ? accent : Theme.secondaryBackground
+        config.baseBackgroundColor = enabled ? accent : .secondarySystemBackground
         config.baseForegroundColor = enabled ? .white : .tertiaryLabel
         config.cornerStyle = .large
         config.contentInsets = .init(top: 14, leading: 16, bottom: 14, trailing: 16)
@@ -1118,7 +1118,7 @@ final class InstanceDetailViewController: UIViewController {
 
     private func makeCard() -> UIView {
         let card = UIView()
-        card.backgroundColor = Theme.secondaryGroupedBackground
+        card.backgroundColor = .secondarySystemGroupedBackground
         card.layer.cornerRadius = 14
         card.layer.cornerCurve = .continuous
         card.clipsToBounds = true

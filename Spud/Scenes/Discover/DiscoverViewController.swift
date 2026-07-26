@@ -125,7 +125,7 @@ class DiscoverViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Discover", comment: "Discover screen title")
 
         let accent = Color(ThemeManager.currentAccentColor)

@@ -58,7 +58,7 @@ final class FeedSwitcherViewController: UIViewController {
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.backgroundColor = Theme.groupedBackground
+        tableView.backgroundColor = .systemGroupedBackground
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         return tableView
     }()
@@ -129,7 +129,7 @@ final class FeedSwitcherViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
 
         title = NSLocalizedString("Feeds", comment: "Feed switcher label")
         navigationItem.largeTitleDisplayMode = .never
@@ -191,7 +191,7 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
         content.image = UIImage(systemName: row.symbolName)
         content.imageProperties.tintColor = view.tintColor
         cell.contentConfiguration = content
-        cell.backgroundColor = Theme.secondaryGroupedBackground
+        cell.backgroundColor = .secondarySystemGroupedBackground
 
         switch row.kind {
         case .browseCommunities:

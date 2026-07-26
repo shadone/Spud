@@ -182,7 +182,7 @@ final class PendingReviewViewController: UIViewController {
         // form would be misleading.
         navigationItem.hidesBackButton = true
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         clockTile.addSubview(clockImageView)
 

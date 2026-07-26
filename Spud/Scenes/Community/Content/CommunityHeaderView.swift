@@ -236,7 +236,7 @@ final class CommunityHeaderView: UIView {
     }
 
     private func setup() {
-        backgroundColor = Theme.background
+        backgroundColor = .systemBackground
 
         addSubview(bannerImageView)
         // Blur overlay sits directly above the banner so it can be toggled

@@ -120,7 +120,7 @@ final class InstanceExploreViewController: UIViewController {
     // MARK: Setup
 
     private func setup() {
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
         navigationItem.title = record.baseurl
         navigationItem.largeTitleDisplayMode = .never
         navigationItem.rightBarButtonItem = UIBarButtonItem(
@@ -485,7 +485,7 @@ final class InstanceExploreViewController: UIViewController {
 
     private func makeCard() -> UIView {
         let card = UIView()
-        card.backgroundColor = Theme.secondaryGroupedBackground
+        card.backgroundColor = .secondarySystemGroupedBackground
         card.layer.cornerRadius = 14
         card.layer.cornerCurve = .continuous
         card.clipsToBounds = true

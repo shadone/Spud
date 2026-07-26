@@ -140,7 +140,7 @@ final class ForgotPasswordViewController: UIViewController {
     private func setup() {
         navigationItem.title = NSLocalizedString("Reset", comment: "Forgot-password screen title")
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         infoNote.addSubview(infoImageView)
         infoNote.addSubview(infoLabel)

@@ -124,7 +124,7 @@ final class ComposerViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         navigationItem.title = viewModel.navigationTitle
         navigationItem.leftBarButtonItem = cancelButton

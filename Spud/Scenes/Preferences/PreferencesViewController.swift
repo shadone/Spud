@@ -60,7 +60,7 @@ class PreferencesViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         tabBarItem.title = "Preferences"
         tabBarItem.image = UIImage(systemName: "gear")!

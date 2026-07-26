@@ -619,33 +619,24 @@ class MainWindow: UIWindow {
         }
     }
 
-    /// Applies the theme to this window. Sets the interface style (which
-    /// drives a trait-collection change so the theme-aware `Theme` color
-    /// providers re-resolve, swapping backgrounds to true black under OLED)
-    /// and records it on the shared `ThemeManager` so those providers see the
-    /// True-Black flag.
+    /// Applies the theme to this window: sets the interface style and
+    /// records the selection on the shared `ThemeManager` (which now only
+    /// tracks the selection for `AccentColor` consumers -- the True-Black
+    /// flag it used to carry is gone).
     ///
-    /// Switching between standard Dark and True-Black keeps the same
-    /// `overrideUserInterfaceStyle` (`.dark`), so UIKit fires no trait change
-    /// and the dynamic `Theme` colors would not re-resolve. In that case we
-    /// nudge the window through `.unspecified` and back on the next runloop
-    /// tick to force a real trait change. Every other transition changes the
-    /// style outright and refreshes instantly.
+    /// This used to also handle switching between standard Dark and the
+    /// since-retired True-Black theme, which shared the same
+    /// `UIUserInterfaceStyle.dark` and so left `overrideUserInterfaceStyle`
+    /// unchanged; that required a manual `.unspecified` nudge to force a
+    /// trait change so the theme-aware `Theme` color tokens would
+    /// re-resolve. Both preconditions are gone: each of the three remaining
+    /// themes (`system`/`light`/`dark`) maps to a distinct
+    /// `UIUserInterfaceStyle`, so an actual theme change always changes the
+    /// applied style on its own, and there is no longer any theme-aware
+    /// color token to re-resolve -- call sites read system colors directly.
     private func applyTheme(_ theme: AppTheme) {
-        let newStyle = theme.userInterfaceStyle
-        let styleUnchanged = overrideUserInterfaceStyle == newStyle
-
         ThemeManager.shared.setTheme(theme)
-
-        if styleUnchanged, newStyle == .dark {
-            // Dark <-> True-Black: same style, force re-resolution.
-            overrideUserInterfaceStyle = .unspecified
-            Task { @MainActor [weak self] in
-                self?.overrideUserInterfaceStyle = newStyle
-            }
-        } else {
-            overrideUserInterfaceStyle = newStyle
-        }
+        overrideUserInterfaceStyle = theme.userInterfaceStyle
     }
 
     /// Applies the accent color: drives `tintColor` (which UIKit propagates to

@@ -46,7 +46,7 @@ final class SummaryViewController: UIViewController {
 
     private let identityStripView: SummaryIdentityStripView = {
         let v = SummaryIdentityStripView()
-        v.backgroundColor = Theme.secondaryGroupedBackground
+        v.backgroundColor = .secondarySystemGroupedBackground
         v.layer.cornerRadius = 16
         v.layer.masksToBounds = true
         return v
@@ -95,7 +95,7 @@ final class SummaryViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
         title = NSLocalizedString("Summary", comment: "Summary screen title")
 
         setupLayout()

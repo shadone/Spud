@@ -130,7 +130,7 @@ final class CustomInstanceEntryViewController: UIViewController {
 
     private func setup() {
         navigationItem.title = NSLocalizedString("Add Instance", comment: "Custom instance entry nav title")
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         // The header icon hugs its own size and is centered via a horizontal
         // stack rather than stretching to the form's full width.

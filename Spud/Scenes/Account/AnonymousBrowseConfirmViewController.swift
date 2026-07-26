@@ -160,7 +160,7 @@ final class AnonymousBrowseConfirmViewController: UIViewController {
     private func setup() {
         navigationItem.title = NSLocalizedString("Browse", comment: "Anonymous-browse screen title")
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         globeTile.addSubview(globeImageView)
 

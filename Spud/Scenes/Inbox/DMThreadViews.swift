@@ -327,7 +327,7 @@ final class DMInputBar: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
         autoresizingMask = .flexibleHeight
-        backgroundColor = Theme.background
+        backgroundColor = .systemBackground
 
         let separator = UIView()
         separator.translatesAutoresizingMaskIntoConstraints = false

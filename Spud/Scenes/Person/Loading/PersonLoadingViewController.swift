@@ -107,7 +107,7 @@ class PersonLoadingViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         view.addSubview(stackView)
 

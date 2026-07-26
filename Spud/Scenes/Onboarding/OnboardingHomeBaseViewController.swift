@@ -96,7 +96,7 @@ final class OnboardingHomeBaseViewController: UIViewController {
     // MARK: Setup
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),

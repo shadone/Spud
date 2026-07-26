@@ -85,7 +85,7 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         let contentVC = UIHostingController(rootView: SubscriptionsView(viewModel: self.viewModel))
         add(child: contentVC)

@@ -11,7 +11,7 @@ import UIKit
 /// theme-independent by design: the card is a piece of exported content, not
 /// app chrome, so it must render identically regardless of the device's
 /// current appearance or accent-color preference. Never substitute
-/// `ThemeManager.currentAccentColor` or `Theme.*` tokens here — those read
+/// `ThemeManager.currentAccentColor` or a system `UIColor` here — those read
 /// live, process-wide app state and would make the exported image drift
 /// between devices/settings, defeating the point of a deterministic,
 /// shareable card. Values are the design deck's exact hex/rgba tokens (see

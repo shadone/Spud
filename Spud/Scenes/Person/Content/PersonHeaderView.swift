@@ -247,7 +247,7 @@ final class PersonHeaderView: UIView {
     }
 
     private func setup() {
-        backgroundColor = Theme.background
+        backgroundColor = .systemBackground
 
         addSubview(statusBannerView)
         addSubview(bannerImageView)

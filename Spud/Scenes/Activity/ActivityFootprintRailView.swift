@@ -32,7 +32,7 @@ final class ActivityFootprintRailView: UIView {
     private let cardView: UIView = {
         let v = UIView()
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.backgroundColor = Theme.secondaryBackground
+        v.backgroundColor = .secondarySystemBackground
         v.layer.cornerRadius = 14
         v.layer.cornerCurve = .continuous
         v.layer.borderWidth = 1.0 / UIScreen.main.scale

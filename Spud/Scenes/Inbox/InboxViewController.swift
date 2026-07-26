@@ -178,7 +178,7 @@ final class InboxViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Inbox", comment: "Inbox screen navigation title")
 
         markAllReadButton.accessibilityLabel = NSLocalizedString(

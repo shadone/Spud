@@ -35,7 +35,7 @@ final class InstanceBannerHeaderView: UIView {
         iconImageView.layer.cornerRadius = 16
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.layer.borderWidth = 3
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         iconImageView.backgroundColor = Self.placeholderColor(seed: host, saturation: 0.45, brightness: 0.55)
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconLetterLabel.text = String(name.prefix(1)).uppercased()
@@ -92,7 +92,7 @@ final class InstanceBannerHeaderView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
     }
 
     func loadImages(iconUrl: String?, bannerUrl: String?, imageService: ImageServiceType) {

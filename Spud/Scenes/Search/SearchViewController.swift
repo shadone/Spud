@@ -205,7 +205,7 @@ final class SearchViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Search", comment: "Search screen navigation title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false
