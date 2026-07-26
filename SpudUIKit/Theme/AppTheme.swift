@@ -8,39 +8,26 @@ import UIKit
 
 /// The user-selectable app appearance.
 ///
-/// `.system`, `.light`, and `.dark` map directly onto a
-/// `UIUserInterfaceStyle`. `.trueBlack` is a dark variant that additionally
-/// swaps the app's background tokens to pure black for OLED displays — the
-/// interface style is still `.dark`, but ``Theme/usesTrueBlackBackgrounds``
-/// is `true`, which the theme-aware color providers honour.
+/// Each case maps directly onto a `UIUserInterfaceStyle`.
 public enum AppTheme: String, CaseIterable, Codable, Sendable, Identifiable {
     case system
     case light
     case dark
-    case trueBlack
 
     public var id: String {
         rawValue
     }
 
-    /// The interface style UIKit should apply for this theme. `.trueBlack`
-    /// resolves to `.dark`; the pure-black swap is layered on top of dark
-    /// mode by the color providers.
+    /// The interface style UIKit should apply for this theme.
     public var userInterfaceStyle: UIUserInterfaceStyle {
         switch self {
         case .system:
             return .unspecified
         case .light:
             return .light
-        case .dark, .trueBlack:
+        case .dark:
             return .dark
         }
-    }
-
-    /// Whether this theme replaces the standard dark backgrounds with pure
-    /// black. Only `.trueBlack` does.
-    public var usesTrueBlackBackgrounds: Bool {
-        self == .trueBlack
     }
 
     /// Human-readable name for the settings picker.
@@ -52,8 +39,6 @@ public enum AppTheme: String, CaseIterable, Codable, Sendable, Identifiable {
             return "Light"
         case .dark:
             return "Dark"
-        case .trueBlack:
-            return "True Black"
         }
     }
 
@@ -66,8 +51,35 @@ public enum AppTheme: String, CaseIterable, Codable, Sendable, Identifiable {
             return "sun.max"
         case .dark:
             return "moon"
-        case .trueBlack:
-            return "moon.stars.fill"
         }
+    }
+
+    /// Legacy raw value of the retired True Black (OLED) theme.
+    private static let retiredTrueBlackRawValue = "trueBlack"
+
+    /// Decodes a persisted selection, mapping the retired True Black theme
+    /// onto `.dark`.
+    ///
+    /// True Black existed only to force opaque bars on OLED displays; Liquid
+    /// Glass replaces that chrome entirely, so the theme was retired. Without
+    /// this mapping `UserDefaultsBacked` would fail to decode the stored value
+    /// and silently fall back to `.system`, discarding the user's dark-mode
+    /// choice along with their OLED preference.
+    public init(from decoder: any Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let rawValue = try container.decode(String.self)
+
+        if rawValue == Self.retiredTrueBlackRawValue {
+            self = .dark
+            return
+        }
+
+        guard let theme = AppTheme(rawValue: rawValue) else {
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unrecognised AppTheme raw value '\(rawValue)'"
+            )
+        }
+        self = theme
     }
 }

@@ -10,13 +10,12 @@ import UIKit
 /// The share card's own two-surface color palette (light / dark), fixed and
 /// theme-independent by design: the card is a piece of exported content, not
 /// app chrome, so it must render identically regardless of the device's
-/// current appearance, true-black setting, or accent-color preference. Never
-/// substitute `ThemeManager.currentAccentColor` or `Theme.*` tokens here —
-/// those read the process-wide true-black flag and would make the exported
-/// image drift between devices/settings, defeating the point of a
-/// deterministic, shareable card. Values are the design deck's exact
-/// hex/rgba tokens (see `docs/superpowers/plans/2026-07-18-share-as-image.md`
-/// "Card visual spec").
+/// current appearance or accent-color preference. Never substitute
+/// `ThemeManager.currentAccentColor` or `Theme.*` tokens here — those read
+/// live, process-wide app state and would make the exported image drift
+/// between devices/settings, defeating the point of a deterministic,
+/// shareable card. Values are the design deck's exact hex/rgba tokens (see
+/// `docs/superpowers/plans/2026-07-18-share-as-image.md` "Card visual spec").
 struct ShareCardPalette {
     /// Canvas backdrop behind the card (visible only in `.square`/`.story`
     /// canvas modes, or as the card's own edge on `.native`).
