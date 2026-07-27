@@ -50,22 +50,6 @@ class MainWindow: UIWindow {
 
     // MARK: Private
 
-    /// Stable identifiers for the root tabs.
-    ///
-    /// Tabs are addressed by identifier, never by index: the system relocates
-    /// the search tab to the trailing edge, so an index is not a stable
-    /// reference to a tab.
-    ///
-    /// Search is absent deliberately — `UISearchTab` assigns its own
-    /// system identifier, available as the type property
-    /// `UISearchTab.identifier`.
-    private enum TabIdentifier {
-        static let posts = "posts"
-        static let communities = "communities"
-        static let inbox = "inbox"
-        static let account = "account"
-    }
-
     private let tabBarController: MainWindowTabBarController
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
@@ -381,7 +365,7 @@ class MainWindow: UIWindow {
         let accountNavigationController = UINavigationController(rootViewController: accountViewController)
         accountNavigationController.enableForwardNavigationGesture()
 
-        // Tabs are addressed by stable identifier (`TabIdentifier`), never by
+        // Tabs are addressed by stable identifier (`MainWindowTabIdentifier`), never by
         // index. `UISearchTab` supplies its own system-localized title/image
         // and is relocated by the system to the trailing edge, so the
         // rendered order is Posts | Communities | Inbox | Account | Search —
@@ -389,7 +373,7 @@ class MainWindow: UIWindow {
         let postsTab = UITab(
             title: NSLocalizedString("Posts", comment: "Posts tab title"),
             image: UIImage(systemName: "doc.richtext"),
-            identifier: TabIdentifier.posts
+            identifier: MainWindowTabIdentifier.posts
         ) { _ in
             splitViewController
         }
@@ -402,7 +386,7 @@ class MainWindow: UIWindow {
         let communitiesTab = UITab(
             title: NSLocalizedString("Communities", comment: "Communities tab title"),
             image: UIImage(systemName: "person.3"),
-            identifier: TabIdentifier.communities
+            identifier: MainWindowTabIdentifier.communities
         ) { _ in
             communitiesNavigationController
         }
@@ -414,7 +398,7 @@ class MainWindow: UIWindow {
         let inboxTab = UITab(
             title: NSLocalizedString("Inbox", comment: "Inbox tab title"),
             image: UIImage(systemName: "tray"),
-            identifier: TabIdentifier.inbox
+            identifier: MainWindowTabIdentifier.inbox
         ) { _ in
             inboxNavigationController
         }
@@ -422,7 +406,7 @@ class MainWindow: UIWindow {
         let accountTab = UITab(
             title: NSLocalizedString("Account", comment: "Account tab title"),
             image: UIImage(systemName: "person.crop.circle"),
-            identifier: TabIdentifier.account
+            identifier: MainWindowTabIdentifier.account
         ) { _ in
             accountNavigationController
         }
@@ -454,7 +438,7 @@ class MainWindow: UIWindow {
     }
 
     private func applyUnreadBadge(_ count: UnreadCount) {
-        guard let tab = tabBarController.tab(forIdentifier: TabIdentifier.inbox) else { return }
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.inbox) else { return }
         tab.badgeValue = count.total > 0 ? "\(count.total)" : nil
     }
 
@@ -474,7 +458,7 @@ class MainWindow: UIWindow {
     }
 
     private func applyReauthBadge(_ needsReauth: Bool) {
-        guard let tab = tabBarController.tab(forIdentifier: TabIdentifier.account) else { return }
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.account) else { return }
         tab.badgeValue = needsReauth ? "!" : nil
     }
 
@@ -552,8 +536,13 @@ class MainWindow: UIWindow {
     /// behind an already-presented screen. Starts from the selected tab's root
     /// (the same "current tab" notion `pushIntoCurrentContext` routes into) and
     /// walks any presented chain (e.g. the account switcher sheet) to its tip.
+    ///
+    /// Reads `selectedTab?.viewController`, not the legacy
+    /// `selectedViewController` — since `MainWindow` addresses tabs via
+    /// `setTabs(_:animated:)`, `selectedViewController` always returns nil
+    /// (see `MainWindowTabIdentifier`'s doc comment).
     private func topmostPresenter() -> UIViewController {
-        var presenter: UIViewController = tabBarController.selectedViewController ?? tabBarController
+        var presenter: UIViewController = tabBarController.selectedTab?.viewController ?? tabBarController
         while let presented = presenter.presentedViewController {
             presenter = presented
         }
@@ -608,7 +597,7 @@ class MainWindow: UIWindow {
     /// Routes to the Account tab (its signed-out screen offers log in / sign
     /// up) and resets it to root. Called from the sign-in gate.
     func selectAccountTab() {
-        guard let tab = tabBarController.tab(forIdentifier: TabIdentifier.account) else { return }
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.account) else { return }
         tabBarController.selectedTab = tab
         (tab.viewController as? UINavigationController)?.popToRootViewController(animated: false)
     }
@@ -616,7 +605,7 @@ class MainWindow: UIWindow {
     /// Routes to the Communities tab (subscriptions / Explore) and resets it to
     /// root. Used by the Activity empty state's "Browse communities" escape hatch.
     func selectCommunitiesTab() {
-        guard let tab = tabBarController.tab(forIdentifier: TabIdentifier.communities) else { return }
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.communities) else { return }
         tabBarController.selectedTab = tab
         (tab.viewController as? UINavigationController)?.popToRootViewController(animated: false)
     }
@@ -812,8 +801,15 @@ class MainWindow: UIWindow {
     /// - Any other (single-column) tab — a normal push onto its nav stack.
     /// - No navigation context (e.g. a cold deep link) — fall back to the Posts
     ///   tab.
+    ///
+    /// Reads `selectedTab?.viewController`, not the legacy
+    /// `selectedViewController` — since `MainWindow` addresses tabs via
+    /// `setTabs(_:animated:)`, `selectedViewController` always returns nil
+    /// (see `MainWindowTabIdentifier`'s doc comment), which would silently
+    /// collapse every case below to `.none` and force every detail push
+    /// through the Posts tab regardless of where the user actually is.
     private func pushIntoCurrentContext(_ viewController: UIViewController) {
-        let selected = tabBarController.selectedViewController
+        let selected = tabBarController.selectedTab?.viewController
         guard let splitViewController else {
             // No Posts split yet — the only sensible push target is the selected
             // tab's nav stack, if there is one.
@@ -831,7 +827,7 @@ class MainWindow: UIWindow {
         case let .plainNav(navigationController):
             navigationController.pushViewController(viewController, animated: true)
         case .none:
-            selectTab(identifier: TabIdentifier.posts)
+            selectTab(identifier: MainWindowTabIdentifier.posts)
             pushDetail(viewController: viewController)
         }
     }
@@ -849,10 +845,10 @@ class MainWindow: UIWindow {
 extension MainWindow: AppNavigating {
     // Rendered tab order: Posts | Communities | Inbox | Account | Search (the
     // system relocates the search tab to the trailing edge). Tabs are
-    // addressed by `TabIdentifier` / `UISearchTab.identifier`, never by index.
+    // addressed by `MainWindowTabIdentifier` / `UISearchTab.identifier`, never by index.
 
     func selectFeed(listing: Lemmy.ListingType, sort: Lemmy.SortType?) {
-        selectTab(identifier: TabIdentifier.posts)
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.frontpage(
             listingType: adjustedListing(listing),
@@ -861,7 +857,7 @@ extension MainWindow: AppNavigating {
     }
 
     func selectSavedFeed(sort: Lemmy.SortType?) {
-        selectTab(identifier: TabIdentifier.posts)
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
     }
@@ -882,13 +878,13 @@ extension MainWindow: AppNavigating {
     }
 
     func presentNewPost() {
-        selectTab(identifier: TabIdentifier.posts)
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.beginNewPost()
     }
 
     func selectInbox() {
-        selectTab(identifier: TabIdentifier.inbox)
+        selectTab(identifier: MainWindowTabIdentifier.inbox)
     }
 
     // `display(communityName:instance:accountKeychainId:)` already satisfies the

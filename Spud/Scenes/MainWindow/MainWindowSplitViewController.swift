@@ -185,9 +185,15 @@ class MainWindowSplitViewController: UISplitViewController {
             guard let self, let feedSwitcher else { return }
             // Return focus to the post list first — in compact this restores the
             // Posts tab so coming back to it does not land on the bare switcher —
-            // then jump to the Communities tab (index 1).
+            // then jump to the Communities tab, addressed by stable identifier.
+            // `MainWindow` builds the tab bar with `setTabs(_:animated:)`, which
+            // makes the legacy `selectedIndex` writer a silent no-op (see
+            // `MainWindowTabIdentifier`'s doc comment) — `selectedTab =` is the
+            // live replacement.
             returnToList(feedSwitcher)
-            tabBarController?.selectedIndex = 1
+            if let communitiesTab = tabBarController?.tab(forIdentifier: MainWindowTabIdentifier.communities) {
+                tabBarController?.selectedTab = communitiesTab
+            }
         }
         return feedSwitcher
     }
