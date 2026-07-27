@@ -127,6 +127,21 @@ final class ShareAsImageViewController: UIViewController {
         doneButton.action = #selector(doneTapped)
         navigationItem.rightBarButtonItem = doneButton
 
+        // The editor's stage (`ShareAsImageCanvasView`) is a fixed dark backdrop
+        // regardless of the system appearance, and it runs edge-to-edge under the
+        // now-translucent nav bar. In light mode a system-light bar drew
+        // near-black title text directly over that near-black canvas (caught and
+        // recorded as a snapshot ground truth by an earlier Liquid Glass audit
+        // pass). Forcing only the bar's own trait environment to `.dark` makes
+        // it render its (still system-semantic) title/tint colors
+        // dark-appropriate — legible against the dark stage in both light and
+        // dark app appearance — without touching the content view's own
+        // system-adaptive colors (the bottom tray/output bar stay light in
+        // light mode, matching the settled Editor C design). Scoped to the bar
+        // view itself (not the whole navigation controller or this VC), so it
+        // never leaks into the content beneath it.
+        navigationController?.navigationBar.overrideUserInterfaceStyle = .dark
+
         makePreviewCard()
         setUpHierarchy()
         wireTray()
