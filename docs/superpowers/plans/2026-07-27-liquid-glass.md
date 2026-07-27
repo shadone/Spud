@@ -1374,3 +1374,70 @@ A scroll view pinned to the safe area leaves a dead zone under a
 translucent bar with nothing to refract. Content now rests below the bar
 and scrolls under it."
 ```
+
+---
+
+### Task 22: Make the feed switcher popover actually render as glass
+
+Added during execution. Task 6 added an `isPopover` guard to
+`FeedSwitcherViewController` so the popover path stops applying a flat
+`.systemGroupedBackground` fill to both `view` and `tableView`. That fix could
+not be verified at the time — the popover only appears in the regular
+horizontal size class, which the reference iPhone never reaches.
+
+Task 13's iPad session reached it and **disproved the fix**: the popover still
+renders flat. Pixel-sampling a 3,750-pixel background patch inside a row showed
+a single solid colour (standard deviation about 0.5) — no blur, no
+translucency. The `isPopover` guard is necessary but not sufficient.
+
+Run this task AFTER Task 14 (both need the iPad, so do them in one boot cycle
+if convenient).
+
+**Files:**
+- Modify: `Spud/Scenes/MainWindow/QuickSwitch/FeedSwitcherViewController.swift`
+
+- [ ] **Step 1: Find what is still opaque**
+
+The guard already clears `view.backgroundColor` and sets
+`tableView.backgroundColor = .clear` for the popover path. Something else is
+still filling the surface. Candidates, in rough order of likelihood:
+
+- the table view CELLS (a `UITableViewCell` has its own opaque
+  `backgroundColor` / `contentView.backgroundColor`, and `.insetGrouped` cells
+  are opaque by default),
+- the cells' `backgroundConfiguration` (iOS 14+ list cells resolve an opaque
+  background from `UIBackgroundConfiguration.listGroupedCell()`),
+- the popover presentation controller's own backdrop,
+- a section header/footer view.
+
+Diagnose before changing anything — verify which layer is opaque rather than
+clearing backgrounds speculatively until it looks right.
+
+- [ ] **Step 2: Confirm the guard itself fires**
+
+Independently of the above, confirm `isPopover` is actually `true` on the
+popover path at the point it is read. Task 12 established empirically that
+`modalPresentationStyle` is set by the caller before `viewDidLoad` runs, so it
+should be — but verify rather than assume, because if the guard never fires the
+rest of the diagnosis is moot.
+
+- [ ] **Step 3: Fix, and do not over-clear**
+
+The pushed (compact-width) path must keep its opaque grouped appearance. Only
+the popover path changes. A fix that makes the pushed screen transparent is a
+regression.
+
+- [ ] **Step 4: Verify on iPad, with pixels not vibes**
+
+Boot `iPad Pro 11-inch (M5)` by id (shut the iPhone down first; the M4/iOS 18.5
+simulator dyld-crashes this app). Open the feed switcher popover, screenshot it,
+and sample a background patch inside a row. Glass shows variation from the
+content behind it; a flat fill shows a near-zero standard deviation. Report the
+number, not an impression.
+
+Then shut the iPad down and re-boot the reference iPhone 17 Pro.
+
+- [ ] **Step 5: Verify and commit**
+
+`mint run swiftformat Spud && make build && make test`, then commit with
+explicit paths.
