@@ -25,6 +25,12 @@ final class PostDetailCrossPostsCell: UITableViewCell {
     private let titleLabel = UILabel()
     private let rowsStack = UIStackView()
 
+    /// Height constraints of the between-row divider hairlines, re-resolved in
+    /// `layoutSubviews()` against the current display scale so they don't go
+    /// stale if the window moves to a display with a different scale (e.g.
+    /// under iPhone Mirroring) while this cell is on screen.
+    private var dividerHeightConstraints: [NSLayoutConstraint] = []
+
     override init(style: UITableViewCell.CellStyle, reuseIdentifier: String?) {
         super.init(style: style, reuseIdentifier: reuseIdentifier)
         selectionStyle = .none
@@ -62,6 +68,15 @@ final class PostDetailCrossPostsCell: UITableViewCell {
         super.prepareForReuse()
         crossPostTapped = nil
         rowsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        dividerHeightConstraints.removeAll()
+    }
+
+    override func layoutSubviews() {
+        super.layoutSubviews()
+        let hairline = 1 / traitCollection.displayScale
+        for constraint in dividerHeightConstraints {
+            constraint.constant = hairline
+        }
     }
 
     /// Rebuilds the title + row list for `crossPosts`, in the given (server)
@@ -70,6 +85,7 @@ final class PostDetailCrossPostsCell: UITableViewCell {
     /// least one cross-post, so that path is defensive rather than expected.
     func configure(with crossPosts: [CrossPostSummary]) {
         rowsStack.arrangedSubviews.forEach { $0.removeFromSuperview() }
+        dividerHeightConstraints.removeAll()
 
         let count = crossPosts.count
         titleLabel.text = count == 1
@@ -94,10 +110,9 @@ final class PostDetailCrossPostsCell: UITableViewCell {
             if index < crossPosts.count - 1 {
                 let divider = UIView()
                 divider.backgroundColor = .separator
-                // `UIScreen.main` is soft-deprecated; fall back to 1x only in the
-                // (untappable in practice) case the cell isn't in a window yet.
-                let scale = traitCollection.displayScale > 0 ? traitCollection.displayScale : 1
-                divider.heightAnchor.constraint(equalToConstant: 1 / scale).isActive = true
+                let heightConstraint = divider.heightAnchor.constraint(equalToConstant: 1 / traitCollection.displayScale)
+                heightConstraint.isActive = true
+                dividerHeightConstraints.append(heightConstraint)
                 rowsStack.addArrangedSubview(divider)
             }
         }

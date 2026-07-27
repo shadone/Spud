@@ -15,9 +15,14 @@ enum AdaptiveLayout {
     /// Maximum width for full-width directory/list content on a wide canvas.
     static let directoryMaxWidth: CGFloat = 700
 
-    /// The downsample target width for a wide banner image: the screen width,
-    /// capped so an iPad does not fetch a needlessly huge bitmap.
-    static func bannerDownsampleWidth(screenWidth: CGFloat, cap: CGFloat = contentMaxWidth) -> CGFloat {
-        Swift.min(screenWidth, cap)
+    /// The downsample target width for a wide banner image.
+    ///
+    /// Deliberately screen-independent. This previously took the screen's
+    /// width, which is wrong in a resizable scene (iPad split view, iPhone
+    /// Mirroring) where a scene's space is not the screen's. Capping at the
+    /// layout maximum keeps the fetched bitmap bounded without making the
+    /// downsample depend on anything a resize can change.
+    static func bannerDownsampleWidth(cap: CGFloat = contentMaxWidth) -> CGFloat {
+        cap
     }
 }

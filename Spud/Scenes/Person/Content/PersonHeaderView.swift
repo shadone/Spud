@@ -259,6 +259,14 @@ final class PersonHeaderView: UIView {
         return view
     }()
 
+    /// Hairline height, kept as a property so `layoutSubviews()` can re-resolve
+    /// it against the current display scale (a value baked in once at `setup()`
+    /// would go stale if the window moved to a display with a different scale,
+    /// e.g. under iPhone Mirroring).
+    private lazy var separatorHeightConstraint = separator.heightAnchor.constraint(
+        equalToConstant: 1 / traitCollection.displayScale
+    )
+
     // MARK: Init
 
     override init(frame: CGRect) {
@@ -274,6 +282,7 @@ final class PersonHeaderView: UIView {
     override func layoutSubviews() {
         super.layoutSubviews()
         avatarImageView.layer.borderColor = UIColor.systemBackground.cgColor
+        separatorHeightConstraint.constant = 1 / traitCollection.displayScale
     }
 
     private func setup() {
@@ -312,7 +321,7 @@ final class PersonHeaderView: UIView {
             separator.topAnchor.constraint(equalTo: bodyView.bottomAnchor, constant: 12),
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: trailingAnchor),
-            separator.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
+            separatorHeightConstraint,
             separator.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
 
