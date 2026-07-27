@@ -4,11 +4,14 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import HTTPTypes
+import LemmyKit
+import OpenAPIRuntime
 import SnapshotTesting
-import SpudDataKit
 import UIKit
 import XCTest
 @testable import Spud
+@testable import SpudDataKit
 
 /// Screen snapshots of the Explorer instance detail (feature #4) across the
 /// design's state matrix — open / application / closed / NSFW / suspicious /
@@ -62,11 +65,52 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         let nodeInfoService: NodeInfoServiceType
     }
 
+    /// `ClientTransport` that fails every request immediately and
+    /// synchronously, with no dependency on the real network stack.
+    ///
+    /// The Task 16 review's root cause for this class's cross-simulator-session
+    /// non-convergence: `makeDependencies()` used to build a real, unstubbed
+    /// `AccountService`, so `InstanceDetailViewController.loadSecondaryData()`'s
+    /// incidental async `fetchSiteInfo()` refresh (its result is `try?`-swallowed
+    /// and irrelevant to what these tests assert on — admins/communities render
+    /// synchronously from seeded DB fixtures) performed a GENUINE network round
+    /// trip against the fixtures' real, resolvable hostnames (`lemmy.world`,
+    /// `hexbear.net`, etc). That request's timing and outcome depend on live
+    /// network reachability, so two captures of the "same" fixture could settle
+    /// at different moments (or never cancel cleanly) — no amount of on-device
+    /// settle-polling can make genuinely non-deterministic network I/O
+    /// deterministic. Wiring this stub into every `AccountService` this class
+    /// constructs removes the network dependency entirely: the refresh still
+    /// fires and still fails (as it would on a real offline device), just
+    /// instantly and deterministically.
+    private final class OfflineStubTransport: ClientTransport, @unchecked Sendable {
+        func send(
+            _: HTTPRequest,
+            body _: HTTPBody?,
+            baseURL _: URL,
+            operationID _: String
+        ) async throws -> (HTTPResponse, HTTPBody?) {
+            throw URLError(.notConnectedToInternet)
+        }
+    }
+
     private func makeDependencies(metadata: InstanceMetadata? = nil) throws -> SnapshotDependencies {
         let appDatabase = try AppDatabase.inMemory()
+        let transport = OfflineStubTransport()
         return SnapshotDependencies(
             imageService: StaticImageService(),
-            accountService: AccountService(appDatabase: appDatabase),
+            accountService: AccountService(
+                appDatabase: appDatabase,
+                makeApi: { instanceUrl, credential, apiVersion in
+                    LemmyApi(
+                        instanceUrl: instanceUrl,
+                        credential: credential,
+                        transport: transport,
+                        userAgent: "SpudSnapshotTests",
+                        apiVersion: apiVersion
+                    )
+                }
+            ),
             alertService: AlertService(),
             appDatabase: appDatabase,
             metaCommunityService: StubMetaCommunityService(),
@@ -113,13 +157,64 @@ final class InstanceDetailSnapshotTests: XCTestCase {
         return window
     }
 
+    /// A provisional window height, generous enough that no fixture's content
+    /// (admins + communities, any state) is ever clipped while it settles —
+    /// this is NOT the final capture size (that's computed from
+    /// `snapshotContentHeight` afterward and applied to the same window).
+    private let provisionalWindowHeight: CGFloat = 6000
+
+    /// Pumps async work and re-measures `viewController.snapshotContentHeight`
+    /// until it stabilizes across several consecutive checks, rather than
+    /// trusting a single `RunLoop.current.run(until: Date())` pass.
+    ///
+    /// `InstanceDetailViewController.viewDidLoad()` renders admins/communities
+    /// synchronously (cache-first, from `siteAdminsSync`/`explorerCommunityListRowsSync`),
+    /// but ALSO kicks off async work — a NodeInfo metadata probe, and an
+    /// `observeSiteAdmins` for-await loop sequenced behind a `fetchSiteInfo()`
+    /// network attempt — that can still be in flight the instant
+    /// `loadViewIfNeeded()`/hosting returns. A single synchronous run-loop
+    /// pass does not guarantee either has landed before the height is read,
+    /// so two captures of the "same" fixture could measure/lay out at
+    /// different content heights depending on exactly when that async work
+    /// resolves relative to the capture. Never a fixed sleep — poll until the
+    /// height is stable, and fail loudly if it never settles, per the repo's
+    /// rule against waiting on async work with a fixed wall-clock budget.
+    private func waitUntilContentHeightSettles(
+        _ viewController: InstanceDetailViewController,
+        file: StaticString = #filePath,
+        line: UInt = #line
+    ) async {
+        var lastHeight: CGFloat?
+        var stableStreak = 0
+        let deadline = Date().addingTimeInterval(5)
+        while stableStreak < 4 {
+            let height = viewController.snapshotContentHeight
+            if let lastHeight, abs(height - lastHeight) < 0.5 {
+                stableStreak += 1
+            } else {
+                stableStreak = 0
+            }
+            lastHeight = height
+            if Date() > deadline {
+                XCTFail(
+                    "InstanceDetailViewController's content height never stabilized before the snapshot deadline (last measured \(height))",
+                    file: file,
+                    line: line
+                )
+                return
+            }
+            try? await Task.sleep(nanoseconds: 20_000_000)
+            await Task.yield()
+        }
+    }
+
     private func assertScreens(
         _ record: ExplorerInstanceRecord,
         adminCount: Int = 3,
         communityCount: Int = 3,
         testName: String = #function,
         line: UInt = #line
-    ) throws {
+    ) async throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let dependencies = try makeDependencies()
             try seedInstanceSnapshot(
@@ -131,18 +226,34 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             let viewController = InstanceDetailViewController(record: record, dependencies: dependencies)
             let navigationController = UINavigationController(rootViewController: viewController)
 
-            // Load and lay out so snapshotContentHeight reflects the full content.
-            navigationController.loadViewIfNeeded()
-            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-            navigationController.view.layoutIfNeeded()
+            // Host on the real window FIRST, at a generous provisional height,
+            // so every layout pass — including the one `viewDidLoad`'s
+            // synchronous AND async content triggers — happens in the SAME
+            // window/trait environment the final capture uses. Measuring
+            // `contentHeight` on a detached navigation controller (no window,
+            // no style override) and only THEN hosting/reparenting into the
+            // real window for the capture was the Task 16 review's root cause
+            // for this class's non-convergence across simulator sessions: a
+            // `drawHierarchyInKeyWindow: true` capture draws whatever is
+            // ALREADY laid out (unlike the old `.image(on: .deterministicPhone)`
+            // strategy, which built its own fresh offscreen window/layout
+            // regardless of what the caller had already measured), so a stale
+            // pre-hosting measurement could bake itself into the final render.
+            let window = hostInWindow(
+                nav: navigationController,
+                size: CGSize(width: 390, height: provisionalWindowHeight),
+                style: style
+            )
+            defer { window.rootViewController = nil }
+
+            await waitUntilContentHeightSettles(viewController, line: line)
 
             let contentHeight = viewController.snapshotContentHeight
             // Add chrome margin for the nav bar and bottom safe area.
             let totalHeight = max(844, contentHeight + 120)
             let size = CGSize(width: 390, height: totalHeight)
-
-            let window = hostInWindow(nav: navigationController, size: size, style: style)
-            defer { window.rootViewController = nil }
+            window.frame = CGRect(origin: .zero, size: size)
+            window.layoutIfNeeded()
 
             assertSnapshot(
                 matching: navigationController,
@@ -181,12 +292,20 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             let viewController = InstanceDetailViewController(record: record, dependencies: dependencies)
             let navigationController = UINavigationController(rootViewController: viewController)
 
-            navigationController.loadViewIfNeeded()
-            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-            navigationController.view.layoutIfNeeded()
+            // Host FIRST — see `assertScreens`'s comment for why measuring on
+            // a detached, unstyled navigation controller before reparenting
+            // into the real window doesn't converge under
+            // `drawHierarchyInKeyWindow: true`.
+            let window = hostInWindow(
+                nav: navigationController,
+                size: CGSize(width: 390, height: provisionalWindowHeight),
+                style: style
+            )
+            defer { window.rootViewController = nil }
 
             // The badge + live Signups are applied by an async probe; poll until
-            // the badge resolves before capturing (fail loudly if it never does).
+            // the badge resolves before measuring/capturing (fail loudly if it
+            // never does).
             let deadline = Date().addingTimeInterval(2)
             while viewController.snapshotSoftwareBadgeText == nil {
                 if Date() > deadline {
@@ -196,14 +315,14 @@ final class InstanceDetailSnapshotTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 5_000_000)
                 await Task.yield()
             }
-            navigationController.view.layoutIfNeeded()
+
+            await waitUntilContentHeightSettles(viewController, line: line)
 
             let contentHeight = viewController.snapshotContentHeight
             let totalHeight = max(844, contentHeight + 120)
             let size = CGSize(width: 390, height: totalHeight)
-
-            let window = hostInWindow(nav: navigationController, size: size, style: style)
-            defer { window.rootViewController = nil }
+            window.frame = CGRect(origin: .zero, size: size)
+            window.layoutIfNeeded()
 
             assertSnapshot(
                 matching: navigationController,
@@ -221,34 +340,34 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     // MARK: - States
 
-    func test_open() throws {
-        try assertScreens(Fixtures.world)
+    func test_open() async throws {
+        try await assertScreens(Fixtures.world)
     }
 
-    func test_application() throws {
-        try assertScreens(Fixtures.beehaw)
+    func test_application() async throws {
+        try await assertScreens(Fixtures.beehaw)
     }
 
-    func test_closed() throws {
-        try assertScreens(Fixtures.hexbear)
+    func test_closed() async throws {
+        try await assertScreens(Fixtures.hexbear)
     }
 
-    func test_nsfw() throws {
-        try assertScreens(Fixtures.nsfw)
+    func test_nsfw() async throws {
+        try await assertScreens(Fixtures.nsfw)
     }
 
-    func test_suspicious() throws {
+    func test_suspicious() async throws {
         // Suspicious instance: 0 admins → .anonymous state
-        try assertScreens(Fixtures.suspicious, adminCount: 0, communityCount: 2)
+        try await assertScreens(Fixtures.suspicious, adminCount: 0, communityCount: 2)
     }
 
-    func test_tiny_unknownUptime() throws {
-        try assertScreens(Fixtures.tiny, adminCount: 1, communityCount: 2)
+    func test_tiny_unknownUptime() async throws {
+        try await assertScreens(Fixtures.tiny, adminCount: 1, communityCount: 2)
     }
 
-    func test_missing_gracefulDegradation() throws {
+    func test_missing_gracefulDegradation() async throws {
         // Missing: 0 admins (unavailable) + 0 communities (unavailable)
-        try assertScreens(Fixtures.missing, adminCount: 0, communityCount: 0)
+        try await assertScreens(Fixtures.missing, adminCount: 0, communityCount: 0)
     }
 
     /// "About this instance" meta-community section: a seeded default account
@@ -259,6 +378,18 @@ final class InstanceDetailSnapshotTests: XCTestCase {
     /// fixture so the incidental site-info fetch fails fast and can never
     /// mutate the seeded render; the stub meta service never refreshes, so the
     /// section is a pure function of the seeded cache.
+    ///
+    /// Hosted on-screen (`hostInWindow` + `drawHierarchyInKeyWindow: true`),
+    /// same as `assertScreens`/`assertLiveMetadataScreens` — this test was
+    /// found during the Task 16 review to still be using the OLD offscreen
+    /// `.image(on: .deterministicPhone)` strategy, which this class's other
+    /// tests moved off of when the sticky action bar became real Liquid
+    /// Glass. It happened to keep passing regardless, because ITS reference
+    /// was recorded through that same offscreen path and therefore already
+    /// encoded the offscreen-only rendering artifact (the "Browse only"
+    /// button's `.label` text resolving to invisible white-on-light-gray —
+    /// see `hostInWindow`'s doc comment) rather than the correct on-screen
+    /// look. Re-recorded to match.
     func test_metaSection() async throws {
         for style in [UIUserInterfaceStyle.light, .dark] {
             let dependencies = try makeDependencies()
@@ -272,9 +403,12 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             let viewController = InstanceDetailViewController(record: Fixtures.liveDemo, dependencies: dependencies)
             let navigationController = UINavigationController(rootViewController: viewController)
 
-            navigationController.loadViewIfNeeded()
-            navigationController.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
-            navigationController.view.layoutIfNeeded()
+            let window = hostInWindow(
+                nav: navigationController,
+                size: CGSize(width: 390, height: provisionalWindowHeight),
+                style: style
+            )
+            defer { window.rootViewController = nil }
 
             // The meta section renders from an async GRDB observation; poll
             // until both seeded items land before capturing (fail loudly if
@@ -288,16 +422,19 @@ final class InstanceDetailSnapshotTests: XCTestCase {
                 try await Task.sleep(nanoseconds: 5_000_000)
                 await Task.yield()
             }
-            navigationController.view.layoutIfNeeded()
+
+            await waitUntilContentHeightSettles(viewController)
 
             let contentHeight = viewController.snapshotContentHeight
             let totalHeight = max(844, contentHeight + 120)
             let size = CGSize(width: 390, height: totalHeight)
+            window.frame = CGRect(origin: .zero, size: size)
+            window.layoutIfNeeded()
 
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .deterministicPhone,
+                    drawHierarchyInKeyWindow: true,
                     size: size,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
