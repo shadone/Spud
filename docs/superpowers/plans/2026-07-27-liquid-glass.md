@@ -970,6 +970,30 @@ Launch, open a post with an image, tap to open the media viewer. Expected: contr
 
 Verify the controls remain legible over both a very light and a very dark image.
 
+- [ ] **Step 4b: Re-triage the ALT badge for concentricity**
+
+Added during execution. Task 8 triaged all 135 `cornerRadius` sites for
+concentricity and converted none, on the sound reasoning that no app-authored
+glass container existed yet. This step is where that reasoning expires for
+exactly one site.
+
+`Spud/Scenes/MediaViewer/AltBadgeLabel.swift:22` (a fixed `cornerRadius = 4`)
+sits nested inside the caption container you are converting here, inset only
+about 11pt from that container's own radius of 12. Once the container is real
+`UIGlassEffect`, the badge is a rounded child of a rounded glass parent — the
+textbook concentricity case.
+
+Decide deliberately: convert it to
+`cornerConfiguration = .corners(radius: .containerConcentric(minimum: 4))`, or
+keep the fixed radius. Either is acceptable; an unexamined omission is not.
+State which you chose and why, and re-record the media viewer snapshot refs if
+the shape changes.
+
+Task 8's reviewer checked the other four glass-conversion targets
+(`LowResPreviewPillView`, `ToastPresenter`, and both banner scrims in
+`CommunityHeaderView` / `InstanceDetailViewController`) and confirmed none of
+them nest a rounded child, so this is the only site needing a second look.
+
 - [ ] **Step 5: Verify and commit**
 
 Run: `mint run swiftformat Spud SpudUIKit && make build && make test`
