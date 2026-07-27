@@ -111,7 +111,7 @@ class LoginViewController: UIViewController {
         imageView.layer.cornerRadius = 12
         imageView.layer.cornerCurve = .continuous
         imageView.layer.borderWidth = 3
-        imageView.layer.borderColor = Theme.background.cgColor
+        imageView.layer.borderColor = UIColor.systemBackground.cgColor
         imageView.backgroundColor = .tertiarySystemBackground
         return imageView
     }()
@@ -334,7 +334,7 @@ class LoginViewController: UIViewController {
             navigationItem.title = NSLocalizedString("Log back in", comment: "Re-login screen title")
         }
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         view.addSubview(scrollView)
         scrollView.addSubview(contentView)
@@ -376,7 +376,7 @@ class LoginViewController: UIViewController {
         registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _: UITraitCollection) in
             self.applyBannerGradientColors()
             self.instanceHeaderCard.layer.borderColor = UIColor.separator.cgColor
-            self.iconImageView.layer.borderColor = Theme.background.cgColor
+            self.iconImageView.layer.borderColor = UIColor.systemBackground.cgColor
         }
 
         // Re-logging in to an existing account is not a place to create a new

@@ -142,6 +142,19 @@ final class ComposerViewModel {
         }
     }
 
+    /// VoiceOver label for the nav-bar activity indicator shown while
+    /// `submissionState == .submitting` — describes the in-flight action per
+    /// target rather than a generic "activity indicator".
+    var submittingAccessibilityLabel: String {
+        switch target {
+        case .commentReply: NSLocalizedString("Sending reply", comment: "VoiceOver label while a comment reply is being submitted")
+        case .postReply: NSLocalizedString("Sending comment", comment: "VoiceOver label while a top-level comment is being submitted")
+        case .privateMessage: NSLocalizedString("Sending message", comment: "VoiceOver label while a private message is being submitted")
+        case .newPost: NSLocalizedString("Sending post", comment: "VoiceOver label while a new post is being submitted")
+        case .editComment: NSLocalizedString("Saving comment", comment: "VoiceOver label while an edited comment is being saved")
+        }
+    }
+
     @ObservationIgnored private var clientToken: String?
     @ObservationIgnored private var saveTask: Task<Void, Never>?
 

@@ -72,11 +72,11 @@ final class InstanceAdminsView: UIView {
         switch state {
         case .loading:
             header.configure(title: "Admins", count: nil)
-            card.backgroundColor = Theme.secondaryGroupedBackground
+            card.backgroundColor = .secondarySystemGroupedBackground
             stack.addArrangedSubview(messageRow("Loading…", color: .tertiaryLabel))
         case .unavailable:
             header.configure(title: "Admins", count: nil)
-            card.backgroundColor = Theme.secondaryGroupedBackground
+            card.backgroundColor = .secondarySystemGroupedBackground
             stack.addArrangedSubview(messageRow("Admin list unavailable for this server.", color: .tertiaryLabel))
         case .anonymous:
             header.configure(title: "Admins", count: 0)
@@ -88,7 +88,7 @@ final class InstanceAdminsView: UIView {
             stack.addArrangedSubview(row)
         case let .admins(admins):
             header.configure(title: "Admins", count: admins.count)
-            card.backgroundColor = Theme.secondaryGroupedBackground
+            card.backgroundColor = .secondarySystemGroupedBackground
             for (index, admin) in admins.enumerated() {
                 stack.addArrangedSubview(adminRow(admin))
                 if index < admins.count - 1 {
@@ -163,7 +163,7 @@ final class InstanceAdminsView: UIView {
     }
 }
 
-/// Uppercase section label with an optional count, e.g. "ADMINS  3".
+/// Title-case section label with an optional count, e.g. "Admins  3".
 final class InstanceSectionHeader: UIView {
     private let titleLabel = UILabel()
     private let countLabel = UILabel()
@@ -194,7 +194,7 @@ final class InstanceSectionHeader: UIView {
     }
 
     func configure(title: String, count: Int?) {
-        titleLabel.text = title.uppercased()
+        titleLabel.text = title
         countLabel.text = count.map { "\($0)" }
         countLabel.isHidden = count == nil
     }

@@ -90,7 +90,7 @@ class CommunityOrLoadingViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         view.addSubview(loadingIndicator)
         NSLayoutConstraint.activate([

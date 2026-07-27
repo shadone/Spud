@@ -120,15 +120,20 @@ final class InstanceExploreViewController: UIViewController {
     // MARK: Setup
 
     private func setup() {
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
         navigationItem.title = record.baseurl
         navigationItem.largeTitleDisplayMode = .never
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let shareButton = UIBarButtonItem(
             title: nil,
             image: UIImage(systemName: "square.and.arrow.up"),
             primaryAction: UIAction { [weak self] _ in self?.shareTapped() },
             menu: nil
         )
+        shareButton.accessibilityLabel = NSLocalizedString(
+            "Share",
+            comment: "Instance explore share button accessibility label"
+        )
+        navigationItem.rightBarButtonItem = shareButton
 
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -241,7 +246,7 @@ final class InstanceExploreViewController: UIViewController {
         valueLabel.font = .monospacedDigitSystemFont(ofSize: 19, weight: .heavy)
         valueLabel.textColor = value == "—" ? .tertiaryLabel : .label
         let captionLabel = UILabel()
-        captionLabel.text = label.uppercased()
+        captionLabel.text = label
         captionLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         captionLabel.textColor = .tertiaryLabel
         let s = UIStackView(arrangedSubviews: [valueLabel, captionLabel])
@@ -485,7 +490,7 @@ final class InstanceExploreViewController: UIViewController {
 
     private func makeCard() -> UIView {
         let card = UIView()
-        card.backgroundColor = Theme.secondaryGroupedBackground
+        card.backgroundColor = .secondarySystemGroupedBackground
         card.layer.cornerRadius = 14
         card.layer.cornerCurve = .continuous
         card.clipsToBounds = true

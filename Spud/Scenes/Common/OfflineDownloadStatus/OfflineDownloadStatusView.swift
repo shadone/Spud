@@ -28,9 +28,6 @@ import SwiftUI
 struct OfflineDownloadStatusView: View {
     let viewModel: OfflineDownloadProgressViewModel
 
-    /// Hairline border, matching the toast pill's treatment.
-    private let hairline: CGFloat = 0.5
-
     var body: some View {
         HStack(spacing: 12) {
             // Ring + status line form a single VoiceOver element with an explicit
@@ -73,15 +70,19 @@ struct OfflineDownloadStatusView: View {
         .padding(.vertical, 10)
         .padding(.leading, 14)
         .padding(.trailing, 10)
-        .background(
-            Capsule(style: .continuous)
-                .fill(Color(uiColor: .secondarySystemBackground))
-                .shadow(color: .black.opacity(0.18), radius: 8, x: 0, y: 2)
-        )
-        .overlay(
-            Capsule(style: .continuous)
-                .strokeBorder(Color(uiColor: .separator), lineWidth: hairline)
-        )
+        // Liquid Glass surface: replaces the flat `secondarySystemBackground`
+        // fill, drop shadow, and hairline stroke this pill used to draw by
+        // hand. The capsule's own glass material now supplies the surface,
+        // elevation, and edge — layering a flat shadow/stroke underneath it
+        // would double up on a real glass surface's own depth cue (same
+        // reasoning as `ToastView`, the other window-anchored HUD pill this
+        // one is structurally modeled on). `.interactive()` matches
+        // `GlassTokens.controlSurface` (SpudUIKit's UIKit-side token for this
+        // exact case) since the pill hosts a real tap target (the cancel
+        // button) — SwiftUI's `glassEffect` API is a distinct type from
+        // UIKit's `UIGlassEffect`, so the token itself can't be reused here,
+        // but the material/interactivity choice is kept identical.
+        .glassEffect(.regular.interactive(), in: Capsule(style: .continuous))
     }
 }
 

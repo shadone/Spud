@@ -206,7 +206,7 @@ final class PendingPostViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Posting", comment: "Title of the pending-post screen")
 
         let bannerContent = UIStackView(arrangedSubviews: [bannerSpinner, bannerIcon, bannerLabel])
@@ -234,7 +234,11 @@ final class PendingPostViewController: UIViewController {
         NSLayoutConstraint.activate([
             scrollView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             scrollView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            scrollView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            // Top pins to the view, not the safe area, so the queued post
+            // scrolls UNDER the translucent navigation bar. `.automatic`
+            // content inset adjustment (the default) still rests the status
+            // banner below it.
+            scrollView.topAnchor.constraint(equalTo: view.topAnchor),
             scrollView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
 
             stackView.leadingAnchor.constraint(equalTo: scrollView.contentLayoutGuide.leadingAnchor),
@@ -330,7 +334,7 @@ final class PendingPostViewController: UIViewController {
     private func applyBanner(status: OutboundStatus) {
         switch status {
         case .draft, .queued, .sending:
-            bannerView.backgroundColor = Theme.secondaryGroupedBackground
+            bannerView.backgroundColor = .secondarySystemGroupedBackground
             bannerSpinner.startAnimating()
             bannerIcon.isHidden = true
             bannerLabel.textColor = .secondaryLabel

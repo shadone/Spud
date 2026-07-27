@@ -7,9 +7,9 @@
 import SpudUIKit
 import SwiftUI
 
-/// The Appearance settings screen: a theme picker (System / Light / Dark /
-/// True Black) and an accent-color swatch grid. Both apply live, app-wide,
-/// the moment they're tapped — the window observes the preference streams.
+/// The Appearance settings screen: a theme picker (System / Light / Dark)
+/// and an accent-color swatch grid. Both apply live, app-wide, the moment
+/// they're tapped — the window observes the preference streams.
 struct PreferencesAppearanceView: View {
     let viewModel: PreferencesViewModel
 
@@ -38,8 +38,6 @@ struct PreferencesAppearanceView: View {
                 .labelsHidden()
             } header: {
                 Text("Theme")
-            } footer: {
-                Text("True Black uses pure-black backgrounds to save power on OLED displays.")
             }
 
             Section {

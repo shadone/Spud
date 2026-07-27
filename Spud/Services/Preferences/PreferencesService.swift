@@ -18,7 +18,7 @@ protocol PreferencesServiceType: AnyObject {
     var defaultCommentSortType: Lemmy.CommentSortType { get set }
     var defaultCommentSortTypeStream: AsyncStream<Lemmy.CommentSortType> { get }
 
-    /// The selected app appearance (system / light / dark / true-black).
+    /// The selected app appearance (system / light / dark).
     var appTheme: AppTheme { get set }
     var appThemeStream: AsyncStream<AppTheme> { get }
 

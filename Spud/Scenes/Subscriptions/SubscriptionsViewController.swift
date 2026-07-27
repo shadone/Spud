@@ -85,7 +85,7 @@ class SubscriptionsViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         let contentVC = UIHostingController(rootView: SubscriptionsView(viewModel: self.viewModel))
         add(child: contentVC)
@@ -123,10 +123,15 @@ class SubscriptionsViewController: UIViewController {
             state: viewModel.sortOrder == .byInstance ? .on : .off
         ) { [weak self] _ in self?.setSortOrder(.byInstance) }
 
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let sortButton = UIBarButtonItem(
             image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
             menu: UIMenu(options: .singleSelection, children: [alphabetical, byInstance])
         )
+        sortButton.accessibilityLabel = NSLocalizedString(
+            "Sort",
+            comment: "Communities tab sort menu accessibility label"
+        )
+        navigationItem.rightBarButtonItem = sortButton
     }
 
     private func setSortOrder(_ order: SubscriptionsViewModel.SortOrder) {

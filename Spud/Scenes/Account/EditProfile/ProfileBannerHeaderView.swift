@@ -309,10 +309,21 @@ private struct BannerImageView: View {
     private func loadBanner() async {
         image = nil
         guard let url, let imageService else { return }
-        // Banner is wide; downsample to 3x the capped width so an iPad does not
-        // hold a needlessly large bitmap in memory (cap defined in AdaptiveLayout).
-        let screenWidth = UIScreen.main.bounds.width
-        let target = CGSize(width: AdaptiveLayout.bannerDownsampleWidth(screenWidth: screenWidth) * 3, height: 300)
+        // Banner is wide; downsample to 3x the layout cap so we never hold a
+        // needlessly large bitmap in memory.
+        //
+        // Deliberately a FIXED cap rather than a measured width. This used to
+        // read `UIScreen.main.bounds.width`, which is wrong in a resizable
+        // scene (iPad split view, iPhone Mirroring) — a scene's space is not
+        // the screen's. Measuring the real available width would need a
+        // `GeometryReader`, which fills rather than sizes to content and
+        // measurably changed how this banner renders. The cap removes the
+        // screen dependency without touching layout, and is never smaller than
+        // what the old code resolved to on iPhone.
+        let target = CGSize(
+            width: AdaptiveLayout.bannerDownsampleWidth() * 3,
+            height: 300
+        )
         for await state in imageService.fetch(url, downsampleTo: target) {
             if case let .ready(loaded) = state {
                 image = loaded

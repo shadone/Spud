@@ -179,8 +179,9 @@ final class SearchViewController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
-        tabBarItem.title = NSLocalizedString("Search", comment: "Search tab title")
-        tabBarItem.image = UIImage(systemName: "magnifyingglass")
+        // No tabBarItem here: this controller is wrapped by a `UISearchTab`
+        // (MainWindow), which supplies its own system-localized title and
+        // image and ignores the wrapped view controller's `tabBarItem`.
     }
 
     @available(*, unavailable)
@@ -205,7 +206,7 @@ final class SearchViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Search", comment: "Search screen navigation title")
         navigationItem.searchController = searchController
         navigationItem.hidesSearchBarWhenScrolling = false

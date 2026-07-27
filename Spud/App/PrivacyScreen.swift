@@ -162,7 +162,7 @@ final class PrivacyScreen {
 final class PrivacyCoverView: UIView {
     override init(frame: CGRect) {
         super.init(frame: frame)
-        backgroundColor = Theme.background
+        backgroundColor = .systemBackground
         isUserInteractionEnabled = false
 
         let icon = UIImageView(image: UIImage(systemName: "eye.slash.fill"))

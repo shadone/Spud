@@ -63,6 +63,84 @@ Dependency direction: `Spud` → `SpudDataKit` → `SpudUtilKit`; `Spud` → `Sp
 - `SpudUITests.xcscheme` — UI tests in isolation
 - `SpudSnapshots.xctestplan` — snapshot tests only (in the `Spud` scheme, not a separate scheme); references were recorded on the reference device **iPhone 17 Pro, portrait, iOS 26.3.x**, and the app-level images only match there (they drift across iOS minor versions). Run it with `make snapshot`, which resolves the reference device/runtime and fails fast on the wrong sim (`scripts/resolve-test-destination.sh`) — don't hand-pin a drifting `OS=` string. See [`SpudSnapshotTests/CLAUDE.md`](SpudSnapshotTests/CLAUDE.md).
 
+## Appearance and Liquid Glass (iOS 26)
+
+Rationale and the alternatives that were rejected live in
+[docs/adr/0002-liquid-glass-adoption.md](docs/adr/0002-liquid-glass-adoption.md);
+user-facing behavior in [docs/features/themes-and-accent.md](docs/features/themes-and-accent.md).
+This section is the working-notes version: the rules a change has to respect.
+
+- **The deployment floor is iOS 26.0** (`project.yml` → `deploymentTarget.iOS`, raised
+  from 18.0). Liquid Glass is therefore unconditionally available: **do not write
+  `#available(iOS 26, *)` guards** — they are dead branches and they hide the floor.
+- **The `Theme` token layer is gone.** There is no `Theme.*` colour indirection any
+  more; use system semantic colours (`.label`, `.systemBackground`,
+  `.secondarySystemGroupedBackground`, …) directly and let the system adapt them.
+  `AppTheme` (SpudUIKit) survives, but only as the three-case appearance selector
+  System / Light / Dark that maps onto `UIUserInterfaceStyle`.
+- **True Black is retired.** It existed only to force opaque bars on OLED, which is
+  exactly what the glass material replaces. `AppTheme`'s custom `init(from:)` maps a
+  persisted `"trueBlack"` raw value onto `.dark` at decode time — without it
+  `@UserDefaultsBacked` would fail to decode and silently reset the user to `.system`.
+  Keep that mapping; don't "clean it up".
+- **Most of the adoption was deletion.** The visual payoff came from removing
+  bar-appearance overrides and custom sheet/popover backgrounds and letting the system
+  supply chrome. When a screen looks wrong under glass, look for app code fighting the
+  system before adding more code. (Canonical trap: a `UITableViewCell` background
+  colour set unconditionally in `cellForRowAt` paints an opaque pill over a popover's
+  glass — that is what kept the feed-switcher popover flat after its container was
+  already fixed.)
+- **Glass belongs to the navigation layer, not to content.** Shared constants for the
+  app's own floating chrome are `GlassTokens` in `SpudUIKit/Design/`. Deliberate
+  exception: `NsfwBlurOverlayView` stays a `UIVisualEffectView` blur — a content
+  obscurer must not be see-through.
+- **`UIGlassEffect` tints from the INHERITED TRAIT, not from backdrop luminosity.** This
+  is the single most expensive Liquid Glass finding on this codebase, so it lives here
+  rather than in a code comment that only one screen's author will read. The
+  locked-dark `.systemThinMaterialDark` blurs that glass replaces did the opposite, so
+  **any surface with hardcoded white content that used to sit on a locked-dark blur
+  renders light-on-light under a light trait**. Three sites hit it: the ShareAsImage nav
+  bar, `LowResPreviewPillView`, and the media-viewer chrome.
+
+  The fix is an `overrideUserInterfaceStyle` pin, and **the pin must go on an ANCESTOR
+  view of the effect view**. Observation table, established by bisection against
+  recorded snapshots (Task 17), not deduced:
+
+  | Pin placement | Result |
+  |---|---|
+  | On the view controller only | broken |
+  | On the view controller + both `UIVisualEffectView`s | broken |
+  | On the container view alone | correct |
+  | On the container + the others | correct (the extra pins change nothing) |
+
+  One pin suffices. **The underlying UIKit trait-resolution order was NOT isolated** —
+  an earlier confident mechanism ("a VC-level override loses to a parent's
+  `setOverrideTraitCollection(_:forChild:)`") was asserted in three load-bearing
+  comments and turned out to be wrong: `MediaViewerViewController` is always presented
+  modally and nothing in the app calls that method. Treat the table as a reproducible
+  observation, not a rule. If you need this somewhere else, **verify with a snapshot**
+  rather than generalising.
+- **Tabs are addressed by `UITab` identifier, never by index.** `MainWindow` builds its
+  tabs with `setTabs(_:animated:)` and resolves them through `MainWindowTabIdentifier`
+  (search has no entry — `UISearchTab` carries a system identifier, and the system also
+  relocates it to the trailing edge, so an index is not a stable reference).
+  `UITabBarController.h` states that once `setTabs` is used, `viewControllers` "and
+  related properties and methods will not be called", which includes `selectedIndex` and
+  `selectedViewController`.
+
+  **Honest severity: this is an unsupported-API / future-proofing rule, not a live-bug
+  rule.** Task 12 established empirically on this SDK (Xcode 26.3 / iPhoneSimulator26.2)
+  that the legacy accessors still work as a compatibility bridge — `setTabs` implicitly
+  selects the first tab, `selectedViewController` tracks a modern `selectedTab` write,
+  and writing `selectedIndex` drives `selectedTab`. Nothing was broken for users. Write
+  new code against the identifier API because the header says the bridge is not
+  promised, not because you are fixing a bug.
+- **`MarkdownLab/MarkdownLabApp.swift:121` still reads `UIScreen.main.bounds.width`.**
+  That is deliberate and out of scope: MarkdownLab is the standalone dev harness, not a
+  shipped target, and Task 18's `UIScreen.main` sweep covered only `Spud/`, `SpudUIKit/`,
+  `SpudDataKit/`, `SpudUtilKit/`, `SpudMarkdownKit/`, `Shared/`, `SpudWidget/`. Recorded
+  so a future acceptance grep across ALL targets does not read it as a regression.
+
 ## Persistence
 
 GRDB / SQLite, in `SpudDataKit/Services/AppDatabase/`. The DB lives at
@@ -262,7 +340,7 @@ Archive with `make release-project` (never `make project` — it strips the test
 - Body markdown rendering: parse once via `MarkdownBlockCache.shared.blocks(for:)` (safe to warm off-main), then `MarkdownBodyView(context: MarkdownContext(kind: .post/.comment, textScale:, density:))`; set `.imageLoader` (a `@MainActor (URL) async -> UIImage?` wrapping `ImageService.fetch`) and `.delegate` (`MarkdownBodyDelegate`) before `setBlocks(_:)`. `MarkdownContext` bakes fonts at init, so recreate the view when the text-scale preference changes (canonical example: `PostDetailHeaderCell.makeBodyView`). `setBlocks` NO-OPS when the new blocks equal the last-applied ones (that's what makes diffable `reconfigureItems` passes flash-free) — don't add per-cell configured-blocks guards, and don't expect an equal-blocks re-set to force a rebuild or retry a failed inline image (the failed tile has its own Retry button).
 - Body-text links (post & comment) render through `SpudMarkdownKit`: `InlineLexer` autolinks bare URLs and Lemmy mention shorthands (`!c@i`, `@u@i`) at parse time, and `InlineAttributedStringBuilder` stamps `.link` attributes. Bare URLs keep their real `http(s)` URL; mentions/communities become synthetic `spud-markdown://mention|community?name=…&instance=…` URLs. At **tap** time the body's `MarkdownBodyDelegate.markdownBody(didTapLink:)` fires; `MarkdownInternalLink.resolve` (`Spud/Utils/MarkdownInternalLink.swift`) translates a `spud-markdown://` link into the app's internal `URL.SpudInternalLink` (decoded by `URL.spud`), and any other URL falls through to `LemmyURLParser.classify` (path-based `/post` `/c`, bare-instance → internal link). Explicit markdown links whose destination is a Lemmy user / community / post / comment URL (`/u/name`, `/c/name`, `/post/<id>`, `/comment/<id>`, plus the frontend post form `/c/<community>/p/<id>[/<slug>]` some instances use, e.g. feddit.online) are rewritten to a synthetic `spud-markdown://` URL at render time by `InlineAttributedStringBuilder.lemmyReferenceURL` (`mention`/`community` carry name+instance; `object` carries the full URL → `.objectAtURL`), so they resolve **in-app** too (not just shorthand mentions) — bypassing `classify`'s known-instance (Explorer-directory) gate that otherwise sent unknown-instance links to Safari. (The Search field's paste-to-open uses a parallel `LemmyURLParser.frontendPostURL` for the same shape.) The old `MarkdownRenderer` / `addingAutolinks` path has been retired (the `Down` SPM dependency is gone).
 - **Inline video-host playback** lives in `SpudDataKit/Services/VideoHost/` — a `VideoHost` recognize+resolve seam (streamable, PeerTube, loops.video, YouTube-via-Piped). Add a host = append it to `VideoHostRegistry`'s default hosts, which wires BOTH detector classification (`.video`) and `playVideo` playback at once; recognition is preference-free, resolution can be preference-gated (Piped reads `urlSanitizerConfig` via a Sendable snapshot passed from `playVideo`). Gotcha: SpudUtilKit's public `VideoHost` **enum** name-collides with the seam's `VideoHost` **protocol** — in any seam file that `import SpudUtilKit`, qualify the conformance as `SpudDataKit.VideoHost` (loops.video/`LoopsVideoHost` sidesteps this by not importing SpudUtilKit at all). loops.video decodes a public unsalted base-64 hashid shortcode (`/v/<code>`) to a numeric id via `LoopsHashid`, then GETs its first-party API; its default fetch sends a browser-like User-Agent because loops.video's WAF 403s non-browser UAs. See auto-memory `spud-inline-video-host-seam`.
-- **Share-as-image cards are fixed designed artifacts** (`Spud/Scenes/ShareAsImage/`): inside a card view use only `ShareCardPalette` + fixed fonts — never `Theme.*`, `preferredFont`, or `UIVisualEffectView` (cards must render identically off-screen; NSFW spoiler is CIGaussianBlur), and keep `insetsLayoutMarginsFromSafeArea = false` (safe-area margin inflation was a live bug, see SpudSnapshotTests/CLAUDE.md). `ShareCardImageRenderer.render` mutates the passed view's bounds — export a FRESH card, never the editor's live preview. `nsfwRevealed` must never persist: the Codable codec strips it AND `ShareAsImageViewModel.persist()` re-strips before writing (`@UserDefaultsBacked` serves the raw in-memory value back same-session, so the codec alone doesn't cover reopen). Behavior: docs/features/share-as-image.md.
+- **Share-as-image cards are fixed designed artifacts** (`Spud/Scenes/ShareAsImage/`): inside a card view use only `ShareCardPalette` + fixed fonts — never a trait-adaptive system colour, `preferredFont`, or `UIVisualEffectView` / `UIGlassEffect` (cards must render identically off-screen; NSFW spoiler is CIGaussianBlur), and keep `insetsLayoutMarginsFromSafeArea = false` (safe-area margin inflation was a live bug, see SpudSnapshotTests/CLAUDE.md). `ShareCardImageRenderer.render` mutates the passed view's bounds — export a FRESH card, never the editor's live preview. `nsfwRevealed` must never persist: the Codable codec strips it AND `ShareAsImageViewModel.persist()` re-strips before writing (`@UserDefaultsBacked` serves the raw in-memory value back same-session, so the codec alone doesn't cover reopen). Behavior: docs/features/share-as-image.md.
 - **NodeInfo instance-software detection** lives in `SpudDataKit/Services/NodeInfo/` — `NodeInfoService` actor probes `/.well-known/nodeinfo` via the pinned `DiasporaNodeInfo` package (a 2nd remote SPM pin alongside LemmyKit), caches host→software in `NodeInfoCacheRecord` (`v30_nodeInfoCache`, TTL), and is **fail-open** (`.unknown` never blocks — a WAF-403'd Lemmy instance still logs in). `PlatformProfile`/`PlatformRouter` block a non-Lemmy login/register home connection (sheet + Open in Safari) and drive an instance-detail software badge; probe only on explicit engagement (login/register/instance-detail), never in feeds. Detection-only; `LemmyService` untouched. See [docs/features/instance-software-detection.md](docs/features/instance-software-detection.md) + auto-memory `spud-nodeinfo-keep`.
 - **Fun stats (device-wide usage odometer)** lives in `SpudDataKit/Services/Stats/` (`StatsService` actor + `funStat` v39 table, NEVER pruned) with UI under `Spud/Scenes/Preferences/About/FunStats/`. Scattered one-line hooks go through the `FunStats` @MainActor static facade (`FunStats.record(.key)`, no-op when uninstalled) — a deliberate DI exception (a `Has*Service` on every hook host would cascade into all test doubles); structural consumers (DependencyContainer, SceneDelegate, the screen) still use `HasStatsService`. Hooks must fire exactly-once per USER action: at action call sites, never in outbox drains/retries; edits (post AND comment) don't count. Under XCTest the facade is never installed AND the service is force-disabled — both guards required because SceneDelegate's lifecycle calls bypass the facade. Behavior: [docs/features/fun-stats.md](docs/features/fun-stats.md).
 - Reproducing a Release-only / first-launch crash on the sim and symbolicating a TestFlight `.ips` are in [docs/release-runbook.md](docs/release-runbook.md).

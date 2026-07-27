@@ -132,7 +132,7 @@ final class OutboundContentListViewController: UIViewController {
             "Drafts & Outbox",
             comment: "Title of the Drafts & Outbox screen"
         )
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
 
         setupTableView()
         startObservations()

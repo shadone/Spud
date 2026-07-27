@@ -37,7 +37,7 @@ final class InstanceAboutServerView: UIView {
         super.init(frame: frame)
         header.configure(title: "About this server", count: nil)
 
-        card.backgroundColor = Theme.secondaryGroupedBackground
+        card.backgroundColor = .secondarySystemGroupedBackground
         card.layer.cornerRadius = 14
         card.layer.cornerCurve = .continuous
         card.clipsToBounds = true
@@ -169,8 +169,8 @@ final class InstanceAboutServerView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        fade.topColor = Theme.secondaryGroupedBackground.withAlphaComponent(0)
-        fade.bottomColor = Theme.secondaryGroupedBackground
+        fade.topColor = .secondarySystemGroupedBackground.withAlphaComponent(0)
+        fade.bottomColor = .secondarySystemGroupedBackground
     }
 }
 

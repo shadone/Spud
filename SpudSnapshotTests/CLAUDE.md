@@ -4,6 +4,43 @@ Snapshot tests use `pointfreeco/swift-snapshot-testing`. Run the suite with `mak
 
 ## Recording & determinism
 
+- **ALWAYS REBOOT THE SIMULATOR BEFORE DIAGNOSING A SNAPSHOT FAILURE.** An ad hoc
+  on-screen window test — anything that calls `makeKeyAndVisible()` on a scratch
+  `UIWindow` / `FixedSafeAreaWindow` — poisons *every later on-screen snapshot capture in
+  the same simulator boot*. The corruption does not announce itself: it produces
+  convincing, real-looking "Snapshot does not match" failures in classes you never
+  touched, and it can also certify a genuinely-broken reference as green. Only a reboot
+  clears it. This trap cost the Liquid Glass initiative time **four** separate times
+  (Tasks 11, 12, 16, 18):
+  - Task 12 reported "15 pre-existing snapshot failures". A reboot at the *same commit*
+    gave 0 failures — none of the 15 were real.
+  - Task 16 certified genuinely-broken references as green while blaming four good
+    classes, and produced a "9 pre-existing failures" list (ActivityIPadSplit,
+    IPadLayout, ShareAsImage, Summary, `test_image_nsfwBlurred`) that was later
+    RETRACTED in full — all pass on a clean boot.
+  - Task 18 inflated 4 real failures into 39.
+
+  So: a failure list produced in a session that ran any ad hoc key-window diagnostic is
+  not evidence of anything. Reboot, re-run, and only then believe the list. Corollary:
+  never re-record a reference from a session that ran such a diagnostic — one reference
+  in this initiative was re-recorded mid-corruption and the wrong pixels became ground
+  truth.
+
+- **The escape hatch: a scene-attached window that is VISIBLE but NEVER KEY.** This is
+  what makes an on-screen window test keepable rather than a booby trap.
+  swift-snapshot-testing's on-screen strategies resolve their host through
+  `getKeyWindow()`, so a window that never becomes key cannot be picked up by a later
+  capture and cannot poison it. Worked example:
+  `SpudTests/ComposerGlassContentInsetTests.swift` — it builds `UIWindow(windowScene:)`
+  against the host's foreground scene, sets `window.isHidden = false`, and deliberately
+  never calls `makeKeyAndVisible()`. Verified by running that test plus the seven
+  key-window snapshot classes in ONE boot: 31 tests, 0 failures.
+
+  The non-obvious constraint that makes "just don't show the window" a non-option: a
+  **non-visible** window does not lay out at all (measured during Task 21: zero frames,
+  zero safe area), so the test would have nothing to measure. Visible-but-not-key is the
+  only combination that both lays out and stays invisible to `getKeyWindow()`.
+
 - **Snapshot safe-area drift + the `deterministicPhone` fix.** VC-hosted `.image(on: .iPhone13Pro)` captures drift (~44pt vertical shift) when swift-snapshot-testing's device safe-area handling changes across versions, and their failure *count* is cross-suite-contamination/run-order dependent. Fix: `.image(on: .deterministicPhone)` (`SpudSnapshotTests/ViewImageConfig+Deterministic.swift` — `.iPhone13Pro` with `safeArea=.zero`, which forces the library's fully-offscreen render → immune to both drift and contamination, still device-independent). On-screen captures (blur / SwiftUI `.task`) use `FixedSafeAreaWindow` + `SnapshotDeterminism`; animating spinners get `precision: 0.98`. Verify in the FULL `SpudSnapshots` plan (not just isolation). Re-record = delete refs → run (records+fails) → rerun (verifies); `SNAPSHOT_TESTING_RECORD` does NOT forward to the sim here.
 - Re-recording snapshot refs (git-annex): record/verify **one snapshot class at a time** and never `git annex restage` between the record and verify runs — restage reverts the just-written PNGs (verify then reports "No reference"); after a green verify, `git add` (the annex clean filter stores them). The "content availability has changed … unable to update the index" status is cosmetic (`git add`/`commit` work) but makes refs read as persistently "modified", which blocks `git merge`/`git checkout`/`cherry-pick` ("local changes would be overwritten" / "Merge with strategy ort failed") — run `git annex restage` to clear the cosmetic status, then retry the merge/cherry-pick (committing-new-refs-first only helps when YOU recorded refs). Count written PNGs with `find`, not `ls …/*.png` (zsh aborts on no-match). `.image(size:traits:)` snapshots (the header/cell renders) AND the full-screen app-level snapshots ARE device+RUNTIME-sensitive (font/image rendering varies by sim AND iOS minor version), unlike `.image(on:)` ones — so they only match on the reference device+runtime: **iPhone 17 Pro, iOS 26.3.x**. Running the app-level suite on a different runtime (e.g. a second iPhone 17 Pro sim on iOS 26.0) fails ~129/185 with pure anti-aliasing/font-hinting drift (only text outlines differ — confirm with a PIL `ImageChops.difference` heatmap before assuming a regression); run `make snapshot`, which resolves the reference device/runtime for you (see `scripts/resolve-test-destination.sh`), rather than hand-pinning a drifting `OS=` string. A device/runtime mismatch reads as "Snapshot does not match" even for code you never changed. When refreshing refs, `git add` ONLY the specific refs you re-recorded (explicit paths) — the suite carries dozens of cosmetically-`M` annex refs that aren't your change, so `git add …/__Snapshots__/` would sweep them in.
 - **Plain-view `.image(size:)` refs can bake in a 54pt status-bar inflation that is RUN-ORDER-dependent.** A view pinning content to `layoutMarginsGuide` inherits safe-area margin inflation from cross-suite key-window state: its refs then match in the FULL plan but fail under `-only-testing:` isolation (or vice versa). Signature: a uniform 108px@2x height delta on tall fixtures, content otherwise identical. Fix: `insetsLayoutMarginsFromSafeArea = false` on the view + re-record — the render becomes context-immune (done for ShareCard/ShareChain classes 2026-07-18). Never accept refs that only pass in one run context.

@@ -16,16 +16,6 @@ struct ThemeResolutionTests {
         #expect(AppTheme.system.userInterfaceStyle == .unspecified)
         #expect(AppTheme.light.userInterfaceStyle == .light)
         #expect(AppTheme.dark.userInterfaceStyle == .dark)
-        // True Black is a dark variant — same interface style as Dark.
-        #expect(AppTheme.trueBlack.userInterfaceStyle == .dark)
-    }
-
-    @Test
-    func appTheme_usesTrueBlackBackgrounds() {
-        #expect(!AppTheme.system.usesTrueBlackBackgrounds)
-        #expect(!AppTheme.light.usesTrueBlackBackgrounds)
-        #expect(!AppTheme.dark.usesTrueBlackBackgrounds)
-        #expect(AppTheme.trueBlack.usesTrueBlackBackgrounds)
     }
 
     @Test

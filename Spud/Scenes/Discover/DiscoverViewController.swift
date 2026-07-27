@@ -125,7 +125,7 @@ class DiscoverViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Discover", comment: "Discover screen title")
 
         let accent = Color(ThemeManager.currentAccentColor)
@@ -161,10 +161,15 @@ class DiscoverViewController: UIViewController {
                 self?.setSort(sort)
             }
         }
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let sortButton = UIBarButtonItem(
             image: UIImage(systemName: "arrow.up.arrow.down.circle"),
             menu: UIMenu(options: .singleSelection, children: actions)
         )
+        sortButton.accessibilityLabel = NSLocalizedString(
+            "Sort",
+            comment: "Discover community sort menu accessibility label"
+        )
+        navigationItem.rightBarButtonItem = sortButton
     }
 
     private func setSort(_ sort: ExplorerCommunitySort) {

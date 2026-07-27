@@ -78,6 +78,12 @@ final class OfflineDownloadStatusPresenter {
 
         hostingController = host
 
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            host.view.alpha = 1
+            host.view.transform = .identity
+            return
+        }
+
         UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseOut) {
             host.view.alpha = 1
             host.view.transform = .identity
@@ -95,7 +101,7 @@ final class OfflineDownloadStatusPresenter {
         }
         hostingController = nil
 
-        guard animated else {
+        guard animated, !UIAccessibility.isReduceMotionEnabled else {
             host.view.removeFromSuperview()
             completion?()
             return

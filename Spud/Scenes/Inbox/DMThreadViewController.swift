@@ -148,7 +148,7 @@ final class DMThreadViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = viewModel.correspondentName
 
         inputBar.sendTapped = { [weak self] text in
@@ -170,8 +170,12 @@ final class DMThreadViewController: UIViewController {
         tableView.delegate = self
 
         view.addSubview(tableView)
+        // Pinned to the view, not the safe area, so the bubbles pass UNDER the
+        // translucent navigation bar and give its glass something to refract.
+        // `contentInsetAdjustmentBehavior` stays `.automatic`, so the table's
+        // adjusted content inset still parks the first bubble below the bar.
         NSLayoutConstraint.activate([
-            tableView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            tableView.topAnchor.constraint(equalTo: view.topAnchor),
             tableView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             tableView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             tableView.bottomAnchor.constraint(equalTo: view.bottomAnchor),

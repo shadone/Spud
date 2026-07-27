@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Sharing](sharing.md), [Post detail and comments](post-detail-and-comments.md), [NSFW content visibility and blur](nsfw-content.md), [Cross-posting](cross-posting.md)
+- **Related:** [Sharing](sharing.md), [Post detail and comments](post-detail-and-comments.md), [NSFW content visibility and blur](nsfw-content.md), [Cross-posting](cross-posting.md), [App chrome and materials](app-chrome-and-materials.md)
 
 ## What it does
 
@@ -15,8 +15,8 @@ device's theme, accent color, or text-size setting.
 ## Behavior and rules
 
 - **The card, not a screenshot.** The card has its own fixed two-surface palette (light and
-  dark) that is completely independent of the app's theme (System / Light / Dark / True
-  Black) and accent color. Its only brand color is a fixed Lemmy teal, used for the score
+  dark) that is completely independent of the app's theme (System / Light / Dark) and
+  accent color. Its only brand color is a fixed Lemmy teal, used for the score
   glyph, the "Read the full post on Lemmy" link, the shared comment's rail, and the "via
   Spud" mark — never the app's user-chosen accent.
 - **Two card kinds.** A post card carries the community, creator, title, media, body, stats,
@@ -93,8 +93,11 @@ device's theme, accent color, or text-size setting.
   clamped to the ancestors actually available — it is hidden for post cards and for a root comment
   that has no ancestors, rather than showing a dead "Depth 0"), and an Alt Text button.
 - **Alt text.** A separate sheet shows the current description (auto-generated, or a prior
-  edit) in an editable text field, with an "Auto" button that restores the auto-generated
+  edit) in an editable text card, with an "Auto" button that restores the auto-generated
   text. A manual edit applies only to the card being shared right now and is never persisted.
+  The card fills the sheet down to the top of the keyboard (which is raised as the sheet
+  opens), with the explanatory hint below it; dragging the sheet between its half and full
+  heights, or dismissing the keyboard, grows or shrinks the card to match.
 - **Output.** Share (system share sheet), Save to Photos, and Copy. Copy places a single
   pasteboard item carrying both the image and the permalink as separate representations, not
   two pasteboard items. While an export is in flight the whole output bar and the Done button
@@ -104,6 +107,12 @@ device's theme, accent color, or text-size setting.
   last used — appearance, canvas, toggles, chain depth — so the common path is open, glance,
   share. The one exception is the NSFW reveal, which always resets to spoilered on a fresh
   open, matching the "never auto-revealed" guardrail above.
+- **The editor's navigation bar stays dark.** The editor's stage is a fixed dark backdrop
+  whatever the app's appearance, and the translucent bar sits over it edge to edge, so the
+  bar is pinned to a dark appearance in order to keep its title and buttons legible. In
+  Light appearance the bar therefore reads dark while the tray and output bar below stay
+  light. (Before this, Light appearance drew near-black title text on the near-black
+  stage.)
 - **Dynamic Type.** The editor's own chrome (tray labels, buttons, the alt-text sheet) scales
   with the device's text size. The card preview itself does not — its typography is fixed, by
   design, so a shared image looks the same regardless of the sharer's text-size setting.
@@ -179,6 +188,19 @@ action's same condition), a warning haptic fires and the editor never opens.
 - **Then** the editor opens with the same appearance, canvas, and toggle choices
 - **And** any NSFW reveal from the previous session does not carry over — the new card
   opens spoilered
+
+### Edit the alt text
+
+- **Given** the editor is open
+- **When** I tap "Alt Text"
+- **Then** a sheet opens with the current description already in an editable card, the
+  keyboard up and the caret in the card
+- **And** the card fills the space between the sheet's title bar and the keyboard, with the
+  explanatory hint sitting between the card and the keyboard
+- **When** I dismiss the keyboard or drag the sheet to its full height
+- **Then** the card grows into the freed space and the hint stays directly below it
+- **And** at the largest accessibility text sizes, where the hint alone would fill the
+  sheet, the card keeps a usable minimum height rather than collapsing
 
 ### Entry from each surface
 

@@ -81,7 +81,7 @@ final class SummaryHeatmapCardView: UIView {
     // MARK: Layout
 
     private func setupLayout() {
-        backgroundColor = Theme.secondaryGroupedBackground
+        backgroundColor = .secondarySystemGroupedBackground
         layer.cornerRadius = 16
         layer.masksToBounds = true
 

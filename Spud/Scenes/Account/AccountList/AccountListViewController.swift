@@ -77,11 +77,9 @@ final class AccountListViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        // `.insetGrouped` styling drives its own background; this is the sheet's
-        // base color so it reads correctly in light and dark (the old plain
-        // `view.backgroundColor = .white` was broken in dark mode).
-        view.backgroundColor = .systemGroupedBackground
-
+        // No explicit background here: the sheet's presentation controller
+        // supplies it, so the account switcher matches the system's glass
+        // sheet material instead of a flat, hand-picked color.
         embedSwitcher()
         configureSheet()
     }

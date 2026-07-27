@@ -214,22 +214,27 @@ final class InstanceDetailViewController: UIViewController {
     }
 
     private func refreshDynamicBorders() {
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         noticeBannerContainer?.layer.borderColor = noticeBannerColor?.withAlphaComponent(0.26).cgColor
     }
 
     // MARK: Setup
 
     private func setup() {
-        view.backgroundColor = Theme.groupedBackground
+        view.backgroundColor = .systemGroupedBackground
         navigationItem.title = record.baseurl
         navigationItem.largeTitleDisplayMode = .never
-        navigationItem.rightBarButtonItem = UIBarButtonItem(
+        let shareButton = UIBarButtonItem(
             title: nil,
             image: UIImage(systemName: "square.and.arrow.up"),
             primaryAction: UIAction { [weak self] _ in self?.shareTapped() },
             menu: nil
         )
+        shareButton.accessibilityLabel = NSLocalizedString(
+            "Share",
+            comment: "Instance detail share button accessibility label"
+        )
+        navigationItem.rightBarButtonItem = shareButton
 
         view.addSubview(scrollView)
         scrollView.translatesAutoresizingMaskIntoConstraints = false
@@ -296,7 +301,7 @@ final class InstanceDetailViewController: UIViewController {
         iconImageView.layer.cornerRadius = 16
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.layer.borderWidth = 3
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         iconImageView.backgroundColor = placeholderColor(saturation: 0.45, brightness: 0.55)
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconLetterLabel.text = String(record.name.prefix(1)).uppercased()
@@ -492,7 +497,7 @@ final class InstanceDetailViewController: UIViewController {
         valueLabel.font = .monospacedDigitSystemFont(ofSize: 19, weight: .heavy)
         valueLabel.textColor = value == "—" ? .tertiaryLabel : .label
         let captionLabel = UILabel()
-        captionLabel.text = label.uppercased()
+        captionLabel.text = label
         captionLabel.font = .systemFont(ofSize: 11, weight: .semibold)
         captionLabel.textColor = .tertiaryLabel
         let s = UIStackView(arrangedSubviews: [valueLabel, captionLabel])
@@ -506,7 +511,7 @@ final class InstanceDetailViewController: UIViewController {
 
     private func makeDetailsHeader() -> UIView {
         let label = UILabel()
-        label.text = "DETAILS"
+        label.text = "Details"
         label.font = .systemFont(ofSize: 12, weight: .bold)
         label.textColor = .tertiaryLabel
         let container = UIView()
@@ -617,7 +622,7 @@ final class InstanceDetailViewController: UIViewController {
         label.font = .systemFont(ofSize: 12.5, weight: .semibold)
         label.textColor = .secondaryLabel
         let container = UIView()
-        container.backgroundColor = Theme.secondaryBackground
+        container.backgroundColor = .secondarySystemBackground
         container.layer.cornerRadius = 9
         label.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(label)
@@ -633,17 +638,28 @@ final class InstanceDetailViewController: UIViewController {
     // MARK: Action bar (sticky)
 
     private func makeActionBar() -> UIView {
-        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
+        // Sticky bottom bar's own background, not a banner scrim: `scrollView`
+        // is constrained to stop at this bar's top edge (see the constraints
+        // in `setup()`), so nothing scrolls beneath it and a plain
+        // `UIVisualEffectView` (rather than `PassthroughGlassContainerView`)
+        // is sufficient — there's no oversized empty region for it to
+        // wrongly swallow touches over. The two CTA buttons inside stay
+        // plain `UIButton.Configuration` (Task 9's call, re-affirmed for
+        // Task 16): they span nearly the bar's full width and belong to the
+        // same "Create account/Sign in/Browse" CTA family as
+        // `OnboardingPrimaryButton`/`OnboardingGhostButton` elsewhere in the
+        // account-creation journey, which stay plain for consistency.
+        let glass = UIVisualEffectView(effect: GlassTokens.controlSurface)
         let hairlineView = UIView()
         hairlineView.backgroundColor = .separator
         hairlineView.translatesAutoresizingMaskIntoConstraints = false
-        blur.contentView.addSubview(hairlineView)
+        glass.contentView.addSubview(hairlineView)
 
         let stack = UIStackView()
         stack.axis = .vertical
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
-        blur.contentView.addSubview(stack)
+        glass.contentView.addSubview(stack)
 
         if let notice = makeNoticeBanner() {
             stack.addArrangedSubview(notice)
@@ -668,17 +684,17 @@ final class InstanceDetailViewController: UIViewController {
         stack.addArrangedSubview(secondary)
 
         NSLayoutConstraint.activate([
-            hairlineView.topAnchor.constraint(equalTo: blur.contentView.topAnchor),
-            hairlineView.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor),
-            hairlineView.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor),
+            hairlineView.topAnchor.constraint(equalTo: glass.contentView.topAnchor),
+            hairlineView.leadingAnchor.constraint(equalTo: glass.contentView.leadingAnchor),
+            hairlineView.trailingAnchor.constraint(equalTo: glass.contentView.trailingAnchor),
             hairlineView.heightAnchor.constraint(equalToConstant: 0.5),
 
-            stack.topAnchor.constraint(equalTo: blur.contentView.topAnchor, constant: 12),
-            stack.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: blur.contentView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: glass.contentView.topAnchor, constant: 12),
+            stack.leadingAnchor.constraint(equalTo: glass.contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: glass.contentView.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(equalTo: glass.contentView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
         ])
-        return blur
+        return glass
     }
 
     private func makeNoticeBanner() -> UIView? {
@@ -730,7 +746,7 @@ final class InstanceDetailViewController: UIViewController {
     private func makePrimaryButton(title: String, enabled: Bool) -> UIButton {
         var config = UIButton.Configuration.filled()
         config.title = title
-        config.baseBackgroundColor = enabled ? accent : Theme.secondaryBackground
+        config.baseBackgroundColor = enabled ? accent : .secondarySystemBackground
         config.baseForegroundColor = enabled ? .white : .tertiaryLabel
         config.cornerStyle = .large
         config.contentInsets = .init(top: 14, leading: 16, bottom: 14, trailing: 16)
@@ -1118,7 +1134,7 @@ final class InstanceDetailViewController: UIViewController {
 
     private func makeCard() -> UIView {
         let card = UIView()
-        card.backgroundColor = Theme.secondaryGroupedBackground
+        card.backgroundColor = .secondarySystemGroupedBackground
         card.layer.cornerRadius = 14
         card.layer.cornerCurve = .continuous
         card.clipsToBounds = true

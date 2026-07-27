@@ -200,6 +200,13 @@ final class CommunityHeaderView: UIView {
     }()
 
     /// Blur overlay that obscures the banner image when Blur NSFW is on.
+    ///
+    /// Deliberately kept a `UIBlurEffect` in the Liquid Glass conversion
+    /// (Task 16): `blurBanner` (see `configure(...)`) is driven by
+    /// `viewModel.isNsfw && preferencesService.blurNsfw` — this is a content
+    /// obscurer for the NSFW banner, the same job as `NsfwBlurOverlayView`,
+    /// not a legibility scrim or chrome. Glass is translucent by design and
+    /// would defeat the point of hiding the image.
     private lazy var bannerBlurView: UIVisualEffectView = {
         let effect = UIBlurEffect(style: .systemThickMaterial)
         let view = UIVisualEffectView(effect: effect)
@@ -209,12 +216,80 @@ final class CommunityHeaderView: UIView {
         return view
     }()
 
+    /// Groups the banner image with its NSFW blur overlay so both are
+    /// captured together as the extension view's `contentView`. If the blur
+    /// overlay stayed a sibling of the extension view instead, the
+    /// mirrored/blurred copy that extends under the sidebar would be built
+    /// from the raw (un-blurred) banner image, leaking it around the blur.
+    private lazy var bannerContentView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.clipsToBounds = true
+        view.addSubview(bannerImageView)
+        view.addSubview(bannerBlurView)
+        NSLayoutConstraint.activate([
+            bannerImageView.topAnchor.constraint(equalTo: view.topAnchor),
+            bannerImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bannerImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bannerImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            bannerBlurView.topAnchor.constraint(equalTo: view.topAnchor),
+            bannerBlurView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bannerBlurView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bannerBlurView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        return view
+    }()
+
+    /// Extends the banner beneath an adjacent sidebar/inspector in the iPad
+    /// split (`UIBackgroundExtensionView`, iOS 26+): mirrors and blurs the
+    /// banner into the region a plain view would otherwise just stop at, so
+    /// it reads as continuing under the sidebar rather than ending abruptly
+    /// at the detail column's edge. A no-op with no adjacent sidebar (iPhone,
+    /// or when this header is itself the primary/leading column).
+    ///
+    /// It is also a no-op on iPad today: `MainWindowSplitViewController` sets
+    /// `preferredSplitBehavior = .tile`, and tiled columns do not overlap, so
+    /// there is no region to extend into. Kept deliberately — see
+    /// `docs/adr/0002-liquid-glass-adoption.md`.
+    private lazy var bannerExtensionView: UIBackgroundExtensionView = {
+        let view = UIBackgroundExtensionView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        // Placing the content view explicitly (rather than the `true` default)
+        // is a deliberate workaround, not a style choice: with the default
+        // automatic placement, hosting this view inside a `UITableView`
+        // scrolling header sized via `systemLayoutSizeFitting`
+        // (`PostListViewController.layoutScrollingHeaderIfNeeded`) reliably
+        // hung the app (confirmed with a UI test, iOS 26.3 simulator) —
+        // `systemLayoutSizeFitting` never returns because whatever the
+        // automatic placement does internally never completes outside a live
+        // display cycle. Pinning to `safeAreaLayoutGuide` ourselves reproduces
+        // the same visual placement without going through that path.
+        view.automaticallyPlacesContentView = false
+        view.contentView = bannerContentView
+        NSLayoutConstraint.activate([
+            bannerContentView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            bannerContentView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            bannerContentView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            bannerContentView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+        ])
+        return view
+    }()
+
     private lazy var separator: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
         view.backgroundColor = .separator
         return view
     }()
+
+    /// Hairline height, kept as a property so `layoutSubviews()` can re-resolve
+    /// it against the current display scale (a value baked in once at `setup()`
+    /// would go stale if the window moved to a display with a different scale,
+    /// e.g. under iPhone Mirroring).
+    private lazy var separatorHeightConstraint = separator.heightAnchor.constraint(
+        equalToConstant: 1 / traitCollection.displayScale
+    )
 
     // MARK: Init
 
@@ -233,15 +308,13 @@ final class CommunityHeaderView: UIView {
         // Re-evaluate the border color in case the trait collection (light /
         // dark) changed.
         iconImageView.layer.borderColor = UIColor.systemBackground.cgColor
+        separatorHeightConstraint.constant = 1 / traitCollection.displayScale
     }
 
     private func setup() {
-        backgroundColor = Theme.background
+        backgroundColor = .systemBackground
 
-        addSubview(bannerImageView)
-        // Blur overlay sits directly above the banner so it can be toggled
-        // without rearranging the view hierarchy later.
-        addSubview(bannerBlurView)
+        addSubview(bannerExtensionView)
         addSubview(iconImageView)
         addSubview(titleLabel)
         addSubview(badgeStack)
@@ -264,23 +337,18 @@ final class CommunityHeaderView: UIView {
         let margin: CGFloat = 16
 
         NSLayoutConstraint.activate([
-            bannerImageView.topAnchor.constraint(equalTo: topAnchor),
-            bannerImageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
-
-            bannerBlurView.topAnchor.constraint(equalTo: bannerImageView.topAnchor),
-            bannerBlurView.leadingAnchor.constraint(equalTo: bannerImageView.leadingAnchor),
-            bannerBlurView.trailingAnchor.constraint(equalTo: bannerImageView.trailingAnchor),
-            bannerBlurView.bottomAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+            bannerExtensionView.topAnchor.constraint(equalTo: topAnchor),
+            bannerExtensionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bannerExtensionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bannerExtensionView.heightAnchor.constraint(equalToConstant: bannerHeight),
 
             iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            iconImageView.centerYAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor),
             iconImageView.widthAnchor.constraint(equalToConstant: iconSize),
             iconImageView.heightAnchor.constraint(equalToConstant: iconSize),
 
             subscribeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
-            subscribeButton.topAnchor.constraint(equalTo: bannerImageView.bottomAnchor, constant: 8),
+            subscribeButton.topAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor, constant: 8),
 
             titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 8),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
@@ -315,7 +383,7 @@ final class CommunityHeaderView: UIView {
             separator.topAnchor.constraint(equalTo: descriptionView.bottomAnchor, constant: 12),
             separator.leadingAnchor.constraint(equalTo: leadingAnchor),
             separator.trailingAnchor.constraint(equalTo: trailingAnchor),
-            separator.heightAnchor.constraint(equalToConstant: 1 / UIScreen.main.scale),
+            separatorHeightConstraint,
             separator.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
     }

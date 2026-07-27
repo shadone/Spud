@@ -33,7 +33,14 @@ final class InstanceWrapView: UIView {
     }
 
     override var intrinsicContentSize: CGSize {
-        let width = bounds.width > 0 ? bounds.width : UIScreen.main.bounds.width
+        // Before this view's own bounds are known (first pass, not yet laid
+        // out), fall back to the superview's width rather than the screen's -
+        // the superview is the actual space this view has to wrap into, which
+        // in a split view / narrow detail column / resized scene is not the
+        // same as the screen. If neither is known yet, report 0 and let the
+        // `layoutSubviews` self-correction above pick up the real width on
+        // the next real layout pass.
+        let width = bounds.width > 0 ? bounds.width : (superview?.bounds.width ?? 0)
         return CGSize(width: UIView.noIntrinsicMetric, height: layout(width: width, apply: false))
     }
 

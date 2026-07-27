@@ -110,7 +110,8 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Block / unblock](block-unblock.md) | `iphone`, `ipad` | shipped |
 | [Report](report.md) | `iphone`, `ipad` | shipped |
 | [Moderator / admin actions](moderation-actions.md) | `iphone`, `ipad` | shipped |
-| [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped |
+| [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped — System / Light / Dark (True Black retired; a saved True Black selection migrates to Dark) + nine accent swatches |
+| [App chrome and materials (Liquid Glass)](app-chrome-and-materials.md) | `iphone`, `ipad` | shipped — system-drawn iOS 26 Liquid Glass bars, sheets, popovers, and floating chrome; scrolling content rests below the bar and passes beneath it; Search is the trailing system search tab; media-viewer chrome and floating buttons are glass, pinned dark over their fixed-dark stages |
 | [Display density and text size](display-density-and-text.md) | `iphone`, `ipad` | shipped |
 | [Default sort](default-sort.md) | `iphone`, `ipad` | shipped |
 | [External link handling](external-link-handling.md) | `iphone`, `ipad` | shipped |
@@ -221,7 +222,8 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Moderator / admin actions
 
 **Customization & settings**
-- [x] Themes (System / Light / Dark / True Black) + accent color
+- [x] Themes (System / Light / Dark) + accent color — True Black retired with the move to Liquid Glass; a persisted True Black selection migrates to Dark on first launch (themes-and-accent.md)
+- [x] App chrome and materials — system iOS 26 Liquid Glass on bars, sheets, popovers, and floating chrome, with content resting below the bar and scrolling beneath it; Search is the system search tab at the trailing edge; the media viewer's grouped glass chrome and the Share as Image editor's bar are pinned dark so they stay legible over their fixed-dark stages; no opaque-bar option (app-chrome-and-materials.md)
 - [x] Post density + thumbnail position + text scale
 - [x] Default post / comment sort — comment sort persisted in preferences; default post sort persisted per account
 - [x] External-link handling — open mode (in-app / system browser), Reader Mode, universal links, "Load Link Previews" (YouTube via oEmbed, Invidious via oEmbed, Piped via `/streams` API, PeerTube via oEmbed), Privacy & Link Cleaning (tracking-param strip, redirector unwrap, HTTPS upgrade, De-AMP, front-end redirect with "Rewrite Third-Party Front-ends" toggle, opt-in "Play YouTube Videos Inline" via the default Piped instance — default off)

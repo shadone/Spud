@@ -6,11 +6,11 @@
 
 ## What it does
 
-The **Communities** tab is the subscriptions / community-management home — a first-class tab in the tab bar (Posts | Communities | Search | Inbox | Account), reachable on both iPhone and iPad. It lists feed shortcuts (Subscribed, Local, All, and Saved when signed in), an entry into [Discover](discover.md), and the communities you're subscribed to (favorites pinned to the top). A search field filters your communities, and a sort control orders them. (This surface was previously the iPad split-view sidebar; the Scout redesign promoted it to a tab, so it is now reachable on iPhone too.)
+The **Communities** tab is the subscriptions / community-management home — a first-class tab in the tab bar (rendered order: Posts | Communities | Inbox | Account | Search — the system relocates the search tab to the trailing edge, visually separated from the rest), reachable on both iPhone and iPad. It lists feed shortcuts (Subscribed, Local, All, and Saved when signed in), an entry into [Discover](discover.md), and the communities you're subscribed to (favorites pinned to the top). A search field filters your communities, and a sort control orders them. (This surface was previously the iPad split-view sidebar; the Scout redesign promoted it to a tab, so it is now reachable on iPhone too.)
 
 ## Behavior and rules
 
-- **A first-class tab on every device.** Communities is tab index 1 in the tab bar, present in both compact (iPhone) and regular (iPad) size classes — it is no longer hidden behind the Posts split view.
+- **A first-class tab on every device.** Communities is addressed by a stable identifier in the tab bar (not by position — the search tab's system-driven relocation makes array index meaningless), present in both compact (iPhone) and regular (iPad) size classes — it is no longer hidden behind the Posts split view.
 - **Feed shortcuts.** The list offers Local (your home instance) and All (all federated instances) always, and Subscribed (your subscriptions) when signed in. Tapping one pushes that feed's post list within the Communities tab at your default sort (it pages like any feed — see [Feeds and sorting](feeds-and-sorting.md)).
 - **Saved shortcut, signed in only.** A Saved entry (your saved posts) is shown only for a signed-in account; saved posts require authentication. See [Saving](saving.md).
 - **Discover entry.** A "Discover communities" entry at the top pushes the [Discover](discover.md) screen for browsing/finding new communities.

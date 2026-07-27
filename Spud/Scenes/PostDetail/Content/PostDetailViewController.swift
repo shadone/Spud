@@ -153,14 +153,16 @@ class PostDetailViewController: UIViewController {
     /// next new comment instead. Hidden when there is nothing to jump to below
     /// the current scroll position.
     lazy var jumpToNextButton: UIButton = {
-        let button = UIButton(configuration: UIButton.Configuration.filled())
+        // Floats over the scrolling comment list, so it adopts Liquid Glass
+        // (applyDefaultJumpButtonStyle / applyJumpButtonStyle below configure
+        // the real style; this placeholder is overwritten immediately). The
+        // hand-rolled drop shadow that used to sit under the `.filled()` puck
+        // is dropped here: a glass button already renders its own elevation,
+        // and layering a flat CALayer shadow underneath it would double up.
+        let button = UIButton(configuration: UIButton.Configuration.glass())
         button.translatesAutoresizingMaskIntoConstraints = false
         button.accessibilityIdentifier = "jumpToNextTopComment"
         button.addTarget(self, action: #selector(jumpToNextTopCommentTapped), for: .touchUpInside)
-        button.layer.shadowColor = UIColor.black.cgColor
-        button.layer.shadowOpacity = 0.2
-        button.layer.shadowRadius = 6
-        button.layer.shadowOffset = CGSize(width: 0, height: 2)
         button.alpha = 0
         button.isHidden = true
         applyDefaultJumpButtonStyle(to: button)
@@ -342,7 +344,7 @@ class PostDetailViewController: UIViewController {
         // which requires a non-nil `dataSource`.
         setupDataSource()
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         overflowBarButtonItem = UIBarButtonItem(
             image: UIImage(systemName: "ellipsis"),
@@ -1423,10 +1425,9 @@ class PostDetailViewController: UIViewController {
     /// Styles the jump FAB for the default next-top-level affordance.
     /// Called from both the lazy initializer and `applyJumpButtonStyle(isNew:)`.
     private func applyDefaultJumpButtonStyle(to button: UIButton) {
-        var config = UIButton.Configuration.filled()
+        var config = UIButton.Configuration.glass()
         config.image = UIImage(systemName: "chevron.down")
         config.cornerStyle = .capsule
-        config.baseBackgroundColor = .secondarySystemBackground
         config.baseForegroundColor = .label
         config.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
         button.configuration = config
@@ -1443,7 +1444,11 @@ class PostDetailViewController: UIViewController {
         jumpButtonIsNewStyle = isNew
         let accent = tableView.tintColor ?? .systemTeal
         if isNew {
-            var config = UIButton.Configuration.filled()
+            // The screen's one floating action, so prominence is reserved for
+            // this state: it is the primary next thing to do when new
+            // comments exist. The default (no new comments) state stays
+            // non-prominent glass.
+            var config = UIButton.Configuration.prominentGlass()
             config.title = NSLocalizedString("Next new", comment: "Jump to the next new comment")
             config.image = UIImage(systemName: "chevron.down")
             config.imagePlacement = .trailing

@@ -50,18 +50,6 @@ class MainWindow: UIWindow {
 
     // MARK: Private
 
-    /// Index of the Communities tab (subscriptions / Explore). Tab order:
-    /// Posts 0 | Communities 1 | Search 2 | Inbox 3 | Account 4.
-    private static let communitiesTabIndex = 1
-
-    /// Index of the Inbox tab in the tab bar; its `badgeValue` reflects the
-    /// observable unread count.
-    private static let inboxTabIndex = 3
-
-    /// Index of the Account tab; the sign-in gate routes here (it offers log-in
-    /// and sign-up) when a signed-out user chooses to authenticate.
-    private static let accountTabIndex = 4
-
     private let tabBarController: MainWindowTabBarController
     private var splitViewController: MainWindowSplitViewController?
     private var defaultAccountObservationTask: Task<Void, Never>?
@@ -351,11 +339,6 @@ class MainWindow: UIWindow {
         communitiesViewController.navigationItem.title = NSLocalizedString("Communities", comment: "Communities tab title")
         let communitiesNavigationController = UINavigationController(rootViewController: communitiesViewController)
         communitiesNavigationController.navigationBar.prefersLargeTitles = true
-        communitiesNavigationController.tabBarItem = UITabBarItem(
-            title: NSLocalizedString("Communities", comment: "Communities tab title"),
-            image: UIImage(systemName: "person.3"),
-            selectedImage: UIImage(systemName: "person.3.fill")
-        )
         communitiesNavigationController.enableForwardNavigationGesture()
 
         // Tab: Setup the search view controller
@@ -382,18 +365,59 @@ class MainWindow: UIWindow {
         let accountNavigationController = UINavigationController(rootViewController: accountViewController)
         accountNavigationController.enableForwardNavigationGesture()
 
-        // Tabs: Posts | Communities | Search | Inbox | Account. Inbox sits at
-        // index 3 so its badge can be addressed via Self.inboxTabIndex.
-        tabBarController.setViewControllers(
-            [
-                splitViewController,
-                communitiesNavigationController,
-                searchNavigationController,
-                inboxNavigationController,
-                accountNavigationController,
-            ],
+        // Tabs are addressed by stable identifier (`MainWindowTabIdentifier`), never by
+        // index. `UISearchTab` supplies its own system-localized title/image
+        // and is relocated by the system to the trailing edge, so the
+        // rendered order is Posts | Communities | Inbox | Account | Search —
+        // not the array order below.
+        let postsTab = UITab(
+            title: NSLocalizedString("Posts", comment: "Posts tab title"),
+            image: UIImage(systemName: "doc.richtext"),
+            identifier: MainWindowTabIdentifier.posts
+        ) { _ in
+            splitViewController
+        }
+
+        // `UITab.selectedImage` (a distinct icon while the tab is active) is
+        // documented by Apple but not yet in this SDK's `UITab.h` (checked:
+        // the installed iPhoneSimulator26.2 SDK declares no such property) —
+        // both tabs render a single fixed image in every state until a
+        // toolchain update adds it.
+        let communitiesTab = UITab(
+            title: NSLocalizedString("Communities", comment: "Communities tab title"),
+            image: UIImage(systemName: "person.3"),
+            identifier: MainWindowTabIdentifier.communities
+        ) { _ in
+            communitiesNavigationController
+        }
+
+        let searchTab = UISearchTab { _ in
+            searchNavigationController
+        }
+
+        let inboxTab = UITab(
+            title: NSLocalizedString("Inbox", comment: "Inbox tab title"),
+            image: UIImage(systemName: "tray"),
+            identifier: MainWindowTabIdentifier.inbox
+        ) { _ in
+            inboxNavigationController
+        }
+
+        let accountTab = UITab(
+            title: NSLocalizedString("Account", comment: "Account tab title"),
+            image: UIImage(systemName: "person.crop.circle"),
+            identifier: MainWindowTabIdentifier.account
+        ) { _ in
+            accountNavigationController
+        }
+
+        tabBarController.setTabs(
+            [postsTab, communitiesTab, inboxTab, accountTab, searchTab],
             animated: false
         )
+
+        // Let the tab bar recede on scroll so the feed gets the full screen.
+        tabBarController.tabBarMinimizeBehavior = .onScrollDown
 
         applyUnreadBadge(unreadCountService.unreadCount)
 
@@ -414,11 +438,8 @@ class MainWindow: UIWindow {
     }
 
     private func applyUnreadBadge(_ count: UnreadCount) {
-        guard
-            let items = tabBarController.tabBar.items,
-            items.indices.contains(Self.inboxTabIndex)
-        else { return }
-        items[Self.inboxTabIndex].badgeValue = count.total > 0 ? "\(count.total)" : nil
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.inbox) else { return }
+        tab.badgeValue = count.total > 0 ? "\(count.total)" : nil
     }
 
     /// Live "any real account needs re-login" observation driving the Account
@@ -437,11 +458,8 @@ class MainWindow: UIWindow {
     }
 
     private func applyReauthBadge(_ needsReauth: Bool) {
-        guard
-            let items = tabBarController.tabBar.items,
-            items.indices.contains(Self.accountTabIndex)
-        else { return }
-        items[Self.accountTabIndex].badgeValue = needsReauth ? "!" : nil
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.account) else { return }
+        tab.badgeValue = needsReauth ? "!" : nil
     }
 
     /// Subscribes to the active account's permanent outbox failures and surfaces
@@ -518,8 +536,13 @@ class MainWindow: UIWindow {
     /// behind an already-presented screen. Starts from the selected tab's root
     /// (the same "current tab" notion `pushIntoCurrentContext` routes into) and
     /// walks any presented chain (e.g. the account switcher sheet) to its tip.
+    ///
+    /// Reads `selectedTab?.viewController`, not the legacy
+    /// `selectedViewController` — since `MainWindow` addresses tabs via
+    /// `setTabs(_:animated:)`, `selectedViewController` always returns nil
+    /// (see `MainWindowTabIdentifier`'s doc comment).
     private func topmostPresenter() -> UIViewController {
-        var presenter: UIViewController = tabBarController.selectedViewController ?? tabBarController
+        var presenter: UIViewController = tabBarController.selectedTab?.viewController ?? tabBarController
         while let presented = presenter.presentedViewController {
             presenter = presented
         }
@@ -574,25 +597,17 @@ class MainWindow: UIWindow {
     /// Routes to the Account tab (its signed-out screen offers log in / sign
     /// up) and resets it to root. Called from the sign-in gate.
     func selectAccountTab() {
-        guard
-            let viewControllers = tabBarController.viewControllers,
-            viewControllers.indices.contains(Self.accountTabIndex)
-        else { return }
-        tabBarController.selectedIndex = Self.accountTabIndex
-        (viewControllers[Self.accountTabIndex] as? UINavigationController)?
-            .popToRootViewController(animated: false)
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.account) else { return }
+        tabBarController.selectedTab = tab
+        (tab.viewController as? UINavigationController)?.popToRootViewController(animated: false)
     }
 
     /// Routes to the Communities tab (subscriptions / Explore) and resets it to
     /// root. Used by the Activity empty state's "Browse communities" escape hatch.
     func selectCommunitiesTab() {
-        guard
-            let viewControllers = tabBarController.viewControllers,
-            viewControllers.indices.contains(Self.communitiesTabIndex)
-        else { return }
-        tabBarController.selectedIndex = Self.communitiesTabIndex
-        (viewControllers[Self.communitiesTabIndex] as? UINavigationController)?
-            .popToRootViewController(animated: false)
+        guard let tab = tabBarController.tab(forIdentifier: MainWindowTabIdentifier.communities) else { return }
+        tabBarController.selectedTab = tab
+        (tab.viewController as? UINavigationController)?.popToRootViewController(animated: false)
     }
 
     // MARK: Theming
@@ -619,33 +634,24 @@ class MainWindow: UIWindow {
         }
     }
 
-    /// Applies the theme to this window. Sets the interface style (which
-    /// drives a trait-collection change so the theme-aware `Theme` color
-    /// providers re-resolve, swapping backgrounds to true black under OLED)
-    /// and records it on the shared `ThemeManager` so those providers see the
-    /// True-Black flag.
+    /// Applies the theme to this window: sets the interface style and
+    /// records the selection on the shared `ThemeManager` (which now only
+    /// tracks the selection for `AccentColor` consumers -- the True-Black
+    /// flag it used to carry is gone).
     ///
-    /// Switching between standard Dark and True-Black keeps the same
-    /// `overrideUserInterfaceStyle` (`.dark`), so UIKit fires no trait change
-    /// and the dynamic `Theme` colors would not re-resolve. In that case we
-    /// nudge the window through `.unspecified` and back on the next runloop
-    /// tick to force a real trait change. Every other transition changes the
-    /// style outright and refreshes instantly.
+    /// This used to also handle switching between standard Dark and the
+    /// since-retired True-Black theme, which shared the same
+    /// `UIUserInterfaceStyle.dark` and so left `overrideUserInterfaceStyle`
+    /// unchanged; that required a manual `.unspecified` nudge to force a
+    /// trait change so the theme-aware `Theme` color tokens would
+    /// re-resolve. Both preconditions are gone: each of the three remaining
+    /// themes (`system`/`light`/`dark`) maps to a distinct
+    /// `UIUserInterfaceStyle`, so an actual theme change always changes the
+    /// applied style on its own, and there is no longer any theme-aware
+    /// color token to re-resolve -- call sites read system colors directly.
     private func applyTheme(_ theme: AppTheme) {
-        let newStyle = theme.userInterfaceStyle
-        let styleUnchanged = overrideUserInterfaceStyle == newStyle
-
         ThemeManager.shared.setTheme(theme)
-
-        if styleUnchanged, newStyle == .dark {
-            // Dark <-> True-Black: same style, force re-resolution.
-            overrideUserInterfaceStyle = .unspecified
-            Task { @MainActor [weak self] in
-                self?.overrideUserInterfaceStyle = newStyle
-            }
-        } else {
-            overrideUserInterfaceStyle = newStyle
-        }
+        overrideUserInterfaceStyle = theme.userInterfaceStyle
     }
 
     /// Applies the accent color: drives `tintColor` (which UIKit propagates to
@@ -795,8 +801,15 @@ class MainWindow: UIWindow {
     /// - Any other (single-column) tab — a normal push onto its nav stack.
     /// - No navigation context (e.g. a cold deep link) — fall back to the Posts
     ///   tab.
+    ///
+    /// Reads `selectedTab?.viewController`, not the legacy
+    /// `selectedViewController` — since `MainWindow` addresses tabs via
+    /// `setTabs(_:animated:)`, `selectedViewController` always returns nil
+    /// (see `MainWindowTabIdentifier`'s doc comment), which would silently
+    /// collapse every case below to `.none` and force every detail push
+    /// through the Posts tab regardless of where the user actually is.
     private func pushIntoCurrentContext(_ viewController: UIViewController) {
-        let selected = tabBarController.selectedViewController
+        let selected = tabBarController.selectedTab?.viewController
         guard let splitViewController else {
             // No Posts split yet — the only sensible push target is the selected
             // tab's nav stack, if there is one.
@@ -814,19 +827,28 @@ class MainWindow: UIWindow {
         case let .plainNav(navigationController):
             navigationController.pushViewController(viewController, animated: true)
         case .none:
-            tabBarController.selectedIndex = 0
+            selectTab(identifier: MainWindowTabIdentifier.posts)
             pushDetail(viewController: viewController)
         }
+    }
+
+    /// Selects the root tab addressed by `identifier`, if it is currently
+    /// installed. No-op otherwise (e.g. called before the tab bar exists).
+    private func selectTab(identifier: String) {
+        guard let tab = tabBarController.tab(forIdentifier: identifier) else { return }
+        tabBarController.selectedTab = tab
     }
 }
 
 // MARK: - AppNavigating (App Intents / Siri navigation)
 
 extension MainWindow: AppNavigating {
-    // Tab order: Posts 0 | Communities 1 | Search 2 | Inbox 3 | Account 4.
+    // Rendered tab order: Posts | Communities | Inbox | Account | Search (the
+    // system relocates the search tab to the trailing edge). Tabs are
+    // addressed by `MainWindowTabIdentifier` / `UISearchTab.identifier`, never by index.
 
     func selectFeed(listing: Lemmy.ListingType, sort: Lemmy.SortType?) {
-        tabBarController.selectedIndex = 0
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.frontpage(
             listingType: adjustedListing(listing),
@@ -835,30 +857,34 @@ extension MainWindow: AppNavigating {
     }
 
     func selectSavedFeed(sort: Lemmy.SortType?) {
-        tabBarController.selectedIndex = 0
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.showFeed(.saved(sortType: sort ?? .Hot))
     }
 
     func selectSearch(query: String) {
-        tabBarController.selectedIndex = 2
+        // `UISearchTab.identifier` (a type property identifying the system
+        // search tab) is documented by Apple but not yet in this SDK's
+        // `UISearchTab.h` (checked: the installed iPhoneSimulator26.2 SDK
+        // declares no such member) — find it by type instead. There is
+        // always exactly one search tab.
         guard
-            let viewControllers = tabBarController.viewControllers,
-            viewControllers.indices.contains(2),
-            let navigationController = viewControllers[2] as? UINavigationController,
+            let tab = tabBarController.tabs.first(where: { $0 is UISearchTab }),
+            let navigationController = tab.viewController as? UINavigationController,
             let searchViewController = navigationController.viewControllers.first as? SearchViewController
         else { return }
+        tabBarController.selectedTab = tab
         searchViewController.setSearchQuery(query)
     }
 
     func presentNewPost() {
-        tabBarController.selectedIndex = 0
+        selectTab(identifier: MainWindowTabIdentifier.posts)
         let postListVC = splitViewController?.postListViewController
         postListVC?.beginNewPost()
     }
 
     func selectInbox() {
-        tabBarController.selectedIndex = 3
+        selectTab(identifier: MainWindowTabIdentifier.inbox)
     }
 
     // `display(communityName:instance:accountKeychainId:)` already satisfies the

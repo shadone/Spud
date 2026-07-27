@@ -15,6 +15,17 @@ final class InstanceBannerHeaderView: UIView {
     let bannerHeight: CGFloat = 158
 
     private let bannerImageView = UIImageView()
+    /// Extends the banner beneath an adjacent sidebar/inspector in the iPad
+    /// split (`UIBackgroundExtensionView`, iOS 26+): mirrors and blurs the
+    /// banner into the region a plain view would otherwise just stop at, so
+    /// it reads as continuing under the sidebar rather than ending abruptly
+    /// at the detail column's edge. A no-op with no adjacent sidebar.
+    ///
+    /// It is also a no-op on iPad today: `MainWindowSplitViewController` sets
+    /// `preferredSplitBehavior = .tile`, and tiled columns do not overlap, so
+    /// there is no region to extend into. Kept deliberately — see
+    /// `docs/adr/0002-liquid-glass-adoption.md`.
+    private let bannerExtensionView = UIBackgroundExtensionView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()
     private var imageTasks: [Task<Void, Never>] = []
@@ -28,14 +39,17 @@ final class InstanceBannerHeaderView: UIView {
         bannerImageView.clipsToBounds = true
         bannerImageView.backgroundColor = Self.placeholderColor(seed: host, saturation: 0.5, brightness: 0.5)
         bannerImageView.translatesAutoresizingMaskIntoConstraints = false
-        addSubview(bannerImageView)
+
+        bannerExtensionView.translatesAutoresizingMaskIntoConstraints = false
+        bannerExtensionView.contentView = bannerImageView
+        addSubview(bannerExtensionView)
 
         iconImageView.contentMode = .scaleAspectFill
         iconImageView.clipsToBounds = true
         iconImageView.layer.cornerRadius = 16
         iconImageView.layer.cornerCurve = .continuous
         iconImageView.layer.borderWidth = 3
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
         iconImageView.backgroundColor = Self.placeholderColor(seed: host, saturation: 0.45, brightness: 0.55)
         iconImageView.translatesAutoresizingMaskIntoConstraints = false
         iconLetterLabel.text = String(name.prefix(1)).uppercased()
@@ -63,13 +77,13 @@ final class InstanceBannerHeaderView: UIView {
         addSubview(identity)
 
         NSLayoutConstraint.activate([
-            bannerImageView.topAnchor.constraint(equalTo: topAnchor),
-            bannerImageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
+            bannerExtensionView.topAnchor.constraint(equalTo: topAnchor),
+            bannerExtensionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bannerExtensionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bannerExtensionView.heightAnchor.constraint(equalToConstant: bannerHeight),
 
             iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-            iconImageView.topAnchor.constraint(equalTo: bannerImageView.bottomAnchor, constant: -30),
+            iconImageView.topAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor, constant: -30),
             iconImageView.widthAnchor.constraint(equalToConstant: 64),
             iconImageView.heightAnchor.constraint(equalToConstant: 64),
             iconLetterLabel.centerXAnchor.constraint(equalTo: iconImageView.centerXAnchor),
@@ -92,7 +106,7 @@ final class InstanceBannerHeaderView: UIView {
 
     override func layoutSubviews() {
         super.layoutSubviews()
-        iconImageView.layer.borderColor = Theme.groupedBackground.cgColor
+        iconImageView.layer.borderColor = UIColor.systemGroupedBackground.cgColor
     }
 
     func loadImages(iconUrl: String?, bannerUrl: String?, imageService: ImageServiceType) {

@@ -305,7 +305,7 @@ class RegisterViewController: UIViewController {
     }
 
     private func setup() {
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         navigationItem.title = NSLocalizedString("Sign up", comment: "Create-account nav title")
 
         homeChip.addSubview(homeIconImageView)

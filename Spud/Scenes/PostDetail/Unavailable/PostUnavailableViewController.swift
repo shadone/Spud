@@ -25,7 +25,7 @@ final class PostUnavailableViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         let imageView = UIImageView(image: UIImage(systemName: reason.symbolName))
         imageView.tintColor = .tertiaryLabel

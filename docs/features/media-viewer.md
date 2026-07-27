@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility and blur](nsfw-content.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility and blur](nsfw-content.md), [App chrome and materials](app-chrome-and-materials.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -47,9 +47,15 @@ browser instead.
   falls back to the cross-dissolve fade instead. Comment body images and profile
   description images do not scroll-to-reveal — if their source has scrolled away, dismissing
   falls back to the fade for the same reason (the source view can't be resolved).
-- **Auto-hiding bar.** A single tap toggles a blurred top bar (close / share / save) and,
+- **Auto-hiding glass bar.** A single tap toggles a top bar (close / share / save) and,
   for multi-image posts, the page dots. The bar hides automatically while you drag to
   dismiss.
+- **The chrome is Liquid Glass.** The top bar and the caption area are one grouped glass
+  surface floating over the photo, and the close / share / save controls use the system's
+  glass button treatment. The chrome is pinned to a dark appearance so its white glyphs
+  stay legible even when the app theme is Light. Zoom, pan, and paging continue to work
+  everywhere the controls themselves are not, including while the chrome is visible. See
+  [App chrome and materials](app-chrome-and-materials.md).
 - **Gallery paging.** A post with more than one image pages horizontally; page dots show
   position and current page, and are hidden for a single image.
 - **Alt text.** When a media item carries alt text, an "Image description" pill appears above the page dots; tapping it opens a sheet showing the full description. The pill fades with the chrome and is absent for items without alt text. (VoiceOver: the pill is actionable.)

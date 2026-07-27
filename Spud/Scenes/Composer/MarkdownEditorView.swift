@@ -55,6 +55,17 @@ final class MarkdownEditorView: UIView {
     /// responder (e.g. `becomeFirstResponder`) directly.
     let textView: UITextView
 
+    /// The scroll view backing whichever mode is currently visible: `textView`
+    /// in `.write`, `previewScrollView` in `.preview`. `textView` and
+    /// `previewScrollView` are full-bleed siblings toggled by `isHidden` (never
+    /// both visible), so a host whose bar needs to observe this editor's
+    /// scrolling content (`UIViewController.setContentScrollView(_:for:)`) can't
+    /// rely on automatic inference to pick the right one and must re-read this
+    /// after every `setMode(_:)` call.
+    var activeScrollView: UIScrollView {
+        mode == .write ? textView : previewScrollView
+    }
+
     private let toolbar = MarkdownToolbar()
 
     private lazy var placeholderLabel: UILabel = {

@@ -163,7 +163,7 @@ final class LoginTwoFactorViewController: UIViewController {
     private func setup() {
         navigationItem.title = NSLocalizedString("Two-factor", comment: "Two-factor screen title")
 
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
 
         lockTile.addSubview(lockImageView)
 

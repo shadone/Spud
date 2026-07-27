@@ -87,8 +87,9 @@ class AccountViewController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
-        tabBarItem.title = NSLocalizedString("Account", comment: "Account tab title")
-        tabBarItem.image = UIImage(systemName: "person.crop.circle")
+        // Tab title/image are set on the `UITab` that wraps this controller
+        // (MainWindow) rather than here — `UITab` carries its own metadata
+        // and does not consult the wrapped view controller's `tabBarItem`.
     }
 
     @available(*, unavailable)
@@ -102,7 +103,7 @@ class AccountViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = Theme.background
+        view.backgroundColor = .systemBackground
         startObservation()
     }
 

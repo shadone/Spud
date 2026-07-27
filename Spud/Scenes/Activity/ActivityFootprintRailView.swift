@@ -32,10 +32,12 @@ final class ActivityFootprintRailView: UIView {
     private let cardView: UIView = {
         let v = UIView()
         v.translatesAutoresizingMaskIntoConstraints = false
-        v.backgroundColor = Theme.secondaryBackground
+        v.backgroundColor = .secondarySystemBackground
         v.layer.cornerRadius = 14
         v.layer.cornerCurve = .continuous
-        v.layer.borderWidth = 1.0 / UIScreen.main.scale
+        // Border width is set below, in `setup()` and re-resolved on trait
+        // change - this closure runs once, before the view is necessarily in
+        // a window, so a scale computed here would be baked in for good.
         v.layer.borderColor = UIColor.separator.cgColor
         v.layoutMargins = UIEdgeInsets(top: 11, left: 13, bottom: 11, right: 13)
         return v
@@ -146,11 +148,16 @@ final class ActivityFootprintRailView: UIView {
         isAccessibilityElement = true
         accessibilityTraits = .button
 
-        // The border color is a CGColor, so it doesn't re-resolve on a
-        // light/dark switch on its own. Re-resolve it via the iOS 17+
-        // trait-change registration API.
-        registerForTraitChanges([UITraitUserInterfaceStyle.self]) { (self: Self, _) in
+        // Set the initial hairline width and border color here, then keep
+        // both current via the iOS 17+ trait-change registration API: the
+        // border color is a CGColor (doesn't re-resolve on a light/dark
+        // switch on its own) and the width is a display-scale-derived
+        // constant (would go stale if the window moved to a display with a
+        // different scale, e.g. under iPhone Mirroring).
+        cardView.layer.borderWidth = 1.0 / traitCollection.displayScale
+        registerForTraitChanges([UITraitUserInterfaceStyle.self, UITraitDisplayScale.self]) { (self: Self, _) in
             self.cardView.layer.borderColor = UIColor.separator.resolvedColor(with: self.traitCollection).cgColor
+            self.cardView.layer.borderWidth = 1.0 / self.traitCollection.displayScale
         }
 
         applyAccent()

@@ -159,6 +159,15 @@ final class NewPostViewModel {
             : NSLocalizedString("Post", comment: "Composer submit button when composing a new post")
     }
 
+    /// VoiceOver label for the nav-bar activity indicator shown while
+    /// `submissionState == .submitting` — describes the in-flight action
+    /// rather than a generic "activity indicator".
+    var submittingAccessibilityLabel: String {
+        isEditing
+            ? NSLocalizedString("Saving post", comment: "VoiceOver label while an edited post is being saved")
+            : NSLocalizedString("Sending post", comment: "VoiceOver label while a new post is being submitted")
+    }
+
     /// The community can't be changed when editing an existing post.
     var canChangeCommunity: Bool {
         !isEditing
