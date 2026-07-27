@@ -102,21 +102,30 @@ final class MediaViewerViewController: UIViewController {
         containerEffect.spacing = GlassTokens.controlContainerSpacing
         let view = PassthroughGlassContainerView(effect: containerEffect)
         view.translatesAutoresizingMaskIntoConstraints = false
-        // Pin the trait on the ANCESTOR of the glass bars, not on the bars
-        // themselves. `UIGlassEffect` tints from the current trait rather than
-        // from backdrop luminosity (unlike the locked-dark
-        // `.systemThinMaterialDark` blur this chrome used before), and this
-        // chrome's icons and text are fixed white — so under a light trait the
-        // bars render light and their white content disappears.
+        // Keep the glass bars dark regardless of the app's Appearance
+        // preference. `UIGlassEffect` picks its tint from the trait
+        // environment, not from the luminosity of whatever is behind it —
+        // unlike the locked-dark `.systemThinMaterialDark` blur this chrome
+        // used before Liquid Glass. The chrome's icons and text are fixed
+        // white, so under a light trait the bars render light and their white
+        // content becomes unreadable (the caption pill was effectively
+        // invisible).
         //
-        // It has to be here specifically. Setting `overrideUserInterfaceStyle`
-        // on a `UIVisualEffectView` itself does NOT re-resolve that view's own
-        // material; the effect resolves against the trait it INHERITS. And a
-        // view-controller-level override loses to a parent's
-        // `setOverrideTraitCollection(_:forChild:)`. An override on an
-        // ancestor view is what actually reaches the material — the same shape
-        // that already works in `LowResPreviewPillView`, where the pin sits on
-        // the wrapper view and its inner effect view inherits it.
+        // This pin has to be HERE, on the container, and one pin is enough.
+        // Established by bisection against recorded snapshots, not deduced:
+        //   - on `topBarBackgroundView` / `captionContainer` themselves: NO
+        //     effect, the bars still render light;
+        //   - on the view controller (`viewDidLoad`): also insufficient on its
+        //     own;
+        //   - here, on the container the bars are nested in: fixes both, and
+        //     removing the other two placements changes nothing.
+        // `LowResPreviewPillView` has the same shape — its pin sits on the
+        // wrapper view, not on the inner effect view.
+        //
+        // The underlying UIKit resolution order was NOT isolated, so treat the
+        // above as a reproducible observation rather than a rule to generalise
+        // from. If you need this elsewhere, verify with a snapshot rather than
+        // assuming a mechanism.
         view.overrideUserInterfaceStyle = .dark
         return view
     }()
@@ -128,17 +137,6 @@ final class MediaViewerViewController: UIViewController {
         // it for exactly this kind of floating functional chrome.
         let view = UIVisualEffectView(effect: GlassTokens.controlSurface)
         view.translatesAutoresizingMaskIntoConstraints = false
-        // Pin the trait on the VIEW, not just on the view controller. This
-        // chrome's icons and text are fixed white, and `UIGlassEffect` tints
-        // from the current trait rather than from backdrop luminosity (unlike
-        // the locked-dark `.systemThinMaterialDark` blur it replaced), so a
-        // light trait renders a light bar with invisible white content.
-        // A view-local override wins for its own subtree regardless of what
-        // an ancestor imposes; a view-CONTROLLER-level override does not (a
-        // parent's `setOverrideTraitCollection(_:forChild:)` beats it), which
-        // is why the VC-level pin alone left this bar light. Same fix as
-        // `LowResPreviewPillView`.
-        view.overrideUserInterfaceStyle = .dark
         return view
     }()
 
@@ -208,9 +206,6 @@ final class MediaViewerViewController: UIViewController {
         view.layer.cornerCurve = .continuous
         view.clipsToBounds = true
         view.isHidden = true
-        // Fixed-white caption content over trait-tinted glass — see the note
-        // on `topBarBackgroundView` for why this pin has to be view-local.
-        view.overrideUserInterfaceStyle = .dark
         return view
     }()
 
@@ -360,27 +355,6 @@ final class MediaViewerViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-
-        // The viewer is a fixed-dark, immersive photo surface by design
-        // (`backgroundView.backgroundColor = .black`, always-white page dots,
-        // always-white chrome text below) regardless of the app's own
-        // Appearance preference (Light/Dark/System) — `MainWindow` applies
-        // that preference's `overrideUserInterfaceStyle` at the WINDOW level
-        // (see `MainWindow.swift`), so without this override the viewer would
-        // inherit `.light` whenever the user picked Light appearance (or
-        // System while the device is in light mode). That trait mismatch is
-        // invisible for the fixed-black backdrop itself, but
-        // `GlassTokens.controlSurface` (`UIGlassEffect(.regular)`) — unlike
-        // the old locked-dark `.systemThinMaterialDark` blur this chrome used
-        // before Liquid Glass — bases its own tint on the CURRENT trait, not
-        // just backdrop luminosity: measured on-device, the top bar and
-        // caption pill render light-toned under a `.light` trait even over a
-        // bright photo, making the fixed `UIColor.white` caption/pill text
-        // (`captionStack`, `LowResPreviewPillView`) nearly illegible. Forcing
-        // `.dark` here matches the trait to the design that was already
-        // fixed-dark, the same pattern Task 11 used for the ShareAsImage
-        // editor's nav bar (`ShareAsImageViewController.viewDidLoad`).
-        overrideUserInterfaceStyle = .dark
 
         view.backgroundColor = .clear
 
