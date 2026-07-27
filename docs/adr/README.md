@@ -10,5 +10,6 @@ Before reopening a settled question, read its ADR. Each one ends with a
 | ADR | Title | Status | Date |
 |-----|-------|--------|------|
 | [0001](0001-grdb-over-swiftdata.md) | GRDB over SwiftData for the App Group store | accepted | 2026-05 |
+| [0002](0002-liquid-glass-adoption.md) | Adopt iOS 26 Liquid Glass by deletion, retire True Black, reject the tab sidebar | accepted | 2026-07 |
 
 New ADR: copy [template.md](template.md), take the next number.

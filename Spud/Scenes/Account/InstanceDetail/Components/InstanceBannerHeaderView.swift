@@ -20,6 +20,11 @@ final class InstanceBannerHeaderView: UIView {
     /// banner into the region a plain view would otherwise just stop at, so
     /// it reads as continuing under the sidebar rather than ending abruptly
     /// at the detail column's edge. A no-op with no adjacent sidebar.
+    ///
+    /// It is also a no-op on iPad today: `MainWindowSplitViewController` sets
+    /// `preferredSplitBehavior = .tile`, and tiled columns do not overlap, so
+    /// there is no region to extend into. Kept deliberately — see
+    /// `docs/adr/0002-liquid-glass-adoption.md`.
     private let bannerExtensionView = UIBackgroundExtensionView()
     private let iconImageView = UIImageView()
     private let iconLetterLabel = UILabel()

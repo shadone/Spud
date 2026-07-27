@@ -2,18 +2,19 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [display-density-and-text.md](display-density-and-text.md), [app-icon.md](app-icon.md), [swipe-actions.md](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [app-chrome-and-materials.md](app-chrome-and-materials.md), [display-density-and-text.md](display-density-and-text.md), [app-icon.md](app-icon.md), [swipe-actions.md](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
-Settings → Appearance offers an app-wide theme — System, Light, Dark, or True Black — and an accent color picked from a nine-swatch palette. Both apply live the moment they are tapped: the whole interface switches appearance and retints without a relaunch, because the app window observes the preference and re-applies it. The choice is persisted and re-applied on the next launch before the window is shown, so there is no flash of the wrong appearance.
+Settings → Appearance offers an app-wide theme — System, Light, or Dark — and an accent color picked from a nine-swatch palette. Both apply live the moment they are tapped: the whole interface switches appearance and retints without a relaunch, because the app window observes the preference and re-applies it. The choice is persisted and re-applied on the next launch before the window is shown, so there is no flash of the wrong appearance.
 
 ## Behavior and rules
 
-- **Four themes.** System (follows the device setting), Light, Dark, and True Black. System / Light / Dark map onto the standard interface styles. True Black is a Dark variant that additionally swaps the app's background tokens to pure black for OLED displays — its interface style is still dark, but the theme-aware color providers paint backgrounds black.
+- **Three themes.** System (follows the device setting), Light, and Dark. Each maps directly onto a standard interface style, and every color in the app is a system semantic color that resolves against it.
+- **True Black is retired.** The former fourth option, a Dark variant that painted backgrounds pure black for OLED displays, no longer exists. It worked by forcing opaque bars, which is exactly what the Liquid Glass chrome now provides for itself — see [app-chrome-and-materials.md](app-chrome-and-materials.md).
+- **A saved True Black selection becomes Dark.** Upgrading with True Black selected lands you on Dark, silently and on first launch. You are not reset to System and you are not asked to choose again; the closest surviving appearance is applied and persisted.
 - **Nine accent colors.** Lemmy (the default, a fixed brand teal/green), Blue, Indigo, Purple, Pink, Red, Orange, Green, Teal. All but Lemmy use the system colors, which already adapt per interface style. The accent drives the window tint, so buttons, links, and controls retint across the app.
-- **Live, app-wide.** Changing theme or accent updates every window immediately. The window sets `overrideUserInterfaceStyle` for the theme and `tintColor` for the accent, and records the choice on the shared `ThemeManager` so the dynamic color providers stay in sync.
-- **Dark ↔ True Black has a brief delay.** Switching between standard Dark and True Black keeps the same interface style (`.dark`), so UIKit fires no trait change on its own. The window nudges itself through an unspecified style and back on the next runloop to force the dynamic colors to re-resolve, so the pure-black backgrounds apply after a brief next-runloop delay. Every other transition changes the style outright and refreshes immediately.
+- **Live, app-wide.** Changing theme or accent updates every window immediately, with no delay and no partially-updated intermediate state — each theme maps to a distinct interface style, so the change is a single system-driven refresh.
 - **Persisted and pre-applied.** The selected theme and accent are stored and applied synchronously at launch before the window appears, avoiding a flash of the wrong look.
 - **Haptic on change.** Selecting a different theme or accent fires a light haptic.
 
@@ -26,12 +27,12 @@ Settings → Appearance offers an app-wide theme — System, Light, Dark, or Tru
 - **Then** the whole app switches to dark mode immediately, with no relaunch
 - **And** the choice persists and is re-applied on the next launch
 
-### True Black swaps backgrounds to pure black
+### A previously-chosen True Black becomes Dark
 
-- **Given** the theme is already Dark
-- **When** I tap True Black
-- **Then** the app's backgrounds become pure black while staying in dark mode
-- **And** the change applies instantly even though the interface style does not change
+- **Given** I had True Black selected before updating the app
+- **When** I launch the updated app
+- **Then** the app is in Dark, not System, and Settings → Appearance shows Dark selected
+- **And** the picker offers only System, Light, and Dark
 
 ### Change the accent color
 
@@ -48,8 +49,9 @@ Settings → Appearance offers an app-wide theme — System, Light, Dark, or Tru
 
 ## Not supported / out of scope
 
+- No pure-black / OLED theme. See the True Black rules above; the option was removed rather than hidden.
 - The Home Screen widget does not read the theme or accent; these preferences apply to the app's own surfaces only.
 - No per-account, per-community, or scheduled (e.g. sunrise/sunset) theming — the theme and accent are single global choices.
 - The accent palette is a fixed curated set of nine; there is no custom color picker or hex entry.
-- True Black affects only background tokens; it is not a separate high-contrast or pure-monochrome mode.
+- The theme does not change the chrome material. Bars, sheets, and floating controls are always the system Liquid Glass material; there is no opaque-bar option ([app-chrome-and-materials.md](app-chrome-and-materials.md)).
 - The alternate Home Screen app icon is a separate feature, documented in [app-icon.md](app-icon.md).

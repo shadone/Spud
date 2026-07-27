@@ -137,6 +137,11 @@ final class PersonHeaderView: UIView {
     /// it reads as continuing under the sidebar rather than ending abruptly
     /// at the detail column's edge. A no-op with no adjacent sidebar (iPhone,
     /// or when this header is itself the primary/leading column).
+    ///
+    /// It is also a no-op on iPad today: `MainWindowSplitViewController` sets
+    /// `preferredSplitBehavior = .tile`, and tiled columns do not overlap, so
+    /// there is no region to extend into. Kept deliberately — see
+    /// `docs/adr/0002-liquid-glass-adoption.md`.
     private lazy var bannerExtensionView: UIBackgroundExtensionView = {
         let view = UIBackgroundExtensionView()
         view.translatesAutoresizingMaskIntoConstraints = false

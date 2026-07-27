@@ -114,11 +114,18 @@ struct MainWindowTabSelectionTests {
     /// `MainWindowSplitViewController`, starts on the Posts tab, invokes the
     /// same closure the row's tap wires to
     /// (`feedSwitcherViewController.onBrowseAllCommunities`), and asserts the
-    /// Communities tab actually becomes selected — locking in the
-    /// identifier-based fix so a future edit can't silently reintroduce
-    /// index-based selection (see the type doc comment above for why the
-    /// old code isn't safe to rely on even though it isn't reproducibly
-    /// broken on the current SDK).
+    /// Communities tab actually becomes selected.
+    ///
+    /// What this test DOES guarantee: the production closure is wired up and
+    /// end-to-end selects Communities through a real `setTabs`-built
+    /// controller. What it does NOT guarantee, despite the temptation to
+    /// claim it: that a revert to `selectedIndex = 1` would be caught.
+    /// Communities sits at array index 1 in both this fixture and production,
+    /// so the old code would pass this test too. The discrimination lives in
+    /// `indexBasedSelectionBreaksUnderReorderingButIdentifierBasedDoesNot`
+    /// below, which reorders the tabs so index and identity disagree. (See
+    /// the type doc comment above for why the old code isn't safe to rely on
+    /// even though it isn't reproducibly broken on the current SDK.)
     @Test
     func browseAllCommunitiesSelectsCommunitiesTabByIdentifier() throws {
         let dependencies = FakeDependencies()

@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Sharing](sharing.md), [Post detail and comments](post-detail-and-comments.md), [NSFW content visibility and blur](nsfw-content.md), [Cross-posting](cross-posting.md)
+- **Related:** [Sharing](sharing.md), [Post detail and comments](post-detail-and-comments.md), [NSFW content visibility and blur](nsfw-content.md), [Cross-posting](cross-posting.md), [App chrome and materials](app-chrome-and-materials.md)
 
 ## What it does
 
@@ -15,8 +15,8 @@ device's theme, accent color, or text-size setting.
 ## Behavior and rules
 
 - **The card, not a screenshot.** The card has its own fixed two-surface palette (light and
-  dark) that is completely independent of the app's theme (System / Light / Dark / True
-  Black) and accent color. Its only brand color is a fixed Lemmy teal, used for the score
+  dark) that is completely independent of the app's theme (System / Light / Dark) and
+  accent color. Its only brand color is a fixed Lemmy teal, used for the score
   glyph, the "Read the full post on Lemmy" link, the shared comment's rail, and the "via
   Spud" mark — never the app's user-chosen accent.
 - **Two card kinds.** A post card carries the community, creator, title, media, body, stats,
@@ -104,6 +104,12 @@ device's theme, accent color, or text-size setting.
   last used — appearance, canvas, toggles, chain depth — so the common path is open, glance,
   share. The one exception is the NSFW reveal, which always resets to spoilered on a fresh
   open, matching the "never auto-revealed" guardrail above.
+- **The editor's navigation bar stays dark.** The editor's stage is a fixed dark backdrop
+  whatever the app's appearance, and the translucent bar sits over it edge to edge, so the
+  bar is pinned to a dark appearance in order to keep its title and buttons legible. In
+  Light appearance the bar therefore reads dark while the tray and output bar below stay
+  light. (Before this, Light appearance drew near-black title text on the near-black
+  stage.)
 - **Dynamic Type.** The editor's own chrome (tray labels, buttons, the alt-text sheet) scales
   with the device's text size. The card preview itself does not — its typography is fixed, by
   design, so a shared image looks the same regardless of the sharer's text-size setting.
@@ -200,6 +206,13 @@ action's same condition), a warning haptic fires and the editor never opens.
   export, PNG-metadata, and pasteboard paths are covered by unit and snapshot tests, but a
   live device run of Save to Photos and the system share sheet handing the file to another
   app has not yet been done.
+- **Known defect: the Alt Text sheet's text card renders at zero height.** As shipped, the
+  sheet's editable description card has no height and only the grey footnote beneath it is
+  visible, so the alt text cannot be read or edited there. Established by static analysis
+  plus a measurement of the laid-out view; it has **not** yet been confirmed by hand on the
+  real presented sheet. It predates the Liquid Glass work and is not caused by it. Alt text
+  is still auto-generated and still embedded in the exported PNG — only the editing sheet
+  is affected. Not yet fixed; it needs its own change.
 
 ## Deviations from the design deck
 

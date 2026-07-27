@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Voting](voting.md), [Post detail and comments](post-detail-and-comments.md), [Media viewer and inline video](media-viewer.md), [Swipe actions](swipe-actions.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
+- **Related:** [Voting](voting.md), [Post detail and comments](post-detail-and-comments.md), [Media viewer and inline video](media-viewer.md), [Swipe actions](swipe-actions.md), [App chrome and materials](app-chrome-and-materials.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
 
@@ -13,7 +13,9 @@ Spud honors the system accessibility settings. Text scales with the user's Dynam
 - **Dynamic Type.** Body and label text uses system text styles and scales with the user's content-size setting; most text-bearing cells and headers update live as the setting changes. Custom and monospace fonts scale too, through a font-metrics helper, so non-text-style type tracks the same setting. There is no upper clamp — text grows all the way to the largest accessibility sizes.
 - **VoiceOver on core surfaces.** The feed cell, post detail header and comments, the media viewer, profiles, communities, the Inbox, account and instance lists, and the composer toolbar set explicit VoiceOver labels and traits. Voting and saving speak full, consistent phrasing — for example a score reads as "42 points, upvoted" with the full number, not the abbreviated "1.2K" shown on screen — through a shared phrasing helper, so the spoken form is consistent everywhere those controls appear. The active vote control (upvote or downvote button) gains the `.selected` trait when you have voted in that direction, so VoiceOver announces the current vote state on focus. The post-list dog-ear fold (shown when vote buttons are hidden) is decorative and excluded from the accessibility tree.
 - **Per-link accessibility in body text.** A label that renders tappable links (the `LinkLabel` used for post and comment attribution and for in-body markdown links) exposes each link range as its own accessibility element: the link text is its label, the destination URL is its value, it carries the link trait, and its frame matches the on-screen text of that link. VoiceOver users can focus and activate an individual link — for example the post creator's name in the "in <community> by <creator>" attribution — instead of the whole label being a single element.
-- **Reduce Motion.** When Reduce Motion is enabled, animations are dropped or swapped for cross-fades rather than playing in full: the media viewer's zoom transition runs at zero duration, post-detail scroll-to-row jumps without animating, swipe-action animations are skipped, and the voted-state fill cross-fades in rather than springing in (scale 0.9 → 1.0). The result is the same end state without the motion.
+- **Icon-only bar buttons are labeled.** Navigation-bar buttons that show only a glyph — the feed's sort, filter, new-post and feed-switcher buttons, the community sort button, Discover's and the Communities tab's sort buttons, the site-list and onboarding back buttons, the instance screen's share button, and the Share as Image alt-text sheet's compose control — each carry an explicit VoiceOver label naming the action, rather than being read as the raw symbol name. The composer's and New post's submit buttons also announce their in-flight state while a send is running.
+- **Reduce Motion.** When Reduce Motion is enabled, animations are dropped or swapped for cross-fades rather than playing in full: the media viewer's zoom transition runs at zero duration, post-detail scroll-to-row jumps without animating, swipe-action animations are skipped, the voted-state fill cross-fades in rather than springing in (scale 0.9 → 1.0), and toasts and the offline-download progress pill appear and disappear without their slide-and-fade. The result is the same end state without the motion.
+- **Chrome over a fixed-dark backdrop stays legible in Light.** Two surfaces sit on a permanently dark stage whatever the app appearance — the media viewer and the Share as Image editor. Their translucent bars are pinned to a dark appearance so their text and glyphs keep contrast against that stage; in Light appearance the bar reads dark while the rest of the screen stays light.
 
 ## Scenarios
 
@@ -45,6 +47,13 @@ Spud honors the system accessibility settings. Text scales with the user's Dynam
 - **Then** VoiceOver reads it as selected (the `.selected` trait is set), indicating my current vote direction
 - **And** focusing the downvote button reads as not selected
 
+### VoiceOver names an icon-only navigation-bar button
+
+- **Given** VoiceOver is on, in a feed
+- **When** I focus the sort button in the navigation bar
+- **Then** it is announced by what it does rather than by its symbol
+- **And** the same holds for the filter, new-post, and feed-switcher buttons beside it
+
 ### Reduce Motion removes the media zoom animation
 
 - **Given** Reduce Motion is enabled
@@ -61,7 +70,8 @@ Spud honors the system accessibility settings. Text scales with the user's Dynam
 
 ## Not supported / out of scope
 
-- **No custom handling for Bold Text, Increase Contrast, or Reduce Transparency.** These are left to the system defaults; Spud does not adjust its own styling for them.
+- **No custom handling for Bold Text, Increase Contrast, or Reduce Transparency.** These are left to the system defaults; Spud does not adjust its own styling for them. Two caveats on how far that has been checked: **Increase Contrast has not been verified per surface** — the argument that the stock glass and system colors adapt on their own is reasoning, not evidence, and the capture is still owed. **Reduce Transparency could not be toggled live** on the test environment; instead every translucent surface in the app was audited statically and all of them use the adaptive system material family (no fixed non-adaptive blur styles anywhere), which is what lets the system substitute an opaque treatment — but that substitution has not been observed running.
+- **One animation still ignores Reduce Motion.** The offline-download progress pill's progress ring animates its fill unconditionally. The pill's own appearance and dismissal do honor the setting; only the ring inside it does not.
 - **No VoiceOver focus announcements.** Spud does not post screen-changed, layout-changed, or announcement notifications, nor manage focus explicitly, beyond the per-element labels and the modal presentation behavior the system provides.
 - **A few labels do not live-update on a Dynamic Type change.** Most text tracks the setting immediately, but a small number of labels take the size at creation and refresh only when their view is rebuilt.
 - **Typography is not centralized.** Fonts are defined per scene rather than as shared design tokens, so Dynamic Type adoption is broad but per-scene rather than enforced in one place.
