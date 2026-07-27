@@ -53,12 +53,32 @@ final class FeedSwitcherViewController: UIViewController {
     /// `downloadedCount`, so the Downloaded row's presence tracks the count.
     private var sections: [[Row]] = []
 
+    /// Distinguishes this instance's two presentation contexts: the transient
+    /// popover (regular width, presented from the post-list navbar title by
+    /// `MainWindowSplitViewController.onPresentFeedSwitcher`) versus the
+    /// long-lived instance pushed beneath the post list in compact width. The
+    /// caller sets `modalPresentationStyle = .popover` right after constructing
+    /// the popover instance and before `present(_:animated:)`, which is always
+    /// before `viewDidLoad` runs (that only happens once the presentation
+    /// transition actually loads the view) -- so this reads correctly by the
+    /// time `viewDidLoad`/the lazy `tableView` consult it. The pushed instance
+    /// never touches `modalPresentationStyle`, so it stays at the
+    /// `UIViewController` default (never `.popover`).
+    private var isPopover: Bool {
+        modalPresentationStyle == .popover
+    }
+
     private lazy var tableView: UITableView = {
         let tableView = UITableView(frame: .zero, style: .insetGrouped)
         tableView.translatesAutoresizingMaskIntoConstraints = false
         tableView.dataSource = self
         tableView.delegate = self
-        tableView.backgroundColor = .systemGroupedBackground
+        // `.insetGrouped` tables carry an opaque `.systemGroupedBackground` fill
+        // of their own even when never explicitly assigned, so the popover usage
+        // needs an explicit `.clear` override (not just skipping the assignment)
+        // to let the popover's own glass material show through. The pushed
+        // (compact) usage is a real screen and keeps the opaque fill.
+        tableView.backgroundColor = isPopover ? .clear : .systemGroupedBackground
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
         return tableView
     }()
@@ -129,7 +149,15 @@ final class FeedSwitcherViewController: UIViewController {
 
     override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .systemGroupedBackground
+        // Only fill an opaque background for the compact, beneath-the-list
+        // usage -- a real pushed screen that needs one. The popover usage
+        // (regular width, presented from the post-list navbar title) is a
+        // floating panel; leave its background transparent so the system's own
+        // popover glass material shows through instead of a flat, hand-picked
+        // color underneath it.
+        if !isPopover {
+            view.backgroundColor = .systemGroupedBackground
+        }
 
         title = NSLocalizedString("Feeds", comment: "Feed switcher label")
         navigationItem.largeTitleDisplayMode = .never
