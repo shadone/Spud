@@ -1014,18 +1014,21 @@ Shared tokens keep the bespoke glass surfaces consistent."
 **Files:**
 - Modify: `Spud/Utils/Views/LowResPreviewPillView.swift:33`
 - Modify: `Spud/Scenes/Common/Toast/ToastPresenter.swift`
+- Modify: `Spud/Scenes/Common/OfflineDownloadStatus/OfflineDownloadStatusView.swift`
 - Modify: `Spud/Scenes/Community/Content/CommunityHeaderView.swift:205`
 - Modify: `Spud/Scenes/Account/InstanceDetail/InstanceDetailViewController.swift:636`
 
 **Interfaces:**
 - Consumes: `GlassTokens` from Task 15.
-- Produces: no remaining iOS 18-era blur on floating chrome.
+- Produces: no remaining iOS 18-era blur (or opaque stand-in) on floating chrome.
 
 - [ ] **Step 1: Convert each site**
 
 Replace each `UIVisualEffectView(effect: UIBlurEffect(style: ...))` with `UIVisualEffectView(effect: GlassTokens.controlSurface)`.
 
 `ToastPresenter` floats over all content and is the strongest candidate after the media viewer. `LowResPreviewPillView` is a small floating pill. `CommunityHeaderView:205` and `InstanceDetailViewController:636` are banner scrims — check each renders as intended over a banner image; if a scrim's job is legibility rather than chrome, keep it a blur and note why in the commit body.
+
+`OfflineDownloadStatusView` (added after Task 9) is a SwiftUI status pill — "anchored to the window" per its own doc comment, surviving feed/tab switches — structurally the same floating-HUD case as `ToastPresenter`, just missed by the original inventory. Note that neither it nor `ToastPresenter`'s own bubble currently uses `UIBlurEffect` at all: both fill a `Capsule`/rounded rect with a plain `secondarySystemBackground` color plus a hand-rolled `shadow`/`CALayer` shadow, so this step is not a like-for-like line replacement for either — it is standing up a real glass container (SwiftUI: a `.background` using `GlassEffectContainer`/`glassEffect`, wired to the same tokens) where none exists yet, then removing the now-redundant flat fill and shadow.
 
 - [ ] **Step 2: Confirm the excluded sites are untouched**
 
