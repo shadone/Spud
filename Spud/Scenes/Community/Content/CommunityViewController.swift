@@ -134,6 +134,10 @@ class CommunityViewController: UIViewController {
             target: self,
             action: #selector(newPostTapped)
         )
+        newPostButton.accessibilityLabel = NSLocalizedString(
+            "New post",
+            comment: "Community feed compose button accessibility label"
+        )
         // Group 1: state-dependent actions (subscribe + favorite), deferred so
         // they reflect live subscription / favorite state each time the menu
         // opens. Group 2: mute + block. Group 3: sharing. Inline groups keep the

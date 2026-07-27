@@ -7,7 +7,7 @@
 import UIKit
 
 /// Explorer-score donut: a track ring + a coloured progress arc with the score
-/// (0...100) and a "SCORE" caption centred inside.
+/// (0...100) and a "Score" caption centred inside.
 final class InstanceScoreRingView: UIView {
     private let track = CAShapeLayer()
     private let progress = CAShapeLayer()
@@ -31,7 +31,7 @@ final class InstanceScoreRingView: UIView {
         valueLabel.textAlignment = .center
         valueLabel.font = .monospacedDigitSystemFont(ofSize: 19, weight: .heavy)
         let caption = UILabel()
-        caption.text = "SCORE"
+        caption.text = "Score"
         caption.textAlignment = .center
         caption.font = .systemFont(ofSize: 8, weight: .bold)
         caption.textColor = .tertiaryLabel

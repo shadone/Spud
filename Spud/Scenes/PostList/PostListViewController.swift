@@ -496,6 +496,10 @@ class PostListViewController: UIViewController {
             target: self,
             action: #selector(composeTapped)
         )
+        composeButton.accessibilityLabel = NSLocalizedString(
+            "New post",
+            comment: "Post list compose button accessibility label"
+        )
         // First item is the right-most: compose stays outboard, Quick Switch
         // sits immediately to its left, then the sort menu.
         navigationItem.rightBarButtonItems = [composeButton, quickSwitchBarButtonItem, sortTypeBarButtonItem]
@@ -1031,6 +1035,10 @@ class PostListViewController: UIViewController {
             image: UIImage(systemName: "line.horizontal.3.decrease.circle"),
             menu: nil
         )
+        sortTypeBarButtonItem.accessibilityLabel = NSLocalizedString(
+            "Sort",
+            comment: "Post list sort menu accessibility label"
+        )
         // Placement is owned by updateTrailingBarButtonItems() (called right after
         // this in setup()), which orders compose outboard of the sort menu.
         rebuildSortTypeMenu(activeSortType: viewModel.feed.feedType.sortType)
@@ -1066,6 +1074,10 @@ class PostListViewController: UIViewController {
             style: .plain,
             target: self,
             action: #selector(quickSwitchTapped)
+        )
+        quickSwitchBarButtonItem.accessibilityLabel = NSLocalizedString(
+            "Quick Switch",
+            comment: "Post list Quick Switch button accessibility label"
         )
     }
 

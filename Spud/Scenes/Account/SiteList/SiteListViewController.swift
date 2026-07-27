@@ -112,11 +112,19 @@ class SiteListViewController: UIViewController {
             primaryAction: nil,
             menu: makeSortMenu()
         )
+        sortBarButtonItem.accessibilityLabel = NSLocalizedString(
+            "Sort",
+            comment: "Instance list sort menu accessibility label"
+        )
         filterBarButtonItem = UIBarButtonItem(
             title: nil,
             image: UIImage(systemName: "line.3.horizontal.decrease.circle"),
             primaryAction: nil,
             menu: makeFilterMenu()
+        )
+        filterBarButtonItem.accessibilityLabel = NSLocalizedString(
+            "Filter",
+            comment: "Instance list filter menu accessibility label"
         )
         navigationItem.rightBarButtonItems = [filterBarButtonItem, sortBarButtonItem]
 

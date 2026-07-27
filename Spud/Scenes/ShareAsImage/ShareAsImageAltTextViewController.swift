@@ -99,8 +99,14 @@ final class ShareAsImageAltTextViewController: UIViewController {
         ])
 
         // "Auto" is a second right bar button, sitting next to Done (and
-        // distinctly from Cancel on the left).
-        navigationItem.rightBarButtonItems = [navigationItem.rightBarButtonItem!, autoButton]
+        // distinctly from Cancel on the left). Both are text-labeled, so a
+        // fixed space keeps "Done" and "Auto" from visually running together
+        // (HIG: keep text-labeled toolbar actions separated).
+        navigationItem.rightBarButtonItems = [
+            navigationItem.rightBarButtonItem!,
+            .fixedSpace(12),
+            autoButton,
+        ]
         updateAutoButtonState()
     }
 

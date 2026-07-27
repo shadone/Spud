@@ -98,12 +98,17 @@ final class OnboardingHomeBaseViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .systemBackground
 
-        navigationItem.leftBarButtonItem = UIBarButtonItem(
+        let backButton = UIBarButtonItem(
             image: UIImage(systemName: "chevron.left"),
             primaryAction: UIAction { [weak self] _ in
                 self?.navigationController?.popViewController(animated: true)
             }
         )
+        backButton.accessibilityLabel = NSLocalizedString(
+            "Back to Welcome",
+            comment: "Onboarding home-base back button accessibility label"
+        )
+        navigationItem.leftBarButtonItem = backButton
         // The picker is reached via a push; show only the back chevron, no title.
         navigationItem.title = nil
 

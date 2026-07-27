@@ -163,7 +163,7 @@ final class InstanceAdminsView: UIView {
     }
 }
 
-/// Uppercase section label with an optional count, e.g. "ADMINS  3".
+/// Title-case section label with an optional count, e.g. "Admins  3".
 final class InstanceSectionHeader: UIView {
     private let titleLabel = UILabel()
     private let countLabel = UILabel()
@@ -194,7 +194,7 @@ final class InstanceSectionHeader: UIView {
     }
 
     func configure(title: String, count: Int?) {
-        titleLabel.text = title.uppercased()
+        titleLabel.text = title
         countLabel.text = count.map { "\($0)" }
         countLabel.isHidden = count == nil
     }
