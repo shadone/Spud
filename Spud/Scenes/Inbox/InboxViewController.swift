@@ -160,9 +160,9 @@ final class InboxViewController: UIViewController {
 
         super.init(nibName: nil, bundle: nil)
 
-        tabBarItem.title = NSLocalizedString("Inbox", comment: "Inbox tab title")
-        tabBarItem.image = UIImage(systemName: "tray")
-        tabBarItem.selectedImage = UIImage(systemName: "tray.fill")
+        // Tab title/image are set on the `UITab` that wraps this controller
+        // (MainWindow) rather than here — `UITab` carries its own metadata
+        // and does not consult the wrapped view controller's `tabBarItem`.
     }
 
     @available(*, unavailable)

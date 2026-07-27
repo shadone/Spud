@@ -183,7 +183,9 @@ class IPadSplitUITests: XCTestCase {
     /// because the "Back to Communities" back button only appears in the primary column's
     /// nav bar of the split, while "No posts selected" lives in the secondary column.
     func test_discoverCommunity_showsTwoColumnSplit() {
-        // Navigate to the Communities tab (Posts | Communities | Search | Inbox | Account).
+        // Navigate to the Communities tab (rendered order: Posts | Communities |
+        // Inbox | Account | Search — the search tab is relocated to the trailing
+        // edge by the system).
         // On iPad (iOS 18+) UITabBarController renders as a sidebar — `app.tabBars` finds
         // nothing because there is no UITabBar element. The sidebar tab items are exposed as
         // plain buttons in the accessibility hierarchy; `app.buttons["Communities"]` matches

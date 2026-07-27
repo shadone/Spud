@@ -130,8 +130,9 @@ class MainWindowSplitViewController: UISplitViewController {
         preferredDisplayMode = .oneBesideSecondary
         preferredSplitBehavior = .tile
 
-        tabBarItem.title = "Posts"
-        tabBarItem.image = UIImage(systemName: "doc.richtext")!
+        // Tab title/image are set on the `UITab` that wraps this controller
+        // (MainWindow) rather than here — `UITab` carries its own metadata
+        // and does not consult the wrapped view controller's `tabBarItem`.
     }
 
     @available(*, unavailable)
