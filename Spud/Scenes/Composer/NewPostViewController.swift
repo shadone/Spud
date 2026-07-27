@@ -376,7 +376,9 @@ final class NewPostViewController: UIViewController {
         case .submitting:
             setFormEnabled(false)
             activityIndicator.startAnimating()
-            navigationItem.rightBarButtonItem = UIBarButtonItem(customView: activityIndicator)
+            let submittingItem = UIBarButtonItem(customView: activityIndicator)
+            submittingItem.accessibilityLabel = viewModel.submittingAccessibilityLabel
+            navigationItem.rightBarButtonItem = submittingItem
 
         case let .finished(serverPostId):
             view.endEditing(true)

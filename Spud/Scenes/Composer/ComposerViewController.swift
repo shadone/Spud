@@ -183,7 +183,9 @@ final class ComposerViewController: UIViewController {
         case .submitting:
             editorView.textView.isEditable = false
             activityIndicator.startAnimating()
-            navigationItem.rightBarButtonItem = UIBarButtonItem(customView: activityIndicator)
+            let submittingItem = UIBarButtonItem(customView: activityIndicator)
+            submittingItem.accessibilityLabel = viewModel.submittingAccessibilityLabel
+            navigationItem.rightBarButtonItem = submittingItem
 
         case .finished:
             view.endEditing(true)
