@@ -140,6 +140,20 @@ final class ToastView: UIView {
         return label
     }()
 
+    /// The pill's Liquid Glass surface. `self` is just a plain layout
+    /// container (sized/positioned by `ToastPresenter`); all visible chrome
+    /// (material, corner radius, clipping) lives on this nested
+    /// `UIVisualEffectView` — the same architecture `LowResPreviewPillView`
+    /// uses for its own floating pill.
+    private let glassView: UIVisualEffectView = {
+        let view = UIVisualEffectView(effect: GlassTokens.controlSurface)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.layer.cornerRadius = 20
+        view.layer.cornerCurve = .continuous
+        view.clipsToBounds = true
+        return view
+    }()
+
     /// True when the toast hosts an action button (and is interactive).
     let isInteractive: Bool
 
@@ -152,15 +166,22 @@ final class ToastView: UIView {
         super.init(frame: .zero)
         messageLabel.text = message
 
-        backgroundColor = .secondarySystemBackground
-        layer.cornerRadius = 20
-        layer.cornerCurve = .continuous
-        layer.shadowColor = UIColor.black.cgColor
-        layer.shadowOpacity = 0.18
-        layer.shadowRadius = 8
-        layer.shadowOffset = CGSize(width: 0, height: 2)
-        layer.borderWidth = 1.0 / UIScreen.main.scale
-        layer.borderColor = UIColor.separator.cgColor
+        addSubview(glassView)
+        NSLayoutConstraint.activate([
+            glassView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            glassView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            glassView.topAnchor.constraint(equalTo: topAnchor),
+            glassView.bottomAnchor.constraint(equalTo: bottomAnchor),
+        ])
+
+        // The flat `secondarySystemBackground` fill, hand-rolled CALayer
+        // shadow, and hairline border this pill used before Liquid Glass are
+        // gone: `glassView`'s own material now supplies both the surface and
+        // its elevation (a real glass surface already renders a
+        // specular/depth cue — stacking a flat drop shadow and a hard-edge
+        // stroke underneath it would double up and read as mismatched,
+        // dated chrome, the same reasoning Task 15 applied when it dropped
+        // the media-viewer jump button's CALayer shadow).
 
         if let actionTitle, let action {
             isUserInteractionEnabled = true
@@ -180,22 +201,22 @@ final class ToastView: UIView {
             stack.axis = .horizontal
             stack.alignment = .center
             stack.spacing = 12
-            addSubview(stack)
+            glassView.contentView.addSubview(stack)
             NSLayoutConstraint.activate([
-                stack.topAnchor.constraint(equalTo: topAnchor, constant: 8),
-                stack.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -8),
-                stack.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-                stack.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -12),
+                stack.topAnchor.constraint(equalTo: glassView.contentView.topAnchor, constant: 8),
+                stack.bottomAnchor.constraint(equalTo: glassView.contentView.bottomAnchor, constant: -8),
+                stack.leadingAnchor.constraint(equalTo: glassView.contentView.leadingAnchor, constant: 16),
+                stack.trailingAnchor.constraint(equalTo: glassView.contentView.trailingAnchor, constant: -12),
             ])
         } else {
             isUserInteractionEnabled = false
             messageLabel.textAlignment = .center
-            addSubview(messageLabel)
+            glassView.contentView.addSubview(messageLabel)
             NSLayoutConstraint.activate([
-                messageLabel.topAnchor.constraint(equalTo: topAnchor, constant: 10),
-                messageLabel.bottomAnchor.constraint(equalTo: bottomAnchor, constant: -10),
-                messageLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: 16),
-                messageLabel.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -16),
+                messageLabel.topAnchor.constraint(equalTo: glassView.contentView.topAnchor, constant: 10),
+                messageLabel.bottomAnchor.constraint(equalTo: glassView.contentView.bottomAnchor, constant: -10),
+                messageLabel.leadingAnchor.constraint(equalTo: glassView.contentView.leadingAnchor, constant: 16),
+                messageLabel.trailingAnchor.constraint(equalTo: glassView.contentView.trailingAnchor, constant: -16),
             ])
         }
     }

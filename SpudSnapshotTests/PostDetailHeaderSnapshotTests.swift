@@ -237,10 +237,10 @@ final class PostDetailHeaderSnapshotTests: XCTestCase {
     /// The degraded state: the full-resolution image failed to load but the
     /// cached thumbnail is on screen, so the header keeps the thumbnail and
     /// overlays the subtle "Low-res preview · retry" pill instead of the hard
-    /// failure plate. The pill is a `UIVisualEffectView` blur, which only renders
-    /// when drawn through the key window — so this uses the
-    /// `drawHierarchyInKeyWindow: true` strategy (like the NSFW blur test) rather
-    /// than the offscreen `.image(size:traits:)` path.
+    /// failure plate. The pill is a `UIVisualEffectView` (real Liquid Glass as
+    /// of Task 16), which only renders when drawn through the key window — so
+    /// this uses the `drawHierarchyInKeyWindow: true` strategy (like the NSFW
+    /// blur test) rather than the offscreen `.image(size:traits:)` path.
     func test_image_lowResPreview() async {
         let cell = await renderCell(
             row: row(url: imageUrl),

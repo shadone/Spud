@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import UIKit
 
 /// A small, non-blocking "you're seeing a low-resolution preview" pill.
@@ -11,7 +12,7 @@ import UIKit
 /// Shown over an image whenever the cached thumbnail is on screen but the
 /// full-resolution asset couldn't load (slow network or offline). Rather than
 /// covering the image with the hard failure plate, this stays out of the way: a
-/// frosted, dark-material rounded pill with a glyph and a short label, sized to
+/// floating Liquid Glass rounded pill with a glyph and a short label, sized to
 /// its content.
 ///
 /// Two surfaces use it, configured differently at construction:
@@ -21,16 +22,18 @@ import UIKit
 ///   - the full-screen media viewer shows an *informational* pill ("Showing
 ///     low-resolution preview") in its auto-hiding chrome.
 ///
-/// Built on `UIVisualEffectView` so it reads over any image. Because the blur
-/// only renders when drawn through the key window, snapshot tests that capture
-/// it must use the `drawHierarchyInKeyWindow:` strategy.
+/// Built on `UIVisualEffectView` (`GlassTokens.controlSurface`) so it reads over
+/// any image — the same functional-control-over-arbitrary-photo-content case the
+/// token was designed for. Because the glass material only renders when drawn
+/// through the key window, snapshot tests that capture it must use the
+/// `drawHierarchyInKeyWindow:` strategy.
 final class LowResPreviewPillView: UIView {
     /// Invoked when the pill is tapped. `nil` makes the pill informational (no
     /// tap, no `.button` trait) — the media-viewer presentation.
     var onTap: (() -> Void)?
 
-    private let blurView: UIVisualEffectView = {
-        let view = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+    private let glassView: UIVisualEffectView = {
+        let view = UIVisualEffectView(effect: GlassTokens.controlSurface)
         view.translatesAutoresizingMaskIntoConstraints = false
         view.layer.cornerRadius = 12
         view.layer.cornerCurve = .continuous
@@ -90,19 +93,19 @@ final class LowResPreviewPillView: UIView {
         // The stack is laid out by the pill; the pill's tap gesture handles touches.
         stack.isUserInteractionEnabled = false
 
-        addSubview(blurView)
-        blurView.contentView.addSubview(stack)
+        addSubview(glassView)
+        glassView.contentView.addSubview(stack)
 
         NSLayoutConstraint.activate([
-            blurView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            blurView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            blurView.topAnchor.constraint(equalTo: topAnchor),
-            blurView.bottomAnchor.constraint(equalTo: bottomAnchor),
+            glassView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            glassView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            glassView.topAnchor.constraint(equalTo: topAnchor),
+            glassView.bottomAnchor.constraint(equalTo: bottomAnchor),
 
-            stack.leadingAnchor.constraint(equalTo: blurView.contentView.leadingAnchor, constant: 11),
-            stack.trailingAnchor.constraint(equalTo: blurView.contentView.trailingAnchor, constant: -11),
-            stack.topAnchor.constraint(equalTo: blurView.contentView.topAnchor, constant: 6),
-            stack.bottomAnchor.constraint(equalTo: blurView.contentView.bottomAnchor, constant: -6),
+            stack.leadingAnchor.constraint(equalTo: glassView.contentView.leadingAnchor, constant: 11),
+            stack.trailingAnchor.constraint(equalTo: glassView.contentView.trailingAnchor, constant: -11),
+            stack.topAnchor.constraint(equalTo: glassView.contentView.topAnchor, constant: 6),
+            stack.bottomAnchor.constraint(equalTo: glassView.contentView.bottomAnchor, constant: -6),
         ])
 
         let tap = UITapGestureRecognizer(target: self, action: #selector(handleTap))

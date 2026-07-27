@@ -200,6 +200,13 @@ final class CommunityHeaderView: UIView {
     }()
 
     /// Blur overlay that obscures the banner image when Blur NSFW is on.
+    ///
+    /// Deliberately kept a `UIBlurEffect` in the Liquid Glass conversion
+    /// (Task 16): `blurBanner` (see `configure(...)`) is driven by
+    /// `viewModel.isNsfw && preferencesService.blurNsfw` — this is a content
+    /// obscurer for the NSFW banner, the same job as `NsfwBlurOverlayView`,
+    /// not a legibility scrim or chrome. Glass is translucent by design and
+    /// would defeat the point of hiding the image.
     private lazy var bannerBlurView: UIVisualEffectView = {
         let effect = UIBlurEffect(style: .systemThickMaterial)
         let view = UIVisualEffectView(effect: effect)

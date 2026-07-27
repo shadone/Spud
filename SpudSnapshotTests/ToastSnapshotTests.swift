@@ -12,8 +12,26 @@ import XCTest
 /// Snapshots of the toast pill in both forms: plain text (confirmation /
 /// failure toasts) and with a trailing accent "Undo" button. Rendered on a
 /// fixed-size, pinned-scale host so references are device-independent.
+///
+/// The pill's background is a real Liquid Glass `UIVisualEffectView`
+/// (`ToastView`'s `glassView`) since Task 16 of the Liquid Glass conversion:
+/// like any `UIVisualEffectView` material, it (and everything nested in its
+/// `contentView` — here, the whole message/button stack) renders as invisible
+/// under the default offscreen `.image(size:traits:)` strategy, which draws via
+/// `layer.render(in:)` and does not composite `UIVisualEffectView` content. This
+/// suite captures with `drawHierarchyInKeyWindow: true` instead, the same fix
+/// `PostDetailHeaderSnapshotTests`/`PostListNsfwBlurSnapshotTests` use for their
+/// own `UIVisualEffectView`-bearing renders.
 @MainActor
 final class ToastSnapshotTests: XCTestCase {
+    override func setUp() {
+        super.setUp()
+        // Pin the host scene's status bar hidden so this on-screen
+        // (`drawHierarchyInKeyWindow`) capture is immune to the sim's persisted
+        // orientation state. See `SnapshotDeterminism.pinStatusBarHidden()`.
+        SnapshotDeterminism.pinStatusBarHidden()
+    }
+
     private let width: CGFloat = 390
 
     private func traits(_ style: UIUserInterfaceStyle) -> UITraitCollection {
@@ -59,7 +77,8 @@ final class ToastSnapshotTests: XCTestCase {
     private func assertPlain(style: UIUserInterfaceStyle, testName: String = #function, line: UInt = #line) {
         let view = host(ToastView(message: "Back to where you were"), height: 96)
         assertSnapshot(
-            matching: view, as: .image(size: view.bounds.size, traits: traits(style)),
+            matching: view,
+            as: .image(drawHierarchyInKeyWindow: true, size: view.bounds.size, traits: traits(style)),
             named: style == .dark ? "dark" : "light", testName: testName, line: line
         )
     }
@@ -67,7 +86,8 @@ final class ToastSnapshotTests: XCTestCase {
     private func assertUndo(style: UIUserInterfaceStyle, testName: String = #function, line: UInt = #line) {
         let view = host(ToastView(message: "Jumped to top", actionTitle: "Undo", action: { }), height: 96)
         assertSnapshot(
-            matching: view, as: .image(size: view.bounds.size, traits: traits(style)),
+            matching: view,
+            as: .image(drawHierarchyInKeyWindow: true, size: view.bounds.size, traits: traits(style)),
             named: style == .dark ? "dark" : "light", testName: testName, line: line
         )
     }

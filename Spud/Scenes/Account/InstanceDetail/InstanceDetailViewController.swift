@@ -638,17 +638,28 @@ final class InstanceDetailViewController: UIViewController {
     // MARK: Action bar (sticky)
 
     private func makeActionBar() -> UIView {
-        let blur = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterial))
+        // Sticky bottom bar's own background, not a banner scrim: `scrollView`
+        // is constrained to stop at this bar's top edge (see the constraints
+        // in `setup()`), so nothing scrolls beneath it and a plain
+        // `UIVisualEffectView` (rather than `PassthroughGlassContainerView`)
+        // is sufficient — there's no oversized empty region for it to
+        // wrongly swallow touches over. The two CTA buttons inside stay
+        // plain `UIButton.Configuration` (Task 9's call, re-affirmed for
+        // Task 16): they span nearly the bar's full width and belong to the
+        // same "Create account/Sign in/Browse" CTA family as
+        // `OnboardingPrimaryButton`/`OnboardingGhostButton` elsewhere in the
+        // account-creation journey, which stay plain for consistency.
+        let glass = UIVisualEffectView(effect: GlassTokens.controlSurface)
         let hairlineView = UIView()
         hairlineView.backgroundColor = .separator
         hairlineView.translatesAutoresizingMaskIntoConstraints = false
-        blur.contentView.addSubview(hairlineView)
+        glass.contentView.addSubview(hairlineView)
 
         let stack = UIStackView()
         stack.axis = .vertical
         stack.spacing = 10
         stack.translatesAutoresizingMaskIntoConstraints = false
-        blur.contentView.addSubview(stack)
+        glass.contentView.addSubview(stack)
 
         if let notice = makeNoticeBanner() {
             stack.addArrangedSubview(notice)
@@ -673,17 +684,17 @@ final class InstanceDetailViewController: UIViewController {
         stack.addArrangedSubview(secondary)
 
         NSLayoutConstraint.activate([
-            hairlineView.topAnchor.constraint(equalTo: blur.contentView.topAnchor),
-            hairlineView.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor),
-            hairlineView.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor),
+            hairlineView.topAnchor.constraint(equalTo: glass.contentView.topAnchor),
+            hairlineView.leadingAnchor.constraint(equalTo: glass.contentView.leadingAnchor),
+            hairlineView.trailingAnchor.constraint(equalTo: glass.contentView.trailingAnchor),
             hairlineView.heightAnchor.constraint(equalToConstant: 0.5),
 
-            stack.topAnchor.constraint(equalTo: blur.contentView.topAnchor, constant: 12),
-            stack.leadingAnchor.constraint(equalTo: blur.contentView.leadingAnchor, constant: 16),
-            stack.trailingAnchor.constraint(equalTo: blur.contentView.trailingAnchor, constant: -16),
-            stack.bottomAnchor.constraint(equalTo: blur.contentView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
+            stack.topAnchor.constraint(equalTo: glass.contentView.topAnchor, constant: 12),
+            stack.leadingAnchor.constraint(equalTo: glass.contentView.leadingAnchor, constant: 16),
+            stack.trailingAnchor.constraint(equalTo: glass.contentView.trailingAnchor, constant: -16),
+            stack.bottomAnchor.constraint(equalTo: glass.contentView.safeAreaLayoutGuide.bottomAnchor, constant: -12),
         ])
-        return blur
+        return glass
     }
 
     private func makeNoticeBanner() -> UIView? {

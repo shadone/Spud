@@ -76,6 +76,43 @@ final class InstanceDetailSnapshotTests: XCTestCase {
 
     // MARK: - Snapshot helper
 
+    /// Hosts `nav` on a real, key ``FixedSafeAreaWindow`` sized to `size` — the
+    /// same `UIHostingController`-on-a-window pattern `SummarySnapshotTests`
+    /// uses. Required since Task 16 converted `makeActionBar()`'s background to
+    /// a real `UIGlassEffect`: like `UIVisualEffectView` blur, its material
+    /// (and, empirically, ANY `UIVisualEffectView`-contained content's resolved
+    /// dynamic-color appearance) only composites correctly against a live
+    /// on-screen backdrop.
+    ///
+    /// **What was verified, not assumed.** A throwaway diagnostic capture (a
+    /// temporary test method, fully removed before this commit) showed the
+    /// offscreen `.image(on: .deterministicPhone)` strategy previously used
+    /// here rendered the bar's own material invisible (as expected) but ALSO
+    /// rendered the "Browse only" button's `.label`-colored title as pure
+    /// white (255,255,255) — i.e. dark-mode's `.label` — even under a
+    /// `UITraitCollection(userInterfaceStyle: .light)` render, while the two
+    /// other buttons (whose colors are hard-coded accent/white, not the
+    /// adaptive `.label`) were unaffected. The identical view, captured
+    /// on-screen via `drawHierarchyInKeyWindow: true`, renders "Browse only"
+    /// correctly as black-on-light-gray. This is an offscreen-render-path
+    /// artifact of `UIGlassEffect`'s content view, not a real product bug —
+    /// but it means every existing ref recorded through the offscreen path
+    /// must move to this on-screen path, or the mismatch is permanent.
+    private func hostInWindow(
+        nav: UINavigationController,
+        size: CGSize,
+        style: UIUserInterfaceStyle
+    ) -> FixedSafeAreaWindow {
+        let window = FixedSafeAreaWindow(frame: CGRect(origin: .zero, size: size))
+        window.overrideUserInterfaceStyle = style
+        window.rootViewController = nav
+        window.makeKeyAndVisible()
+        window.layoutIfNeeded()
+        // One run-loop pass so initial appearance/layout callbacks flush.
+        RunLoop.current.run(until: Date())
+        return window
+    }
+
     private func assertScreens(
         _ record: ExplorerInstanceRecord,
         adminCount: Int = 3,
@@ -104,10 +141,13 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             let totalHeight = max(844, contentHeight + 120)
             let size = CGSize(width: 390, height: totalHeight)
 
+            let window = hostInWindow(nav: navigationController, size: size, style: style)
+            defer { window.rootViewController = nil }
+
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .deterministicPhone,
+                    drawHierarchyInKeyWindow: true,
                     size: size,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
@@ -162,10 +202,13 @@ final class InstanceDetailSnapshotTests: XCTestCase {
             let totalHeight = max(844, contentHeight + 120)
             let size = CGSize(width: 390, height: totalHeight)
 
+            let window = hostInWindow(nav: navigationController, size: size, style: style)
+            defer { window.rootViewController = nil }
+
             assertSnapshot(
                 matching: navigationController,
                 as: .image(
-                    on: .deterministicPhone,
+                    drawHierarchyInKeyWindow: true,
                     size: size,
                     traits: UITraitCollection(userInterfaceStyle: style)
                 ),
