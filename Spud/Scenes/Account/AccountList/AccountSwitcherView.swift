@@ -75,7 +75,9 @@ struct AccountSwitcherView: View {
             }
             .listStyle(.insetGrouped)
         }
-        .background(Color(.systemGroupedBackground))
+        // No explicit background: the hosting sheet's presentation controller
+        // supplies it, so this floating panel matches the system's glass
+        // material instead of a flat, hand-picked color.
     }
 
     // MARK: Title

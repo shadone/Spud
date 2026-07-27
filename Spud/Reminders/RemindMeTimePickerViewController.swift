@@ -44,7 +44,8 @@ final class RemindMeTimePickerViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        view.backgroundColor = .systemBackground
+        // No explicit background: the sheet's presentation controller supplies
+        // it, and the date picker draws its own opaque surface regardless.
 
         navigationItem.leftBarButtonItem = UIBarButtonItem(
             title: NSLocalizedString("Cancel", comment: "Dismisses the custom reminder time-picker sheet without setting a reminder"),
