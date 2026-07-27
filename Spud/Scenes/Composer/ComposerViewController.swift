@@ -140,11 +140,18 @@ final class ComposerViewController: UIViewController {
             editorView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
             editorView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
         ])
+
+        // editorView hosts two full-bleed, mutually-exclusive scroll views
+        // (write's textView, preview's scroll view), so the navigation bar's
+        // top edge effect can't infer the right one automatically - point it
+        // at whichever is currently visible, and again on every mode change.
+        setContentScrollView(editorView.activeScrollView, for: .top)
     }
 
     @objc
     private func modeChanged() {
         editorView.setMode(modeControl.selectedSegmentIndex == 0 ? .write : .preview)
+        setContentScrollView(editorView.activeScrollView, for: .top)
     }
 
     /// Opens a link tapped in the rendered preview. The comment composer has
