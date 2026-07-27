@@ -137,7 +137,14 @@ final class ComposerViewController: UIViewController {
         NSLayoutConstraint.activate([
             editorView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
             editorView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
-            editorView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            // Top pins to the view, not the safe area, so the editor spans the
+            // translucent navigation bar and the text scrolls under it. The
+            // container is not itself a scroll view: spanning the bar is what
+            // propagates a non-zero `safeAreaInsets` down to the two inner
+            // scroll views, whose `.automatic` content inset adjustment then
+            // rests their content below the bar. (Leading/trailing stay on the
+            // safe area - this is about the top bar only.)
+            editorView.topAnchor.constraint(equalTo: view.topAnchor),
             editorView.bottomAnchor.constraint(equalTo: view.keyboardLayoutGuide.topAnchor),
         ])
 

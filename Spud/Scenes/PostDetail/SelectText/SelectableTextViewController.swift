@@ -54,10 +54,13 @@ final class SelectableTextViewController: UIViewController {
 
         textView.attributedText = makeAttributedText()
         view.addSubview(textView)
+        // Full-bleed: the text scrolls UNDER the translucent navigation bar so
+        // the glass has content to refract. The default `.automatic` content
+        // inset adjustment keeps the first line resting below the bar.
         NSLayoutConstraint.activate([
             textView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             textView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
-            textView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            textView.topAnchor.constraint(equalTo: view.topAnchor),
             textView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
         ])
     }
