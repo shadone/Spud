@@ -47,6 +47,45 @@ struct FeedSwitcherViewControllerTests {
         #expect(vc.tableView(table, numberOfRowsInSection: 0) == baseFeedRowCount + 1)
     }
 
+    /// Regression test for the Liquid Glass popover fix (Task 22): a row cell
+    /// must be transparent in the popover presentation so the popover's own
+    /// glass material shows through, rather than painting its own opaque
+    /// `.secondarySystemGroupedBackground` pill on top of it. `isPopover`
+    /// reads `modalPresentationStyle`, which the real caller sets right after
+    /// construction and before the view loads -- mirrored here by setting it
+    /// before `loadViewIfNeeded()`.
+    @Test
+    func popoverRowBackgroundIsClearForGlass() {
+        let vc = makeSwitcher(downloadedCount: { 0 })
+        vc.modalPresentationStyle = .popover
+        vc.loadViewIfNeeded()
+
+        let table = UITableView()
+        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        let cell = vc.tableView(table, cellForRowAt: IndexPath(row: 0, section: 0))
+
+        #expect(cell.backgroundColor == .clear)
+    }
+
+    /// Companion to the above: the pushed (compact-width, beneath-the-list)
+    /// usage never touches `modalPresentationStyle`, so it must keep its
+    /// opaque grouped-list appearance. A fix that clears the popover's row
+    /// backgrounds but ALSO clears the pushed screen's would be a regression
+    /// this test alone would catch -- it is not enough to assert `.clear` in
+    /// the popover case above.
+    @Test
+    func pushedRowBackgroundStaysOpaque() {
+        let vc = makeSwitcher(downloadedCount: { 0 })
+        // modalPresentationStyle left at its default (never `.popover`).
+        vc.loadViewIfNeeded()
+
+        let table = UITableView()
+        table.register(UITableViewCell.self, forCellReuseIdentifier: "cell")
+        let cell = vc.tableView(table, cellForRowAt: IndexPath(row: 0, section: 0))
+
+        #expect(cell.backgroundColor == .secondarySystemGroupedBackground)
+    }
+
     @Test
     func downloadedRowAppearsAndDisappearsAcrossReappearances() {
         var count = 0
