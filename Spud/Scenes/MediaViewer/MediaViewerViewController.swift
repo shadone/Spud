@@ -82,8 +82,35 @@ final class MediaViewerViewController: UIViewController {
         return pageVC
     }()
 
+    /// Groups the top bar and the caption pill into one Liquid Glass system so
+    /// they merge/morph together (per Apple's guidance to combine bespoke
+    /// glass effects with a container rather than let each float
+    /// independently), instead of rendering as two unrelated glass panes.
+    /// Spans the full view; the two bars are positioned within its
+    /// `contentView` by their own constraints, and the container itself draws
+    /// nothing where neither bar is present.
+    ///
+    /// Deliberately `PassthroughGlassContainerView`, not a plain
+    /// `UIVisualEffectView`: a full-screen effect view otherwise hit-tests as
+    /// an opaque blocker everywhere neither bar is visible, which would
+    /// silently kill pinch-to-zoom, pan, tap-to-toggle-chrome, and paging on
+    /// the photo underneath — all of which live in the sibling
+    /// `pageViewController.view` subtree, not inside this container. See
+    /// that type's doc comment for the full mechanics.
+    private lazy var chromeGlassContainerView: PassthroughGlassContainerView = {
+        let containerEffect = UIGlassContainerEffect()
+        containerEffect.spacing = GlassTokens.controlContainerSpacing
+        let view = PassthroughGlassContainerView(effect: containerEffect)
+        view.translatesAutoresizingMaskIntoConstraints = false
+        return view
+    }()
+
     private lazy var topBarBackgroundView: UIVisualEffectView = {
-        let view = UIVisualEffectView(effect: UIBlurEffect(style: .systemUltraThinMaterialDark))
+        // Part of chromeGlassContainerView's grouped glass system (nested
+        // inside its contentView in setupTopBar()), not a standalone blur —
+        // real Liquid Glass over the photo, per Apple's guidance to reserve
+        // it for exactly this kind of floating functional chrome.
+        let view = UIVisualEffectView(effect: GlassTokens.controlSurface)
         view.translatesAutoresizingMaskIntoConstraints = false
         return view
     }()
@@ -145,8 +172,10 @@ final class MediaViewerViewController: UIViewController {
     /// The collapsed alt-text affordance: a tappable "[ALT] Image description ⌃"
     /// pill pinned above the page dots that opens the full description sheet.
     /// Hidden when the current item carries no alt text; fades with the chrome.
+    /// Part of chromeGlassContainerView's grouped glass system (nested inside
+    /// its contentView in setupTopBar()), alongside topBarBackgroundView.
     private lazy var captionContainer: UIVisualEffectView = {
-        let view = UIVisualEffectView(effect: UIBlurEffect(style: .systemThinMaterialDark))
+        let view = UIVisualEffectView(effect: GlassTokens.controlSurface)
         view.translatesAutoresizingMaskIntoConstraints = false
         view.layer.cornerRadius = 12
         view.layer.cornerCurve = .continuous
@@ -387,14 +416,29 @@ final class MediaViewerViewController: UIViewController {
     }
 
     private func setupTopBar() {
-        view.addSubview(topBarBackgroundView)
+        // The container spans the full view; it draws nothing of its own
+        // where neither nested bar is present, so this is equivalent to
+        // sizing it to exactly the two bars' union while staying a single
+        // rectangle. Nesting both `UIGlassEffect` bars inside its
+        // `contentView` is the shape Apple's API documents for
+        // `UIGlassContainerEffect` (combined rendering, one merge/morph
+        // system) rather than each bar getting its own top-level container.
+        view.addSubview(chromeGlassContainerView)
+        NSLayoutConstraint.activate([
+            chromeGlassContainerView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            chromeGlassContainerView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            chromeGlassContainerView.topAnchor.constraint(equalTo: view.topAnchor),
+            chromeGlassContainerView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+
+        chromeGlassContainerView.contentView.addSubview(topBarBackgroundView)
         topBarBackgroundView.contentView.addSubview(closeButton)
         topBarBackgroundView.contentView.addSubview(shareButton)
         topBarBackgroundView.contentView.addSubview(saveButton)
 
         view.addSubview(pageControl)
 
-        view.addSubview(captionContainer)
+        chromeGlassContainerView.contentView.addSubview(captionContainer)
         captionContainer.contentView.addSubview(captionStack)
         let pillTap = UITapGestureRecognizer(target: self, action: #selector(captionTapped))
         captionContainer.addGestureRecognizer(pillTap)

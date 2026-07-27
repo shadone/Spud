@@ -55,6 +55,69 @@ struct MediaViewerGlassButtonsHitTestTests {
         }
     }
 
+    /// Guards against the other half of the same bug class, in the opposite
+    /// direction: `chromeGlassContainerView` (added to host the top bar and
+    /// caption pill under a shared `UIGlassContainerEffect`) is deliberately
+    /// sized to the ENTIRE view, not just the two bars, so Apple's
+    /// merge/morph geometry has room to compute proximity between them. A
+    /// plain `UIVisualEffectView` used that way would hit-test as an opaque
+    /// blocker everywhere neither bar is visible, because its own
+    /// `contentView` is a normal, fully-interactive view spanning those same
+    /// bounds — silently killing pinch-to-zoom, pan, tap-to-toggle-chrome,
+    /// and paging on the photo underneath, none of which live inside this
+    /// container. Neither `sendActions(for:)` nor VoiceOver activation would
+    /// catch that either (both bypass hit-testing), so this asserts real
+    /// `hitTest` geometry at a point over the photo, well clear of both bars.
+    @Test
+    func photoAreaIsNotSwallowedByGlassContainer() throws {
+        let url = try #require(URL(string: "https://example.test/media/photo.jpg"))
+        let item = MediaItem(imageUrl: url)
+        let vc = MediaViewerViewController(
+            items: [item],
+            startIndex: 0,
+            dependencies: FakeDependencies()
+        )
+        vc.loadViewIfNeeded()
+        vc.view.frame = CGRect(x: 0, y: 0, width: 390, height: 844)
+        vc.view.layoutIfNeeded()
+
+        // Dead center of the view: well clear of the top bar (pinned near
+        // the top) and the caption pill (pinned just above the page dots
+        // near the bottom), so nothing but the container itself covers it.
+        let midpoint = CGPoint(x: vc.view.bounds.midX, y: vc.view.bounds.midY)
+        let hit = try #require(
+            vc.view.hitTest(midpoint, with: nil),
+            "expected a tap over the photo to hit something"
+        )
+        let zoomableImageView = try #require(
+            Self.firstDescendant(ofType: ZoomableImageView.self, in: vc.view),
+            "expected the current page to host a ZoomableImageView"
+        )
+        // Assert reachability positively (the hit IS the photo view or one
+        // of its descendants), not just negatively (the hit "isn't" the
+        // container) — `UIVisualEffectView.contentView` is UIKit's private
+        // `_UIVisualEffectContentView`, which a same-type check against
+        // `UIVisualEffectView` would silently miss, since the contentView
+        // itself is a plain `UIView` subclass, not a `UIVisualEffectView`.
+        #expect(
+            hit === zoomableImageView || hit.isDescendant(of: zoomableImageView),
+            "a tap over the photo must reach the zoomable image view underneath, not the glass chrome container"
+        )
+    }
+
+    /// Recursively finds the first descendant of `root` whose type is `type`.
+    private static func firstDescendant<T: UIView>(ofType type: T.Type, in root: UIView) -> T? {
+        for subview in root.subviews {
+            if let match = subview as? T {
+                return match
+            }
+            if let found = firstDescendant(ofType: type, in: subview) {
+                return found
+            }
+        }
+        return nil
+    }
+
     /// Recursively finds the first `UIButton` under `root` carrying
     /// `accessibilityLabel`.
     private static func button(accessibilityLabel: String, in root: UIView) -> UIButton? {
