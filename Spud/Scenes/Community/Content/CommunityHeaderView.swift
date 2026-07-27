@@ -209,6 +209,61 @@ final class CommunityHeaderView: UIView {
         return view
     }()
 
+    /// Groups the banner image with its NSFW blur overlay so both are
+    /// captured together as the extension view's `contentView`. If the blur
+    /// overlay stayed a sibling of the extension view instead, the
+    /// mirrored/blurred copy that extends under the sidebar would be built
+    /// from the raw (un-blurred) banner image, leaking it around the blur.
+    private lazy var bannerContentView: UIView = {
+        let view = UIView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        view.clipsToBounds = true
+        view.addSubview(bannerImageView)
+        view.addSubview(bannerBlurView)
+        NSLayoutConstraint.activate([
+            bannerImageView.topAnchor.constraint(equalTo: view.topAnchor),
+            bannerImageView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bannerImageView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bannerImageView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+
+            bannerBlurView.topAnchor.constraint(equalTo: view.topAnchor),
+            bannerBlurView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            bannerBlurView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            bannerBlurView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+        return view
+    }()
+
+    /// Extends the banner beneath an adjacent sidebar/inspector in the iPad
+    /// split (`UIBackgroundExtensionView`, iOS 26+): mirrors and blurs the
+    /// banner into the region a plain view would otherwise just stop at, so
+    /// it reads as continuing under the sidebar rather than ending abruptly
+    /// at the detail column's edge. A no-op with no adjacent sidebar (iPhone,
+    /// or when this header is itself the primary/leading column).
+    private lazy var bannerExtensionView: UIBackgroundExtensionView = {
+        let view = UIBackgroundExtensionView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        // Placing the content view explicitly (rather than the `true` default)
+        // is a deliberate workaround, not a style choice: with the default
+        // automatic placement, hosting this view inside a `UITableView`
+        // scrolling header sized via `systemLayoutSizeFitting`
+        // (`PostListViewController.layoutScrollingHeaderIfNeeded`) reliably
+        // hung the app (confirmed with a UI test, iOS 26.3 simulator) —
+        // `systemLayoutSizeFitting` never returns because whatever the
+        // automatic placement does internally never completes outside a live
+        // display cycle. Pinning to `safeAreaLayoutGuide` ourselves reproduces
+        // the same visual placement without going through that path.
+        view.automaticallyPlacesContentView = false
+        view.contentView = bannerContentView
+        NSLayoutConstraint.activate([
+            bannerContentView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            bannerContentView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            bannerContentView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            bannerContentView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+        ])
+        return view
+    }()
+
     private lazy var separator: UIView = {
         let view = UIView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -238,10 +293,7 @@ final class CommunityHeaderView: UIView {
     private func setup() {
         backgroundColor = .systemBackground
 
-        addSubview(bannerImageView)
-        // Blur overlay sits directly above the banner so it can be toggled
-        // without rearranging the view hierarchy later.
-        addSubview(bannerBlurView)
+        addSubview(bannerExtensionView)
         addSubview(iconImageView)
         addSubview(titleLabel)
         addSubview(badgeStack)
@@ -264,23 +316,18 @@ final class CommunityHeaderView: UIView {
         let margin: CGFloat = 16
 
         NSLayoutConstraint.activate([
-            bannerImageView.topAnchor.constraint(equalTo: topAnchor),
-            bannerImageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
-
-            bannerBlurView.topAnchor.constraint(equalTo: bannerImageView.topAnchor),
-            bannerBlurView.leadingAnchor.constraint(equalTo: bannerImageView.leadingAnchor),
-            bannerBlurView.trailingAnchor.constraint(equalTo: bannerImageView.trailingAnchor),
-            bannerBlurView.bottomAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+            bannerExtensionView.topAnchor.constraint(equalTo: topAnchor),
+            bannerExtensionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bannerExtensionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bannerExtensionView.heightAnchor.constraint(equalToConstant: bannerHeight),
 
             iconImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            iconImageView.centerYAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+            iconImageView.centerYAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor),
             iconImageView.widthAnchor.constraint(equalToConstant: iconSize),
             iconImageView.heightAnchor.constraint(equalToConstant: iconSize),
 
             subscribeButton.trailingAnchor.constraint(equalTo: trailingAnchor, constant: -margin),
-            subscribeButton.topAnchor.constraint(equalTo: bannerImageView.bottomAnchor, constant: 8),
+            subscribeButton.topAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor, constant: 8),
 
             titleLabel.topAnchor.constraint(equalTo: iconImageView.bottomAnchor, constant: 8),
             titleLabel.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),

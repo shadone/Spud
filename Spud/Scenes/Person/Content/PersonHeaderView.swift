@@ -131,6 +131,36 @@ final class PersonHeaderView: UIView {
         return view
     }()
 
+    /// Extends the banner beneath an adjacent sidebar/inspector in the iPad
+    /// split (`UIBackgroundExtensionView`, iOS 26+): mirrors and blurs the
+    /// banner into the region a plain view would otherwise just stop at, so
+    /// it reads as continuing under the sidebar rather than ending abruptly
+    /// at the detail column's edge. A no-op with no adjacent sidebar (iPhone,
+    /// or when this header is itself the primary/leading column).
+    private lazy var bannerExtensionView: UIBackgroundExtensionView = {
+        let view = UIBackgroundExtensionView()
+        view.translatesAutoresizingMaskIntoConstraints = false
+        // Placing the content view explicitly (rather than the `true` default)
+        // is a deliberate workaround, not a style choice: with the default
+        // automatic placement, hosting this view inside a `UITableView`
+        // header sized via `systemLayoutSizeFitting`
+        // (`layoutHeaderContainerIfNeeded`) reliably hung the app (confirmed
+        // with a UI test, iOS 26.3 simulator) — `systemLayoutSizeFitting`
+        // never returns because whatever the automatic placement does
+        // internally never completes outside a live display cycle. Pinning to
+        // `safeAreaLayoutGuide` ourselves reproduces the same visual placement
+        // without going through that path.
+        view.automaticallyPlacesContentView = false
+        view.contentView = bannerImageView
+        NSLayoutConstraint.activate([
+            bannerImageView.topAnchor.constraint(equalTo: view.safeAreaLayoutGuide.topAnchor),
+            bannerImageView.leadingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.leadingAnchor),
+            bannerImageView.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor),
+            bannerImageView.bottomAnchor.constraint(equalTo: view.safeAreaLayoutGuide.bottomAnchor),
+        ])
+        return view
+    }()
+
     private lazy var avatarImageView: UIImageView = {
         let view = UIImageView()
         view.translatesAutoresizingMaskIntoConstraints = false
@@ -250,7 +280,7 @@ final class PersonHeaderView: UIView {
         backgroundColor = .systemBackground
 
         addSubview(statusBannerView)
-        addSubview(bannerImageView)
+        addSubview(bannerExtensionView)
         addSubview(avatarImageView)
         addSubview(topStack)
         addSubview(bodyView)
@@ -261,13 +291,13 @@ final class PersonHeaderView: UIView {
             statusBannerView.leadingAnchor.constraint(equalTo: leadingAnchor),
             statusBannerView.trailingAnchor.constraint(equalTo: trailingAnchor),
 
-            bannerImageView.topAnchor.constraint(equalTo: statusBannerView.bottomAnchor),
-            bannerImageView.leadingAnchor.constraint(equalTo: leadingAnchor),
-            bannerImageView.trailingAnchor.constraint(equalTo: trailingAnchor),
-            bannerImageView.heightAnchor.constraint(equalToConstant: bannerHeight),
+            bannerExtensionView.topAnchor.constraint(equalTo: statusBannerView.bottomAnchor),
+            bannerExtensionView.leadingAnchor.constraint(equalTo: leadingAnchor),
+            bannerExtensionView.trailingAnchor.constraint(equalTo: trailingAnchor),
+            bannerExtensionView.heightAnchor.constraint(equalToConstant: bannerHeight),
 
             avatarImageView.leadingAnchor.constraint(equalTo: leadingAnchor, constant: margin),
-            avatarImageView.centerYAnchor.constraint(equalTo: bannerImageView.bottomAnchor),
+            avatarImageView.centerYAnchor.constraint(equalTo: bannerExtensionView.bottomAnchor),
             avatarImageView.widthAnchor.constraint(equalToConstant: avatarSize),
             avatarImageView.heightAnchor.constraint(equalToConstant: avatarSize),
 
