@@ -98,6 +98,13 @@ final class ToastPresenter {
 
         currentToast = toast
 
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            toast.alpha = 1
+            toast.transform = .identity
+            scheduleDismiss(for: toast, after: duration)
+            return
+        }
+
         UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseOut) {
             toast.alpha = 1
             toast.transform = .identity
@@ -118,6 +125,10 @@ final class ToastPresenter {
     }
 
     private func animateOut(_ toast: ToastView) {
+        guard !UIAccessibility.isReduceMotionEnabled else {
+            toast.removeFromSuperview()
+            return
+        }
         UIView.animate(withDuration: 0.22, delay: 0, options: .curveEaseIn) {
             toast.alpha = 0
             toast.transform = CGAffineTransform(translationX: 0, y: 8)

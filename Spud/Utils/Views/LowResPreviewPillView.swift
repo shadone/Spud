@@ -71,6 +71,22 @@ final class LowResPreviewPillView: UIView {
         super.init(frame: .zero)
         translatesAutoresizingMaskIntoConstraints = false
 
+        // This pill's glyph/title/retry-chevron are fixed `UIColor.white` (see
+        // the properties above) so it reads over "any image" per its own doc
+        // comment — but `GlassTokens.controlSurface` (`UIGlassEffect(.regular)`)
+        // bases its own tint on the CURRENT trait environment, not just
+        // backdrop luminosity (unlike the locked-dark `.systemThinMaterialDark`
+        // blur this pill used before Liquid Glass). Measured on-device: under a
+        // `.light` trait (e.g. the post-detail header, an ordinary adaptive
+        // screen, when the app's Appearance preference is Light) the pill
+        // renders near-white regardless of what's behind it, making the fixed
+        // white text/glyphs nearly invisible. Forcing `.dark` on just this
+        // view matches its own fixed-white design, without affecting the host
+        // screen's own adaptive trait (mirrors the media viewer's identical
+        // fix on the whole `MediaViewerViewController`, and Task 11's ShareAsImage
+        // nav-bar-scoped fix — same root cause, view-local override each time).
+        overrideUserInterfaceStyle = .dark
+
         titleLabel.text = title
 
         var arranged: [UIView] = [glyphView, titleLabel]
