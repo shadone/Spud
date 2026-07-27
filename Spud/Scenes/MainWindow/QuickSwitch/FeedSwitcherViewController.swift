@@ -219,7 +219,13 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
         content.image = UIImage(systemName: row.symbolName)
         content.imageProperties.tintColor = view.tintColor
         cell.contentConfiguration = content
-        cell.backgroundColor = .secondarySystemGroupedBackground
+        // Cells are opaque by default (even after the view/table clear above),
+        // so the popover usage needs the same explicit `.clear` override --
+        // otherwise every row paints a flat `.secondarySystemGroupedBackground`
+        // pill on top of the popover's own glass material, defeating it exactly
+        // where the user actually looks (inside the rows). The pushed (compact)
+        // usage is a real screen and keeps the opaque fill.
+        cell.backgroundColor = isPopover ? .clear : .secondarySystemGroupedBackground
 
         switch row.kind {
         case .browseCommunities:
