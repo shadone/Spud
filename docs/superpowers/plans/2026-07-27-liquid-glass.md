@@ -1259,3 +1259,72 @@ Not part of this plan. Recorded so they are not rediscovered:
 - `UIMenuElement.preferredImageVisibility`
 - View Annotations (annotating views with `AppEntity`) for the Ask Siri menu entry point
 - Icon Composer layered app icon for the default icon and the five `AppIconVariant` alternates
+
+---
+
+### Task 21: Let content flow beneath the glass bars
+
+Added during execution, after Task 7's review classified every
+`safeAreaLayoutGuide.topAnchor` site in the app. Liquid Glass's premise is that
+content passes under translucent chrome; a scroll view pinned to the safe area
+leaves a dead zone under the bar with nothing to refract, which reads as
+half-adopted.
+
+Run this task AFTER Task 18 and BEFORE Task 19 (so the docs cover it).
+
+**Files (the six genuine dead zones — the other twelve sites were checked and
+are correct):**
+- Modify: `Spud/Scenes/Inbox/DMThreadViewController.swift:174` (highest impact:
+  a core, frequently-visited screen whose threads are genuinely long)
+- Modify: `Spud/Scenes/PostDetail/SelectText/SelectableTextViewController.swift:60`
+- Modify: `Spud/Scenes/Composer/ComposerViewController.swift:140`
+- Modify: `Spud/Scenes/Composer/NewPostViewController.swift:300`
+- Modify: `Spud/Scenes/Composer/PendingPostViewController.swift:237`
+- Modify: `Spud/Scenes/ShareAsImage/ShareAsImageAltTextViewController.swift:88`
+  (lowest impact: a short sheet rarely tall enough to scroll)
+
+**Explicitly NOT in scope** — verified correct and must not be changed:
+`PostListViewController`, `PostDetailViewController`, `SearchViewController`
+(already pin to `view.topAnchor`); `RegisterViewController.swift:372` (its
+`scrollView` already pins to `view.topAnchor`; the safe-area anchor is on an
+inner `contentStackView` as resting padding — the correct Apple pattern);
+`InboxViewController.swift:201` (pins a sticky segmented control, not scroll
+content); `MediaViewerViewController.swift:404` (sizes a bar background, not
+scroll content); `FeedLoadingSkeletonView.swift:65` (transient placeholder for a
+table that is already correct); and the eight screens with no scroll view at all.
+
+- [ ] **Step 1: Repin scroll content to the view, not the safe area**
+
+For each of the six, change the scroll/text view's top constraint from
+`view.safeAreaLayoutGuide.topAnchor` to `view.topAnchor`.
+
+- [ ] **Step 2: Keep content from starting underneath the bar**
+
+Repinning alone makes content start hidden behind the bar. Verify each scroll
+view's `contentInsetAdjustmentBehavior` is `.automatic` (the default) so UIKit
+inserts the safe-area content inset — content then RESTS below the bar and
+SCROLLS under it, which is the desired behavior. Where a view overrides that to
+`.never`, either restore `.automatic` or set the equivalent `contentInset`
+explicitly. State per file which applied.
+
+- [ ] **Step 3: Verify each screen visually**
+
+Launch on the booted iPhone 17 Pro. For each screen, scroll and confirm content
+passes under the nav bar with the glass effect refracting it, and that at rest
+the first row is not hidden behind the bar. `DMThreadViewController` also has an
+`inputAccessoryView` — confirm the bottom edge still behaves.
+
+- [ ] **Step 4: Verify and commit**
+
+Run `mint run swiftformat Spud && make build && make test`, re-record any
+affected snapshot classes one at a time per the standard ceremony, and commit
+with explicit paths.
+
+```
+git add <explicit paths>
+git commit -m "fix: let scroll content flow beneath the glass bars
+
+A scroll view pinned to the safe area leaves a dead zone under a
+translucent bar with nothing to refract. Content now rests below the bar
+and scrolls under it."
+```
