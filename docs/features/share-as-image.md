@@ -93,8 +93,11 @@ device's theme, accent color, or text-size setting.
   clamped to the ancestors actually available — it is hidden for post cards and for a root comment
   that has no ancestors, rather than showing a dead "Depth 0"), and an Alt Text button.
 - **Alt text.** A separate sheet shows the current description (auto-generated, or a prior
-  edit) in an editable text field, with an "Auto" button that restores the auto-generated
+  edit) in an editable text card, with an "Auto" button that restores the auto-generated
   text. A manual edit applies only to the card being shared right now and is never persisted.
+  The card fills the sheet down to the top of the keyboard (which is raised as the sheet
+  opens), with the explanatory hint below it; dragging the sheet between its half and full
+  heights, or dismissing the keyboard, grows or shrinks the card to match.
 - **Output.** Share (system share sheet), Save to Photos, and Copy. Copy places a single
   pasteboard item carrying both the image and the permalink as separate representations, not
   two pasteboard items. While an export is in flight the whole output bar and the Done button
@@ -186,6 +189,19 @@ action's same condition), a warning haptic fires and the editor never opens.
 - **And** any NSFW reveal from the previous session does not carry over — the new card
   opens spoilered
 
+### Edit the alt text
+
+- **Given** the editor is open
+- **When** I tap "Alt Text"
+- **Then** a sheet opens with the current description already in an editable card, the
+  keyboard up and the caret in the card
+- **And** the card fills the space between the sheet's title bar and the keyboard, with the
+  explanatory hint sitting between the card and the keyboard
+- **When** I dismiss the keyboard or drag the sheet to its full height
+- **Then** the card grows into the freed space and the hint stays directly below it
+- **And** at the largest accessibility text sizes, where the hint alone would fill the
+  sheet, the card keeps a usable minimum height rather than collapsing
+
 ### Entry from each surface
 
 - **Given** I am on the feed, Search results, an open post, or a comment
@@ -206,13 +222,6 @@ action's same condition), a warning haptic fires and the editor never opens.
   export, PNG-metadata, and pasteboard paths are covered by unit and snapshot tests, but a
   live device run of Save to Photos and the system share sheet handing the file to another
   app has not yet been done.
-- **Known defect: the Alt Text sheet's text card renders at zero height.** As shipped, the
-  sheet's editable description card has no height and only the grey footnote beneath it is
-  visible, so the alt text cannot be read or edited there. Established by static analysis
-  plus a measurement of the laid-out view; it has **not** yet been confirmed by hand on the
-  real presented sheet. It predates the Liquid Glass work and is not caused by it. Alt text
-  is still auto-generated and still embedded in the exported PNG — only the editing sheet
-  is affected. Not yet fixed; it needs its own change.
 
 ## Deviations from the design deck
 
