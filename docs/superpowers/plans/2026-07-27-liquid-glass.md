@@ -994,6 +994,23 @@ Task 8's reviewer checked the other four glass-conversion targets
 `CommunityHeaderView` / `InstanceDetailViewController`) and confirmed none of
 them nest a rounded child, so this is the only site needing a second look.
 
+- [ ] **Step 4c: Confirm the close/share/save buttons don't read as over-glassed**
+
+Added after a Task 9 review finding. Task 9 already converted
+`MediaViewerViewController`'s `closeButton`/`shareButton`/`saveButton` to
+`UIButton.Configuration.glass()` (they float directly over the photo). Once
+this task converts the bar behind them from a `UIBlurEffect` to a real
+`UIGlassEffect`, those buttons become glass nested inside glass — individually
+glassed controls sitting on a glass container. Apple's `GlassEffectContainer`
+model is explicitly designed for grouping individually-glassed controls this
+way, so nesting is not inherently wrong, but visually confirm at Step 4 that
+the combination doesn't read as over-glassed per the HIG's "use Liquid Glass
+sparingly" guidance (i.e. the three buttons should still read as distinct,
+legible controls, not a smeared or overly busy material). If it reads as too
+much, the button-level fix (dropping to `.clearGlass()`, or leaving the
+buttons plain against the now-glass bar) belongs in this task, since it's a
+composition call that can only be judged once the bar itself is real glass.
+
 - [ ] **Step 5: Verify and commit**
 
 Run: `mint run swiftformat Spud SpudUIKit && make build && make test`
@@ -1027,6 +1044,8 @@ Shared tokens keep the bespoke glass surfaces consistent."
 Replace each `UIVisualEffectView(effect: UIBlurEffect(style: ...))` with `UIVisualEffectView(effect: GlassTokens.controlSurface)`.
 
 `ToastPresenter` floats over all content and is the strongest candidate after the media viewer. `LowResPreviewPillView` is a small floating pill. `CommunityHeaderView:205` and `InstanceDetailViewController:636` are banner scrims — check each renders as intended over a banner image; if a scrim's job is legibility rather than chrome, keep it a blur and note why in the commit body.
+
+Note on `InstanceDetailViewController:636`: that blur is `makeActionBar()`'s sticky bottom bar, and its two CTA buttons (`makePrimaryButton`/`makeSecondaryButton`, "Create account"/"Sign in"/"Browse only", built at `:731`/`:745`) were deliberately triaged and kept PLAIN (not `.glass()`) in Task 9, after a review round corrected an earlier wrong rationale. Convert the bar's own background here as planned, but do not also convert those two buttons without re-reading Task 9's corrected reasoning (task-9-report.md's "Correction: InstanceDetailViewController.swift:731,745" section): they occupy nearly the bar's entire content width (not small independent pucks floating on visible surrounding glass, unlike the media viewer's buttons), and they are functionally the same "Create account/Sign in/Browse" decision-weight CTA as `OnboardingPrimaryButton`/`OnboardingGhostButton` and `SignInGateViewController`'s buttons elsewhere in the same account-creation flow, which stay plain for consistency. If you disagree after re-reading that reasoning, that's a legitimate call to revisit — just don't convert them as an unexamined side effect of converting the bar's background.
 
 `OfflineDownloadStatusView` (added after Task 9) is a SwiftUI status pill — "anchored to the window" per its own doc comment, surviving feed/tab switches — structurally the same floating-HUD case as `ToastPresenter`, just missed by the original inventory. Note that neither it nor `ToastPresenter`'s own bubble currently uses `UIBlurEffect` at all: both fill a `Capsule`/rounded rect with a plain `secondarySystemBackground` color plus a hand-rolled `shadow`/`CALayer` shadow, so this step is not a like-for-like line replacement for either — it is standing up a real glass container (SwiftUI: a `.background` using `GlassEffectContainer`/`glassEffect`, wired to the same tokens) where none exists yet, then removing the now-redundant flat fill and shadow.
 
