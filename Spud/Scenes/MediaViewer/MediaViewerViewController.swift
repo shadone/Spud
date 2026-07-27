@@ -89,7 +89,9 @@ final class MediaViewerViewController: UIViewController {
     }()
 
     private lazy var closeButton: UIButton = {
-        var configuration = UIButton.Configuration.plain()
+        // Floats over the photo as part of the auto-hiding top bar, so it
+        // adopts Liquid Glass rather than a flat icon button.
+        var configuration = UIButton.Configuration.glass()
         configuration.image = UIImage(systemName: "xmark")
         configuration.baseForegroundColor = .white
         configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
@@ -101,7 +103,9 @@ final class MediaViewerViewController: UIViewController {
     }()
 
     private lazy var shareButton: UIButton = {
-        var configuration = UIButton.Configuration.plain()
+        // Floats over the photo alongside closeButton/saveButton; see the
+        // comment there.
+        var configuration = UIButton.Configuration.glass()
         configuration.image = UIImage(systemName: "square.and.arrow.up")
         configuration.baseForegroundColor = .white
         configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
@@ -113,7 +117,9 @@ final class MediaViewerViewController: UIViewController {
     }()
 
     private lazy var saveButton: UIButton = {
-        var configuration = UIButton.Configuration.plain()
+        // Floats over the photo alongside closeButton/shareButton; see the
+        // comment on closeButton.
+        var configuration = UIButton.Configuration.glass()
         configuration.image = UIImage(systemName: "arrow.down.to.line")
         configuration.baseForegroundColor = .white
         configuration.contentInsets = .init(top: 8, leading: 8, bottom: 8, trailing: 8)
