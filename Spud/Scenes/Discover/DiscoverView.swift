@@ -8,6 +8,7 @@ import SpudDataKit
 import SpudUIKit
 import SpudUtilKit
 import SwiftUI
+import UIKit
 
 /// The Discover (Community Explorer) landing. Shows activity-driven rails —
 /// Trending and Rising — over a sortable "All communities" directory. While the
@@ -662,13 +663,37 @@ struct SubscribeButton: View {
     let accent: Color
     let action: () -> Void
 
+    /// The implicit animation for the pill's state change, or `nil` under
+    /// Reduce Motion.
+    ///
+    /// Reduce Motion removes the *motion*, not the information: `nil` makes the
+    /// pill cut straight to Subscribe / spinner / Subscribed instead of
+    /// cross-fading and resizing between them, so the state it reports is
+    /// unchanged.
+    ///
+    /// Pure and static so the decision is unit-testable without rendering a
+    /// view, matching ``OfflineDownloadProgressRing/trimAnimation(reduceMotion:)``.
+    static func stateAnimation(reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.15)
+    }
+
     var body: some View {
         content
             .contentShape(Capsule())
             .onTapGesture {
                 if state != .inFlight { action() }
             }
-            .animation(.easeInOut(duration: 0.15), value: state)
+            // `UIAccessibility.isReduceMotionEnabled` rather than
+            // `@Environment(\.accessibilityReduceMotion)`: every motion gate in
+            // the app spells it this way and a single grep has to keep finding
+            // all of them. Like those, it is read where the animation happens
+            // and is not observed for runtime changes - `state` re-evaluates
+            // this body on every subscribe transition, so a toggle takes effect
+            // on the next one.
+            .animation(
+                Self.stateAnimation(reduceMotion: UIAccessibility.isReduceMotionEnabled),
+                value: state
+            )
             .accessibilityLabel(state == .subscribed ? "Unsubscribe" : "Subscribe")
             .accessibilityAddTraits(.isButton)
     }
