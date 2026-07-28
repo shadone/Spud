@@ -7,6 +7,7 @@
 import SpudDataKit
 import SpudUIKit
 import SwiftUI
+import UIKit
 
 /// The persistent, non-blocking status pill shown while a feed downloads for
 /// offline browsing: a determinate progress ring bound to
@@ -99,6 +100,20 @@ struct OfflineDownloadProgressRing: View {
         CGFloat(min(1, max(0.02, fraction)))
     }
 
+    /// The implicit animation for the arc's trim, or `nil` under Reduce Motion.
+    ///
+    /// Reduce Motion removes the *motion*, not the information: `nil` makes the
+    /// arc jump straight to its new length on every progress tick, so the ring
+    /// still reports how far along the download is — it just stops sweeping
+    /// there. (There is no continuous spin or pulse to suppress; the tween
+    /// between two progress values is the only motion this ring produces.)
+    ///
+    /// Pure and static so the decision is unit-testable without rendering a
+    /// view, matching ``FreshWashState/resolve(isNew:hasAnimated:reduceMotion:)``.
+    static func trimAnimation(reduceMotion: Bool) -> Animation? {
+        reduceMotion ? nil : .easeInOut(duration: 0.25)
+    }
+
     var body: some View {
         ZStack {
             Circle()
@@ -110,7 +125,20 @@ struct OfflineDownloadProgressRing: View {
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))
-                .animation(.easeInOut(duration: 0.25), value: fraction)
+                // `UIAccessibility.isReduceMotionEnabled` rather than
+                // `@Environment(\.accessibilityReduceMotion)`: every other motion
+                // gate in the app spells it this way (ToastPresenter, this pill's
+                // own presenter, the media viewer, the comment fresh-wash), and a
+                // single grep has to keep finding all of them. Like those, it is
+                // read where the animation happens and is not observed for runtime
+                // changes — here that costs nothing, because the ring only exists
+                // while a download runs and `fraction` re-evaluates this body on
+                // every progress tick, so a mid-download toggle takes effect on the
+                // next update.
+                .animation(
+                    Self.trimAnimation(reduceMotion: UIAccessibility.isReduceMotionEnabled),
+                    value: fraction
+                )
         }
     }
 }
