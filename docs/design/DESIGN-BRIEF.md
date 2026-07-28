@@ -101,31 +101,28 @@ these tokens exactly.
 
 ### 5.1 Theme (appearance)
 
-Four user-selectable themes (`AppTheme`):
+Three user-selectable appearances (`AppTheme`):
 
 | Theme | Interface style | Notes |
 |---|---|---|
 | **System** | unspecified (follows OS) | icon `circle.lefthalf.filled` |
 | **Light** | light | icon `sun.max` |
 | **Dark** | dark | icon `moon` |
-| **True Black** | dark + pure-black swap | OLED; icon `moon.stars.fill` |
 
-**True Black** is dark mode with the background tokens swapped to pure black
-(`#000000`) for OLED displays. It's driven entirely by theme-aware dynamic
-`UIColor` providers that resolve at draw time, so flipping the window's
-`overrideUserInterfaceStyle` re-resolves every color with no per-view override.
+A fourth option, **True Black** (a Dark variant that painted backgrounds pure
+black for OLED), was retired when the app adopted iOS 26 Liquid Glass: it worked
+by forcing opaque bars, which is exactly what the glass chrome now supplies for
+itself. A persisted True Black selection decodes to Dark, so an upgrading user
+lands on the closest surviving appearance rather than being reset to System. See
+[ADR-0002](../adr/0002-liquid-glass-adoption.md) and
+[themes-and-accent.md](../features/themes-and-accent.md).
 
-**Semantic background tokens** (`Theme`), each a dynamic color that goes pure
-black under True-Black in a dark trait collection, otherwise falls through to the
-system color:
-
-| Token | Standard | True-Black (dark) |
-|---|---|---|
-| `background` | `systemBackground` | `#000000` |
-| `secondaryBackground` | `secondarySystemBackground` | `#000000` |
-| `tertiaryBackground` | `tertiarySystemBackground` | `#000000` |
-| `groupedBackground` | `systemGroupedBackground` | `#000000` |
-| `secondaryGroupedBackground` | `secondarySystemGroupedBackground` | `#121212` (white 0.07 — lifted off black so cells stay distinct) |
+Retiring True Black also removed the only reason for the app's own `Theme`
+semantic-colour layer, so that layer is gone. Screens use the **system** semantic
+colours directly (`systemBackground`, `secondarySystemBackground`,
+`systemGroupedBackground`, `secondarySystemGroupedBackground`, `label`, …) and let
+the system resolve them per trait collection; there are no app-defined background
+tokens to choose between.
 
 ### 5.2 Accent palette (`AccentColor`)
 

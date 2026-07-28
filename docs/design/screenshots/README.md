@@ -5,6 +5,17 @@ bar set to 9:41. These show the **implemented** UI as of 2026-06-12. Screens
 `01`–`12` were captured as a signed-out guest on `discuss.tchncs.de`; the
 signed-in screens (`13`–`19`) were captured signed in as `ddenis@lemmy.world`.
 
+> **Historical — read as a record, not as current reference.** These images are a
+> point-in-time capture and are not re-shot as the UI evolves, so the descriptions
+> below say what each *picture* shows, not what the app does today. Known
+> differences since: the Appearance screen's theme picker is now **System / Light /
+> Dark** (True Black was retired with the move to iOS 26 Liquid Glass — see
+> [themes-and-accent.md](../../features/themes-and-accent.md)), Settings is reached
+> from a gear in the Account tab's navigation bar instead of being its own tab, and
+> the app's bars and floating chrome are now Liquid Glass rather than the flat
+> chrome shown here. Current behavior lives in
+> [`../../features/`](../../features/README.md).
+
 | File | Screen | What it demonstrates |
 |---|---|---|
 | `01-feed.png` | Post list (dark) | Frontpage "All" feed, thumbnails, vote/comment/age metadata, tab bar |
@@ -12,14 +23,14 @@ signed-in screens (`13`–`19`) were captured signed in as `ddenis@lemmy.world`.
 | `03-preferences.png` | Settings root | Section list with teal SF Symbol iconography (Safety section hidden when signed-out) |
 | `04-general-settings.png` | Settings › General | Default sorts, Swipe Actions entry, external-link handling toggles |
 | `05-post-detail.png` | Post detail | Header (title, image, vote arrows, save) + threaded comments with collapse chevron |
-| `06-appearance.png` | Settings › Appearance (dark) | **Theme picker** (System/Light/Dark/True Black) + **9-swatch accent grid**, Lemmy selected |
+| `06-appearance.png` | Settings › Appearance (dark) | **Theme picker** — as captured, four options (System/Light/Dark/True Black); today it is three (True Black retired) — + **9-swatch accent grid**, Lemmy selected |
 | `07-appearance-light.png` | Settings › Appearance (light) | Same screen, light palette — theme system following System appearance |
 | `08-feed-light.png` | Post list (light) | Light-mode feed; demonstrates the theme system end-to-end |
 | `09-search.png` | Search | Search bar + designed empty state ("Search posts, communities, and people") |
 | `10-site-list.png` | Instance picker | Federated "Choose an instance" list with descriptions + search |
 | `11-display-settings.png` | Settings › Display | **Density / Thumbnail position / Text-scale** tokens (the customization core) |
 | `12-inbox.png` | Inbox | Segmented Replies/Mentions/Messages + sign-in-gated empty state |
-| `13-account-signed-in.png` | Account (signed in) | Own profile header + Saved / Log out footer (Settings lives in its own tab) |
+| `13-account-signed-in.png` | Account (signed in) | Own profile header + Saved / Log out footer (Settings was its own tab when captured; it is now a gear in this screen's navigation bar) |
 | `14-community.png` | Community page | `!antitrumpalliance`: banner, icon, subscribe button, community-scoped feed |
 | `15-person.png` | Person profile | Header (banner, avatar, post/comment counts, bio + link) + Posts/Comments tabs with content |
 | `17-composer.png` | New post composer | Community picker, title, Text/Link/Image type, attach image, Write/Preview toggle, markdown body, NSFW |

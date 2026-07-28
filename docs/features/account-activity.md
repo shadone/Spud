@@ -2,7 +2,7 @@
 
 - **Surfaces:** `iphone`, `ipad`
 - **Status:** shipped
-- **Related:** [Accounts and switching](accounts-and-switching.md), [Saving](saving.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Voting](voting.md), [Instance capability gating](instance-capability-gating.md)
+- **Related:** [Accounts and switching](accounts-and-switching.md), [Saving](saving.md), [Marking posts read and hiding read posts](mark-read-and-hiding.md), [Voting](voting.md), [Instance capability gating](instance-capability-gating.md), [Inbox](inbox.md), [Fun stats](fun-stats.md)
 
 ## What it does
 
@@ -369,3 +369,54 @@ the Account "Saved" row both route there.
 - **Then** all text in the identity strip, stat tiles, heatmap card, and extras tiles
        scales with the system text size
 - **And** the layout remains readable and no text is clipped
+
+## Not supported / out of scope
+
+- **Signed-in only, one account at a time.** Activity is reached exclusively from the
+  signed-in Account tab; there is no signed-out or guest Activity. Everything shown is
+  scoped to the active account — there is no combined "all accounts" timeline and no
+  Summary that aggregates across accounts. Switching accounts shows that account's
+  activity instead. See [Accounts and switching](accounts-and-switching.md).
+- **The timeline cannot be edited, cleared, or pruned.** There is no "clear history", no
+  per-row delete, and no way to hide a single entry from the timeline. The only way an
+  item stops appearing is by ceasing to match the active filters or search.
+- **Rows have no long-press menu and no swipe actions.** A timeline row's only interaction
+  is tapping it to open the post or comment; voting, saving, sharing and the rest are done
+  on the destination screen, not from Activity. This is deliberately unlike the feed, whose
+  rows do carry a context menu and swipe actions.
+- **It records what you did, not what happened to you.** Replies and mentions you received,
+  private messages, and moderation notices are not activity — those live in the
+  [Inbox](inbox.md).
+- **Only seven action types are recorded.** Posts, comments, saves, votes, reads, seens and
+  hides. Subscribing or unsubscribing, blocking, reporting, editing or deleting your own
+  content, and profile changes leave no timeline entry, and no filter chip exists for them.
+- **Votes are never backfilled.** The local vote log is forward-only: votes cast before the
+  Activity release, or from another client or the web, have no local record and can never
+  appear in the timeline, the Votes filter, or the Summary's vote figures. Nothing fetches
+  them from the server to fill the gap.
+- **Saved is a local projection here.** The Activity Saved filter is best-effort and can lag
+  the server; it is not an authoritative saved list. The Account tab's "Saved" row is. See
+  [Saving](saving.md).
+- **The authored half of the timeline needs a network.** Posts and comments you wrote are
+  paged from the server, so offline (or on a
+  [capability-gated instance](instance-capability-gating.md)) the timeline shows local rows
+  only. There is no offline cache of authored pages beyond what the current session already
+  fetched.
+- **A voted comment reconstructed from a snapshot cannot be opened.** It has no parent post
+  id, so tapping it does nothing until its post is cached locally.
+- **Nothing can be exported or shared.** Neither the timeline nor the Summary offers a share
+  sheet, an image export, or a data download; the figures are read on screen only.
+- **The Summary's shape is fixed.** The heatmap is always the 126 days ending today, always
+  a 18 × 7 Monday–Sunday grid, and always one of three metrics (All / Reads / Votes) — there
+  is no date-range picker, no year or month view, no per-community or per-instance
+  breakdown, and no drill-down from a dot or a tile into the items behind it. The chosen
+  metric resets to All every time the screen is opened.
+- **The Summary's window is pinned at open, and only the stat tiles are live.** "Today" is
+  fixed when the screen opens, so a Summary left on screen across midnight keeps the old
+  window. The six stat tiles do track the database live, but the heatmap and the extras tiles
+  (streak, top community, busiest time) are computed at open and on a metric change only —
+  activity recorded while you are looking at them will not redraw them until you reopen the
+  screen.
+- **No digest, notification, or widget carries these numbers.** They exist on the Summary
+  screen and the footprint rail, nowhere else. Device-wide usage counters, which are not
+  per-account and are a different capability, live in [Fun stats](fun-stats.md).
