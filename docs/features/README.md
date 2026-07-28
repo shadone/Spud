@@ -236,7 +236,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] iPad split-view handoff — Posts two-column split + feed-switcher title popover (compact: left-edge swipe), Communities two-column reading split, Activity two-column split (timeline primary + Summary detail pinned), collapse/expand with state preservation; adaptive layouts at regular width: Discover multi-column grid + width-capped directory, sheet detents (composer / new-post), capped banners (Edit Profile / Account tab)
 - [x] Empty / error / loading states
 - [x] Removed and unavailable posts — neutral feed badge (exclamationmark.octagon) + cause-specific placeholder screen when a cached post is no longer found on the server; moderators and the post's author bypass the placeholder and keep access to Restore; automatic recovery on a successful re-fetch (removed-unavailable-content.md)
-- [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion)
+- [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion); contrast is measured, not assumed, on the surfaces where a tint or a translucent material derives the foreground — the post-detail "Next new" button and the "Low-res preview" pill
 - [x] Home Screen widget (top posts)
 - [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts; an NSFW post (own flag or its community's) is never advertised to Handoff, indexed into Spotlight, or suggested by Siri, unconditionally
 - [x] "Open in Spud" — Safari banner (Web Extension) + a toolbar popup (both known-instance) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs)

@@ -17,6 +17,7 @@ Spud honors the system accessibility settings. Text scales with the user's Dynam
 - **Reduce Motion.** When Reduce Motion is enabled, animations are dropped or swapped for cross-fades rather than playing in full: the media viewer's zoom transition runs at zero duration, post-detail scroll-to-row jumps without animating, swipe-action animations are skipped, the voted-state fill cross-fades in rather than springing in (scale 0.9 → 1.0), and toasts and the offline-download progress pill appear and disappear without their slide-and-fade. The result is the same end state without the motion.
 - **Contrast wins over tinting on the floating jump button.** The post-detail "Next new" floating button is not tinted with the accent color. On the Liquid Glass prominent material the label's color is derived from the button's own fill, so an accent-filled capsule renders washed-out light-on-light text — measured as low as 1.55:1 against the fill on some accents, well under the 4.5:1 the standard asks for normal-size text. It uses a high-contrast neutral fill instead, which measures ~16:1 for every one of the nine accents in both Light and Dark, and the state it signals is carried by the word "new" rather than by color alone.
 - **Chrome over a fixed-dark backdrop stays legible in Light.** Two surfaces sit on a permanently dark stage whatever the app appearance — the media viewer and the Share as Image editor. Their translucent bars are pinned to a dark appearance so their text and glyphs keep contrast against that stage; in Light appearance the bar reads dark while the rest of the screen stays light.
+- **The "Low-res preview" pill reads the same in Light and Dark.** The small translucent pill shown over an image when only the cached thumbnail could be loaded — tappable to retry on a post's header, informational in the media viewer — draws white text and glyphs, so it too is pinned to a dark appearance rather than following the app's. Measured over backdrops from a bright photo to a near-black one it stays between 6.9:1 and 14.5:1 for its label, and 6.4:1 to 13:1 for its glyphs, identically in both appearances. Over a very dark photo the pill's outline itself fades into the picture (about 1.7:1) and only the text is visible — accepted, because the text is at its *most* legible exactly there, and because outlining the pill strongly enough to show against near-black would put a visible stroke around it over every other photo too.
 
 ## Scenarios
 
@@ -54,6 +55,13 @@ Spud honors the system accessibility settings. Text scales with the user's Dynam
 - **When** I focus the sort button in the navigation bar
 - **Then** it is announced by what it does rather than by its symbol
 - **And** the same holds for the filter, new-post, and feed-switcher buttons beside it
+
+### The low-res preview pill stays legible whatever the appearance
+
+- **Given** the app appearance is Light, on a post whose full-size image could not be loaded
+- **When** the header shows the "Low-res preview · tap to retry" pill over the cached thumbnail
+- **Then** the pill reads as dark translucent glass with white text, exactly as it does in Dark appearance
+- **And** the same holds for the media viewer's "Showing low-resolution preview" pill
 
 ### Reduce Motion removes the media zoom animation
 

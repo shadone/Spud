@@ -76,9 +76,10 @@ final class MediaViewerChromeSnapshotTests: XCTestCase {
         // Scope note: `LowResPreviewPillView` is NOT revealed here (it is
         // wrapped in a plain `UIView`, not a direct effect-view child). It
         // carries the same fixed-white-on-adaptive-glass risk this class
-        // guards against and has no snapshot coverage of its own — worth a
-        // dedicated test rather than widening this one, which exists to cover
-        // the top bar and caption pill.
+        // guards against, and now has its own coverage —
+        // `LowResPreviewPillSnapshotTests` plus the numeric
+        // `SpudTests/LowResPreviewPillContrastTests` — rather than widening
+        // this one, which exists to cover the top bar and caption pill.
         for chrome in view.subviews where chrome is UIVisualEffectView || chrome is UIPageControl {
             reveal(chrome)
         }

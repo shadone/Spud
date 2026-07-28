@@ -40,10 +40,21 @@ final class RenderedContrastProbe {
         /// The backdrop just outside the control.
         let backdrop: UIColor
 
+        /// The most visible pixel anywhere on the control's own outline —
+        /// including a material's specular rim, which `fill` never sees.
+        let edge: UIColor
+
         /// Text against the control's fill — WCAG 1.4.3.
         let textRatio: Double
         /// The control's fill against the backdrop it floats over — WCAG 1.4.11.
         let surfaceRatio: Double
+        /// The control's *outline* against that backdrop.
+        ///
+        /// A glass capsule can be invisible by its fill yet perfectly findable
+        /// by its rim, so `surfaceRatio` alone under-reports how identifiable
+        /// the container is. This is the generous reading of WCAG 1.4.11:
+        /// the best contrast the boundary achieves anywhere.
+        let edgeRatio: Double
 
         var description: String {
             "text \(text.rgbDescription) on \(fill.rgbDescription)"
@@ -94,10 +105,7 @@ final class RenderedContrastProbe {
         tint: UIColor,
         backdrop: UIColor = .systemBackground
     ) throws -> Sample {
-        window.overrideUserInterfaceStyle = style
-        container.tintColor = tint
-        container.backgroundColor = backdrop
-        container.subviews.forEach { $0.removeFromSuperview() }
+        prepare(style: style, tint: tint, backdrop: backdrop)
 
         button.sizeToFit()
         button.frame = CGRect(
@@ -109,6 +117,50 @@ final class RenderedContrastProbe {
         container.addSubview(button)
         settle()
 
+        return try sample(control: button)
+    }
+
+    /// Composites an Auto Layout-sized `view` over `backdrop` in `style` with
+    /// `tint` inherited, and measures its rendered contrast.
+    ///
+    /// The button overload above sizes its control with `sizeToFit`, which a
+    /// view whose size comes from internal constraints (the low-res preview
+    /// pill) does not answer. This one centres the view with constraints
+    /// instead, so the pill is measured at exactly the size it ships at.
+    ///
+    /// - Parameter content: picks the sub-element to measure. The default
+    ///   prefers the first label and falls back to the first image view; pass
+    ///   a locator to measure a specific glyph in a view that also has text.
+    func measure(
+        view: UIView,
+        style: UIUserInterfaceStyle,
+        tint: UIColor = .tintColor,
+        backdrop: UIColor,
+        content: ((UIView) -> UIView?)? = nil
+    ) throws -> Sample {
+        prepare(style: style, tint: tint, backdrop: backdrop)
+
+        view.translatesAutoresizingMaskIntoConstraints = false
+        container.addSubview(view)
+        NSLayoutConstraint.activate([
+            view.centerXAnchor.constraint(equalTo: container.centerXAnchor),
+            view.centerYAnchor.constraint(equalTo: container.centerYAnchor),
+        ])
+        settle()
+
+        return try sample(control: view, content: content)
+    }
+
+    /// Resets the host container for one measurement.
+    private func prepare(style: UIUserInterfaceStyle, tint: UIColor, backdrop: UIColor) {
+        window.overrideUserInterfaceStyle = style
+        container.tintColor = tint
+        container.backgroundColor = backdrop
+        container.subviews.forEach { $0.removeFromSuperview() }
+    }
+
+    /// Renders the container and samples `control`'s text, fill and backdrop.
+    private func sample(control: UIView, content: ((UIView) -> UIView?)? = nil) throws -> Sample {
         let format = UIGraphicsImageRendererFormat()
         format.scale = scale
         let image = UIGraphicsImageRenderer(bounds: container.bounds, format: format).image { _ in
@@ -120,8 +172,9 @@ final class RenderedContrastProbe {
         // A configuration-based button builds its own private label / image
         // view, so find them by walking the hierarchy rather than through the
         // legacy `titleLabel` / `imageView` accessors.
-        let contentView: UIView? = Self.firstSubview(of: button, ofType: UILabel.self)
-            ?? Self.firstSubview(of: button, ofType: UIImageView.self)
+        let contentView: UIView? = content?(control)
+            ?? Self.firstSubview(of: control, ofType: UILabel.self)
+            ?? Self.firstSubview(of: control, ofType: UIImageView.self)
         guard let contentView, case let contentRect = contentView.convert(contentView.bounds, to: container),
               !contentRect.isEmpty
         else {
@@ -133,22 +186,28 @@ final class RenderedContrastProbe {
 
         let fill = region.modalColor
         let text = region.colorFurthestInLuminance(from: fill)
-        let buttonRect = button.convert(button.bounds, to: container)
+        let controlRect = control.convert(control.bounds, to: container)
         let backdropSample = pixels.color(
-            atX: Int((buttonRect.minX - 6) * scale),
-            y: Int(buttonRect.midY * scale)
+            atX: Int((controlRect.minX - 6) * scale),
+            y: Int(controlRect.midY * scale)
         )
+        let outline = pixels.outline(of: controlRect, thickness: 2, scale: scale)
+        let edge = outline?.colorFurthestInLuminance(from: backdropSample) ?? fill
 
         return Sample(
             fill: fill.uiColor,
             text: text.uiColor,
             backdrop: backdropSample.uiColor,
+            edge: edge.uiColor,
             textRatio: WCAGContrast.ratio(betweenLuminance: fill.luminance, and: text.luminance),
-            surfaceRatio: WCAGContrast.ratio(betweenLuminance: fill.luminance, and: backdropSample.luminance)
+            surfaceRatio: WCAGContrast.ratio(betweenLuminance: fill.luminance, and: backdropSample.luminance),
+            edgeRatio: WCAGContrast.ratio(betweenLuminance: edge.luminance, and: backdropSample.luminance)
         )
     }
 
-    private static func firstSubview<T: UIView>(of view: UIView, ofType type: T.Type) -> T? {
+    /// Depth-first search for the first descendant of `type` — the way to
+    /// reach a private label or glyph inside a configuration-built control.
+    static func firstSubview<T: UIView>(of view: UIView, ofType type: T.Type) -> T? {
         for subview in view.subviews {
             if let match = subview as? T { return match }
             if let match = firstSubview(of: subview, ofType: type) { return match }
@@ -257,6 +316,28 @@ struct Pixels {
             green: Double(bytes[i + 1]) / 255,
             blue: Double(bytes[i + 2]) / 255
         )
+    }
+
+    /// The band of pixels `thickness` points wide just inside `rect`'s
+    /// boundary — the control's own outline, where a material's specular rim
+    /// lives. Corner pixels of a rounded control fall outside its shape and
+    /// therefore read as backdrop, which is harmless: a backdrop-coloured
+    /// pixel can never be the one furthest in luminance from the backdrop.
+    func outline(of rect: CGRect, thickness: CGFloat, scale: CGFloat) -> PixelRegion? {
+        let x0 = max(0, Int(rect.minX * scale))
+        let x1 = min(width - 1, Int(rect.maxX * scale))
+        let y0 = max(0, Int(rect.minY * scale))
+        let y1 = min(height - 1, Int(rect.maxY * scale))
+        let band = max(1, Int(thickness * scale))
+        guard x1 - x0 > 2 * band, y1 - y0 > 2 * band else { return nil }
+        var colors: [SampledColor] = []
+        for y in y0...y1 {
+            let isHorizontalBand = y < y0 + band || y > y1 - band
+            for x in x0...x1 where isHorizontalBand || x < x0 + band || x > x1 - band {
+                colors.append(color(atX: x, y: y))
+            }
+        }
+        return PixelRegion(colors: colors)
     }
 
     func region(of rect: CGRect, scale: CGFloat) -> PixelRegion? {
