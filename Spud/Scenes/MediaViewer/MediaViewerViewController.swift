@@ -143,6 +143,17 @@ final class MediaViewerViewController: UIViewController {
     private lazy var closeButton: UIButton = {
         // Floats over the photo as part of the auto-hiding top bar, so it
         // adopts Liquid Glass rather than a flat icon button.
+        //
+        // `baseForegroundColor` is load-bearing here and is honoured verbatim:
+        // NON-prominent `.glass()` renders the colour you ask for, unlike
+        // `prominentGlass()`, which blends the foreground into its own
+        // background tint (measured — see `JumpButtonStyle`). So this white is
+        // real white, and it is legible only because
+        // `chromeGlassContainerView` pins the trait to `.dark` above: measured
+        // on iPhone 17 Pro / iOS 26.3 it is 18.6:1 under that pin, and 1.01:1
+        // if the pin is ever removed and the glass resolves light. Do not drop
+        // the pin, and do not copy this white onto a glass control that has no
+        // pinned trait.
         var configuration = UIButton.Configuration.glass()
         configuration.image = UIImage(systemName: "xmark")
         configuration.baseForegroundColor = .white

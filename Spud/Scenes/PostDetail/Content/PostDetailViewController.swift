@@ -1425,46 +1425,19 @@ class PostDetailViewController: UIViewController {
     /// Styles the jump FAB for the default next-top-level affordance.
     /// Called from both the lazy initializer and `applyJumpButtonStyle(isNew:)`.
     private func applyDefaultJumpButtonStyle(to button: UIButton) {
-        var config = UIButton.Configuration.glass()
-        config.image = UIImage(systemName: "chevron.down")
-        config.cornerStyle = .capsule
-        config.baseForegroundColor = .label
-        config.contentInsets = NSDirectionalEdgeInsets(top: 14, leading: 14, bottom: 14, trailing: 14)
-        button.configuration = config
-        button.accessibilityLabel = NSLocalizedString(
-            "Next top-level comment",
-            comment: "Accessibility label for the jump-to-next-comment button"
-        )
+        button.configuration = JumpButtonStyle.configuration(isNew: false)
+        button.accessibilityLabel = JumpButtonStyle.accessibilityLabel(isNew: false)
     }
 
-    /// Styles the jump FAB: accent "Next new" label when there are new comments
-    /// to jump to, else the default next-top-level chevron.
+    /// Styles the jump FAB: the prominent "Next new" capsule when there are new
+    /// comments to jump to, else the default next-top-level chevron. Both
+    /// configurations (and why the prominent one is not accent-tinted) live in
+    /// ``JumpButtonStyle``.
     private func applyJumpButtonStyle(isNew: Bool) {
         guard isNew != jumpButtonIsNewStyle else { return }
         jumpButtonIsNewStyle = isNew
-        let accent = tableView.tintColor ?? .systemTeal
-        if isNew {
-            // The screen's one floating action, so prominence is reserved for
-            // this state: it is the primary next thing to do when new
-            // comments exist. The default (no new comments) state stays
-            // non-prominent glass.
-            var config = UIButton.Configuration.prominentGlass()
-            config.title = NSLocalizedString("Next new", comment: "Jump to the next new comment")
-            config.image = UIImage(systemName: "chevron.down")
-            config.imagePlacement = .trailing
-            config.imagePadding = 6
-            config.cornerStyle = .capsule
-            config.baseBackgroundColor = accent
-            config.baseForegroundColor = .white
-            config.contentInsets = NSDirectionalEdgeInsets(top: 12, leading: 16, bottom: 12, trailing: 16)
-            jumpToNextButton.configuration = config
-            jumpToNextButton.accessibilityLabel = NSLocalizedString(
-                "Next new comment",
-                comment: "VoiceOver: jump to the next new comment"
-            )
-        } else {
-            applyDefaultJumpButtonStyle(to: jumpToNextButton)
-        }
+        jumpToNextButton.configuration = JumpButtonStyle.configuration(isNew: isNew)
+        jumpToNextButton.accessibilityLabel = JumpButtonStyle.accessibilityLabel(isNew: isNew)
     }
 
     @objc
