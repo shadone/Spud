@@ -62,9 +62,8 @@ class PreferencesViewController: UIViewController {
     private func setup() {
         view.backgroundColor = .systemBackground
 
-        tabBarItem.title = "Preferences"
-        tabBarItem.image = UIImage(systemName: "gear")!
-
+        // No tabBarItem: Preferences is always pushed onto the Account tab's
+        // navigation stack (from its nav-bar gear), never hosted in a tab bar.
         navigationItem.title = "Preferences"
 
         let contentVC = UIHostingController(rootView: PreferencesView(viewModel: viewModel))

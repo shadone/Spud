@@ -118,7 +118,14 @@ struct MarkdownBodyHost: UIViewRepresentable {
     }
 
     func sizeThatFits(_ proposal: ProposedViewSize, uiView: MarkdownBodyView, context _: Context) -> CGSize? {
-        let width = proposal.width ?? UIScreen.main.bounds.width
+        // An unspecified width means SwiftUI is asking for the ideal size rather
+        // than offering one to fit into; returning nil hands that case back to the
+        // default representable sizing (Auto Layout's own fitting size) instead of
+        // guessing a width. It used to substitute `UIScreen.main.bounds.width`,
+        // which is the wrong reference in any resizable scene (iPad split view,
+        // iPhone Mirroring) — and was the last `UIScreen.main` read left in the
+        // workspace after the shipped targets were swept.
+        guard let width = proposal.width else { return nil }
         uiView.setNeedsLayout()
         uiView.layoutIfNeeded()
         let height = uiView.systemLayoutSizeFitting(

@@ -135,11 +135,15 @@ This section is the working-notes version: the rules a change has to respect.
   and writing `selectedIndex` drives `selectedTab`. Nothing was broken for users. Write
   new code against the identifier API because the header says the bridge is not
   promised, not because you are fixing a bug.
-- **`MarkdownLab/MarkdownLabApp.swift:121` still reads `UIScreen.main.bounds.width`.**
-  That is deliberate and out of scope: MarkdownLab is the standalone dev harness, not a
-  shipped target, and Task 18's `UIScreen.main` sweep covered only `Spud/`, `SpudUIKit/`,
-  `SpudDataKit/`, `SpudUtilKit/`, `SpudMarkdownKit/`, `Shared/`, `SpudWidget/`. Recorded
-  so a future acceptance grep across ALL targets does not read it as a regression.
+- **No target reads `UIScreen.main` for layout any more.** Task 18's sweep covered the
+  shipped targets (`Spud/`, `SpudUIKit/`, `SpudDataKit/`, `SpudUtilKit/`, `SpudMarkdownKit/`,
+  `Shared/`, `SpudWidget/`) and the one remaining read in the `MarkdownLab` dev harness was
+  cleared afterwards, so an acceptance grep across ALL targets comes back clean — keep it
+  that way. A scene's space is not the screen's (iPad split view, iPhone Mirroring): size to
+  the view, to a fixed layout cap (`AdaptiveLayout`), or — in a `UIViewRepresentable`'s
+  `sizeThatFits` — return `nil` for an unspecified proposal rather than substituting a
+  screen width. (`UIScreen.isCaptured` in `PrivacyScreen` is a different API and is fine; it
+  goes through `window.windowScene?.screen`.)
 
 ## Persistence
 
