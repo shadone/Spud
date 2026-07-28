@@ -62,6 +62,7 @@ class SwipeActionView: UIView {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
+        imageView.tintColor = Self.glyphColor
         return imageView
     }()
 
@@ -76,8 +77,40 @@ class SwipeActionView: UIView {
         let imageView = UIImageView()
         imageView.translatesAutoresizingMaskIntoConstraints = false
         imageView.contentMode = .scaleAspectFit
+        imageView.tintColor = Self.glyphColor
         return imageView
     }()
+
+    /// The colour of the action glyph drawn on a swipe track.
+    ///
+    /// This has to be set explicitly. The glyphs are template SF Symbols, so
+    /// with no tint of their own they inherit the window's — which this app
+    /// sets to the user's accent — while the upvote track's fill *is* that same
+    /// accent (`GeneralAppearance.upvoteSwipeActionBackgroundColor`). The
+    /// upvote arrow was therefore drawn in exactly its own background colour:
+    /// measured 1.00:1 on all nine accents in both appearances, i.e. not
+    /// rendered at all. It shipped that way because the swipe tracks are the
+    /// only filled-accent surface in the app that never adopted
+    /// ``VoteFillStyle/filledGlyphColor`` — the vote capsules, the score pill
+    /// and the collapsed "N new" badge all already use it.
+    ///
+    /// Reusing that token rather than choosing a new colour is deliberate: the
+    /// swipe track and the voted capsule are the same object in two places and
+    /// must not drift apart. It is also what UIKit's own `UIContextualAction`
+    /// does.
+    ///
+    /// White clears the 3:1 non-text bar on six of the nine accents (3.23:1 to
+    /// 5.09:1) but not on orange, green or teal (1.86:1 to 2.31:1). That is not
+    /// a fixable choice of colour: the tracks span luminance 0.13 to 0.55, the
+    /// darkest needs a foreground at or above 0.49 and the brightest one at or
+    /// below 0.15, so no single accent-independent colour satisfies both.
+    /// Picking per track does clear the bar, and was rendered and rejected — it
+    /// flips the arrow between black and white as the user changes accent,
+    /// which reads as a bug rather than as a swipe action. Numbers and the
+    /// argument in `SpudTests/SwipeActionGlyphContrastTests`.
+    private static var glyphColor: UIColor {
+        VoteFillStyle.filledGlyphColor
+    }
 
     // MARK: Private
 

@@ -58,7 +58,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 
 | Capability | Surfaces | Status |
 |---|---|---|
-| [Configurable swipe actions](swipe-actions.md) | `iphone`, `ipad` | shipped |
+| [Configurable swipe actions](swipe-actions.md) | `iphone`, `ipad` | shipped — the action glyph is white on the coloured track (it previously took the accent, making the arrow invisible on the accent-filled Upvote track) |
 | [Marking posts read and hiding read posts](mark-read-and-hiding.md) | `iphone`, `ipad` | shipped |
 | [NSFW content visibility and blur](nsfw-content.md) | `iphone`, `ipad` | shipped |
 | [Feeds and sorting](feeds-and-sorting.md) | `iphone`, `ipad` | shipped — feed switcher: left-edge back-swipe on iPhone; navbar-title popover on iPad (see [iPad split-view handoff](ipad-split-view.md)) |
@@ -148,7 +148,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Marking posts read / hiding read posts
 - [x] Grouping cross-posts in the feed — same-link duplicates already loaded into the feed collapse into one row with an "Also in c/name" / "Also in N communities" affordance and a context-menu "Also posted in" jump to each collapsed sibling; runs after the hide-read filter; preference-gated (Settings → Display → "Group Cross-posts", default on); client-side and same-page only, since the feed API carries no cross-post list (cross-posting.md)
 - [x] NSFW content visibility and blur — hidden by default; server-side filter + client-side discovery gating (Search, picker, Discover); age acknowledgment on first enable; blur overlay (thumbnails, post-detail header, community art) with tap-to-reveal on posts; privacy screen hides NSFW media from the app-switcher snapshot and screen capture; never advertised to Handoff, in-app or system Spotlight, or Siri suggestions (unconditional, independent of Show NSFW); synced to server for signed-in accounts (nsfw-content.md)
-- [x] Configurable swipe actions (posts)
+- [x] Configurable swipe actions (posts) — action glyph is white on the coloured track, independent of the accent
 
 **Posts & comments**
 - [x] Post detail (header + comment tree); in-body link preview cards (anchor text always; video thumbnail + title when "Load Link Previews" is on; post-header link card uses server-provided title + thumbnail); offline-aware — a failed comment load shows a truthful offline/unreachable/malformed state with Retry (never a false "No comments yet"), and an offline failure re-fetches automatically once connectivity returns, and the header keeps the cached feed thumbnail while the full image loads, falling back to a tappable "Low-res preview" pill when the full image can't load; the floating jump button switches to a prominent "Next new" capsule when a revisited post has new comments below the fold (high-contrast neutral rather than accent-tinted, so the label stays legible on every accent)
@@ -160,7 +160,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Reply / edit / delete / restore own comments — all optimistic + durable (reply + edit via the content outbox; delete / restore via the mutation outbox)
 - [x] Locked posts — a locked post shows a yellow lock glyph in its metadata line everywhere it's listed (feed, search, profile Posts tab) and in the post-detail header, plus a full-width "Comments are locked" notice below the post body (both live-updating on a moderator's lock/unlock); every reply affordance (post-detail "Add comment", comment Reply, post Reply) is hidden rather than disabled, with a "Comments are locked" message as a backstop if a reply is somehow started anyway; voting, saving, hiding, sharing, and editing your own existing comment remain fully available; no in-app moderator bypass — unlock via Lock/Unlock (moderation-actions.md) first (locked-posts.md)
 - [x] Edit / delete / restore your own post — optimistic + durable (edit via the content outbox; delete / restore via the mutation outbox)
-- [x] Configurable swipe actions (comments)
+- [x] Configurable swipe actions (comments) — action glyph is white on the coloured track, independent of the accent
 - [x] Comment sort — global default (Settings) + in-screen per-post picker (post-detail config popover: Hot / Top / New / Old / Controversial)
 - [x] Post author status — full MOD/ADMIN/BOT/BANNED/SUSPENDED pills on the post-detail byline (mirroring comment badges); a single low-noise red banned-author marker in the feed for suspended / community-banned authors only; "[deleted]" author byline with the profile link suppressed; VoiceOver announces the status (author-status.md)
 - [x] Cross-posts on a post — "Cross-posted to N communities" section on the open post, listing other posts sharing its link in server order (community handle + score/comment-count line), tappable to open one; one-shot read on load + pull-to-refresh, no section when there are none (cross-posting.md)

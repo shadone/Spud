@@ -19,6 +19,7 @@ and a one-tap reset per kind.
 - **Defaults.** Posts: short-right Upvote, long-right Downvote, short-left Reply, long-left Save. Comments: short-right Upvote, long-right Downvote, short-left Reply, long-left Collapse.
 - **Changes apply live.** Reassigning a slot updates already-visible cells immediately; there is no relaunch and no need to leave the feed.
 - **Presentation is state-aware.** A Save slot reads Save or Unsave, a vote slot reads Upvote/Downvote or Remove vote, a Collapse slot reads Collapse or Expand; vote glyphs and tints follow the active theme.
+- **The action glyph is always white on the coloured track.** The track behind the glyph is the action's colour — the accent for Upvote, so it follows the accent you picked — and the glyph on it is white, the same white the filled vote capsule and the score pill use. It does not change with the accent. (Before this, the glyph took the accent as well, so on the Upvote track it was drawn in exactly its own background colour and did not appear at all, on every accent, in both Light and Dark.)
 - **Stored config is forgiving.** An unknown or invalid pairing (e.g. Collapse assigned to a post) degrades to None rather than failing to load.
 - **Spud uses UIKit's leading/trailing axis:** leading = swipe right, trailing = swipe left. The default layout is: leading short (upvote) / leading long (downvote); trailing short (reply) / trailing long (save for posts, collapse for comments). All four slots are remappable per account in Settings.
 
@@ -30,6 +31,13 @@ and a one-tap reset per kind.
 - **When** I short-swipe it from the leading (right) edge
 - **Then** it is upvoted, with a haptic on commit
 - **And** the same gesture removes the vote if it was already upvoted
+
+### The action glyph is visible on the upvote track whatever the accent
+
+- **Given** any accent selected in Settings → Appearance, in Light or Dark
+- **When** I swipe a post far enough to open the Upvote track
+- **Then** the upward arrow is drawn in white on the accent-coloured track
+- **And** it looks the same on every accent, rather than taking the accent itself
 
 ### Reassign a slot, applied live
 
