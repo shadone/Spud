@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import SwiftUI
 
@@ -76,7 +77,7 @@ struct PackDetailView: View {
         if allSubscribed {
             Label("Subscribed to all", systemImage: "checkmark.circle.fill")
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.contentAccent)
                 .padding(.top, 2)
         } else {
             Button {

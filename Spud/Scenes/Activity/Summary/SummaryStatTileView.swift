@@ -138,10 +138,14 @@ final class SummaryStatTileView: UIView {
 
     // MARK: Private
 
+    /// The badge's wash keeps the vivid accent; its glyph and its 11pt note
+    /// text take the content variant, which is what carries them over the
+    /// brightest accents (the note measured 1.77:1 in Light before).
     private func applyTintColors() {
-        iconImageView.tintColor = isForwardSource ? tintColor : .secondaryLabel
+        let contentAccent = AccentContentColor.dynamic(from: tintColor)
+        iconImageView.tintColor = isForwardSource ? contentAccent : .secondaryLabel
         if !noteBadge.isHidden {
-            noteBadge.textColor = tintColor
+            noteBadge.textColor = contentAccent
             noteBadge.backgroundColor = tintColor.withAlphaComponent(0.12)
         }
     }

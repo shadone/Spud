@@ -521,7 +521,7 @@ class RegisterViewController: UIViewController {
             string: action,
             attributes: [
                 .font: UIFont.systemFont(ofSize: 13, weight: .bold),
-                .foregroundColor: view.tintColor ?? .systemBlue,
+                .foregroundColor: AccentContentColor.dynamic(from: view.tintColor ?? .systemBlue),
             ]
         ))
         loginPromptButton.setAttributedTitle(string, for: .normal)

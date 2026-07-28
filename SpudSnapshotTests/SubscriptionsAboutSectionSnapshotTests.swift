@@ -6,6 +6,7 @@
 
 import SnapshotTesting
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 import XCTest
@@ -87,6 +88,13 @@ final class SubscriptionsAboutSectionSnapshotTests: XCTestCase {
 
             let view = SubscriptionsView(viewModel: viewModel)
             let host = UIHostingController(rootView: view)
+            // `.image(size:traits:)` renders off-screen, outside the app
+            // window's tint cascade, so `Color.accentColor` (the Subscribe
+            // pill's wash) would fall back to system blue while the pill's
+            // label - which reads `Color.contentAccent` off `ThemeManager` -
+            // stayed brand teal. Pin the tint so the reference shows the
+            // pairing the app actually draws. See FunStatsSnapshotTests.
+            host.view.tintColor = ThemeManager.currentAccentColor
             let size = CGSize(width: 390, height: 700)
             host.view.frame = CGRect(origin: .zero, size: size)
             host.view.layoutIfNeeded()
@@ -113,6 +121,9 @@ final class SubscriptionsAboutSectionSnapshotTests: XCTestCase {
 
         let view = SubscriptionsView(viewModel: viewModel)
         let host = UIHostingController(rootView: view)
+        // See the note above - pin the tint so the off-screen render matches
+        // the app's accent instead of falling back to system blue.
+        host.view.tintColor = ThemeManager.currentAccentColor
         let size = CGSize(width: 390, height: 700)
         host.view.frame = CGRect(origin: .zero, size: size)
         host.view.layoutIfNeeded()
@@ -148,6 +159,9 @@ final class SubscriptionsAboutSectionSnapshotTests: XCTestCase {
                 }
             }
             let host = UIHostingController(rootView: view)
+            // See the note above - pin the tint so the off-screen render matches
+            // the app's accent instead of falling back to system blue.
+            host.view.tintColor = ThemeManager.currentAccentColor
             let size = CGSize(width: 390, height: 220)
             host.view.frame = CGRect(origin: .zero, size: size)
             host.view.layoutIfNeeded()

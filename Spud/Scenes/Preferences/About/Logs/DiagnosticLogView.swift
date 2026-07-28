@@ -6,6 +6,7 @@
 
 import Foundation
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 
@@ -197,7 +198,7 @@ private struct CategoryChip: View {
                         ? Color.accentColor.opacity(0.2)
                         : Color(UIColor.secondarySystemFill)
                 )
-                .foregroundStyle(isSelected ? Color.accentColor : Color.primary)
+                .foregroundStyle(isSelected ? Color.contentAccent : Color.primary)
                 .clipShape(Capsule())
         }
         .accessibilityLabel(title)

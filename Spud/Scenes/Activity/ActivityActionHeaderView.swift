@@ -124,7 +124,9 @@ extension ActivityAct {
 
     var tintColor: UIColor {
         switch self {
-        case .upvote: ThemeManager.currentAccentColor
+        // A glyph on the row background, not a fill, so it takes the accent's
+        // content variant.
+        case .upvote: ThemeManager.currentContentAccentColor
         case .downvote: GeneralAppearance.downColor
         case .comment, .post, .save, .read, .seen, .hide: .secondaryLabel
         }

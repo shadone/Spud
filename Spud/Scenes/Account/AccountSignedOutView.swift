@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import SwiftUI
 
 /// The signed-out (anonymous) Account tab content: a grouped screen that explains
@@ -44,7 +45,7 @@ struct AccountSignedOutView: View {
                     title: NSLocalizedString("Reading from", comment: "Signed-out account: home server row title"),
                     value: instanceHostname,
                     systemImage: "globe",
-                    tint: accent,
+                    tint: Color.contentAccent,
                     action: onChangeInstance
                 )
             } footer: {
@@ -80,7 +81,7 @@ struct AccountSignedOutView: View {
                 AccountRow(
                     title: NSLocalizedString("Settings", comment: "Account row"),
                     systemImage: "gearshape",
-                    tint: accent,
+                    tint: Color.contentAccent,
                     action: onSettings
                 )
             }

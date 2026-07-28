@@ -438,7 +438,10 @@ private final class ChecklistRow: UIView {
             badge.layer.borderColor = accent.cgColor
             badgeDot.backgroundColor = accent
         }
-        pillLabel.textColor = accent
+        // The badge is a surface (vivid accent); the 12pt bold "Pending" is
+        // text sitting on an 11% wash of the same accent, so it takes the
+        // content variant - it measured 1.97:1 before.
+        pillLabel.textColor = AccentContentColor.dynamic(from: accent)
         pillBackground.backgroundColor = accent.withAlphaComponent(0.11)
     }
 }

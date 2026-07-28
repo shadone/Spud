@@ -136,8 +136,18 @@ public struct MarkdownContext {
         foregroundColorOverride?.withAlphaComponent(0.55) ?? .tertiaryLabel
     }
 
+    /// The colour every accent-coloured *foreground* in rendered markdown uses:
+    /// link text, the @mention / !community chip's glyph and handle, footnote
+    /// references and their return arrow, and the Copy / Retry / spoiler
+    /// affordances.
+    ///
+    /// This is the accent's **content** variant, not the fill: all of the above
+    /// are text or meaningful glyphs on ordinary backgrounds, and the vivid
+    /// accent measured as low as 1.9:1 there on the brightest accents. The chip
+    /// *background* (``MarkdownColors/chipBackground``) is a surface and keeps
+    /// the vivid accent.
     public var accentColor: UIColor {
-        linkColorOverride ?? ThemeManager.currentAccentColor
+        linkColorOverride ?? ThemeManager.currentContentAccentColor
     }
 
     public var inlineCodeForeground: UIColor {

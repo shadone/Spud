@@ -6,6 +6,7 @@
 
 import SnapshotTesting
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 import XCTest
@@ -45,6 +46,9 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
     override func setUp() {
         super.setUp()
         referenceNow = Date().timeIntervalSince1970
+        // The filter chips are accent-tinted, and the accent is process-global
+        // state seeded from the sim's persisted preference at host launch.
+        SnapshotDeterminism.pinAccent()
         // Pin the host scene's status bar hidden so nav-hosted / key-window
         // captures are immune to the sim's persisted orientation state (the
         // 44pt-shift regression). See
@@ -245,6 +249,14 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
             let hostingView = DiagnosticLogView(viewModel: vm, appDatabase: appDatabase)
             let hostingController = UIHostingController(rootView: hostingView)
             let navigationController = UINavigationController(rootViewController: hostingController)
+            // The category chips read `Color.contentAccent` for their label and
+            // `Color.accentColor` (i.e. the inherited tint) for their wash. An
+            // `.image(on: .deterministicPhone)` capture renders fully off-screen
+            // in the library's own window, so it never sees the app window's
+            // tint cascade and the wash would fall back to system blue while the
+            // label stayed brand teal - a reference that shows a colour pairing
+            // the app never draws. Pin the tint on the host. See FunStatsSnapshotTests.
+            navigationController.view.tintColor = ThemeManager.currentAccentColor
 
             navigationController.loadViewIfNeeded()
             navigationController.view.frame = CGRect(origin: .zero, size: snapshotSize)
@@ -301,6 +313,14 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
             let hostingView = DiagnosticLogView(viewModel: vm, appDatabase: appDatabase)
             let hostingController = UIHostingController(rootView: hostingView)
             let navigationController = UINavigationController(rootViewController: hostingController)
+            // The category chips read `Color.contentAccent` for their label and
+            // `Color.accentColor` (i.e. the inherited tint) for their wash. An
+            // `.image(on: .deterministicPhone)` capture renders fully off-screen
+            // in the library's own window, so it never sees the app window's
+            // tint cascade and the wash would fall back to system blue while the
+            // label stayed brand teal - a reference that shows a colour pairing
+            // the app never draws. Pin the tint on the host. See FunStatsSnapshotTests.
+            navigationController.view.tintColor = ThemeManager.currentAccentColor
 
             navigationController.loadViewIfNeeded()
             navigationController.view.frame = CGRect(origin: .zero, size: snapshotSize)
@@ -413,6 +433,9 @@ final class DiagnosticLogSnapshotTests: XCTestCase {
         let hostingView = DiagnosticLogView(viewModel: vm, appDatabase: appDatabase)
         let hostingController = UIHostingController(rootView: hostingView)
         let navigationController = UINavigationController(rootViewController: hostingController)
+        // See the note in `snapshotEventLog` - pin the tint so the chip wash
+        // matches the app instead of falling back to system blue off-screen.
+        navigationController.view.tintColor = ThemeManager.currentAccentColor
 
         navigationController.loadViewIfNeeded()
         navigationController.view.frame = CGRect(origin: .zero, size: snapshotSize)

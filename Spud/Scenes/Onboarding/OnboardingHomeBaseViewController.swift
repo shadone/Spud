@@ -266,7 +266,10 @@ final class OnboardingHomeBaseViewController: UIViewController {
         let label = UILabel()
         label.text = NSLocalizedString("RECOMMENDED", comment: "Onboarding recommended instance pill")
         label.font = .systemFont(ofSize: 9, weight: .heavy)
-        label.textColor = view.tintColor
+        // 9pt heavy on a 14% wash of the same accent: the wash stays vivid,
+        // the lettering takes the content variant or it disappears on the
+        // brightest accents (measured 1.92:1).
+        label.textColor = AccentContentColor.dynamic(from: view.tintColor)
 
         let container = UIView()
         container.backgroundColor = view.tintColor.withAlphaComponent(0.14)
@@ -364,7 +367,7 @@ final class OnboardingHomeBaseViewController: UIViewController {
                 withConfiguration: UIImage.SymbolConfiguration(weight: .semibold)
             )
         )
-        icon.tintColor = view.tintColor
+        icon.tintColor = AccentContentColor.dynamic(from: view.tintColor)
         icon.contentMode = .scaleAspectFit
         icon.translatesAutoresizingMaskIntoConstraints = false
         icon.setContentHuggingPriority(.required, for: .horizontal)

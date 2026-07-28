@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 
 /// The account-switcher bottom sheet content: a centered "Accounts" title over
@@ -202,7 +203,7 @@ private struct AccountSwitcherAccountRow: View {
                     } label: {
                         Text(NSLocalizedString("Re-login", comment: "Account switcher per-account re-login affordance"))
                             .font(.footnote.weight(.semibold))
-                            .foregroundStyle(accent)
+                            .foregroundStyle(Color.contentAccent)
                     }
                     .buttonStyle(.plain)
                     // The row collapses into a single VoiceOver element
@@ -354,12 +355,12 @@ private struct AccountSwitcherActionRow: View {
                         .frame(width: 30, height: 30)
                     Image(systemName: systemImage)
                         .font(.system(size: 14, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .foregroundStyle(Color.contentAccent)
                 }
 
                 Text(title)
                     .font(.body)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(Color.contentAccent)
 
                 Spacer(minLength: 8)
             }

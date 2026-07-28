@@ -67,7 +67,7 @@ struct FunStatsView: View {
         VStack(spacing: 6) {
             Image(systemName: "gauge.with.needle")
                 .font(.largeTitle)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.contentAccent)
             Text("You have scrolled")
                 .font(.subheadline)
                 .foregroundStyle(Color(.secondaryLabel))
@@ -132,7 +132,7 @@ private struct FunStatTile: View {
         VStack(spacing: 6) {
             Image(systemName: stat.icon)
                 .font(.body)
-                .foregroundStyle(Color.accentColor)
+                .foregroundStyle(Color.contentAccent)
             Text(stat.value)
                 .font(.title2.weight(.semibold))
                 .monospacedDigit()

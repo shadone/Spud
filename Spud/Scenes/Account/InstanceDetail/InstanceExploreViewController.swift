@@ -47,8 +47,14 @@ final class InstanceExploreViewController: UIViewController {
     private var communitiesContainer: UIStackView!
     private var observationTasks: [Task<Void, Never>] = []
 
+    /// The vivid accent, for surfaces the accent fills.
     private var accent: UIColor {
         ThemeManager.currentAccentColor
+    }
+
+    /// The accent as foreground content — text and meaningful glyphs.
+    private var contentAccent: UIColor {
+        ThemeManager.currentContentAccentColor
     }
 
     // MARK: Init
@@ -293,7 +299,7 @@ final class InstanceExploreViewController: UIViewController {
         let healthLabel = UILabel()
         healthLabel.text = "Health"
         healthLabel.font = .systemFont(ofSize: 14, weight: .semibold)
-        healthLabel.textColor = accent
+        healthLabel.textColor = contentAccent
         let chevron = UIImageView(image: UIImage(systemName: "chevron.right"))
         chevron.tintColor = .tertiaryLabel
         chevron.contentMode = .scaleAspectFit

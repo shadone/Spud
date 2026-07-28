@@ -160,7 +160,9 @@ final class InstanceAboutServerView: UIView {
     private func applyState() {
         collapsedHeightConstraint.isActive = !expanded
         fade.isHidden = expanded
-        let accent = ThemeManager.currentAccentColor
+        // Title and chevron are both foreground content on the card, so the
+        // content variant rather than the fill accent.
+        let accent = ThemeManager.currentContentAccentColor
         toggleButton.setTitleColor(accent, for: .normal)
         toggleButton.setTitle(expanded ? "Show less" : "Read more", for: .normal)
         toggleButton.setImage(UIImage(systemName: expanded ? "chevron.up" : "chevron.down"), for: .normal)

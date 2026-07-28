@@ -31,6 +31,17 @@ class GeneralAppearance {
         Self.downColor
     }
 
+    /// The upvoted accent used as **text**, not as a fill: the "▲ N" score run
+    /// in a feed cell's and a post header's metadata line.
+    ///
+    /// Separate from ``upvoteButtonActiveColor`` because that one paints the
+    /// vote capsule (a surface, which keeps the vivid accent and carries white
+    /// on top), while this is a small number read directly against the cell
+    /// background — where the brightest accents measured around 2.2:1.
+    var upvoteContentColor: UIColor {
+        ThemeManager.currentContentAccentColor
+    }
+
     var upvoteSwipeActionBackgroundColor: UIColor {
         ThemeManager.currentAccentColor
     }

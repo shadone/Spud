@@ -110,8 +110,14 @@ final class InstanceDetailViewController: UIViewController {
     private weak var noticeBannerContainer: UIView?
     private var noticeBannerColor: UIColor?
 
+    /// The vivid accent, for surfaces the accent fills (the sticky primary CTA).
     private var accent: UIColor {
         ThemeManager.currentAccentColor
+    }
+
+    /// The accent as foreground content — text and meaningful glyphs.
+    private var contentAccent: UIColor {
+        ThemeManager.currentContentAccentColor
     }
 
     // MARK: Init
@@ -760,7 +766,9 @@ final class InstanceDetailViewController: UIViewController {
     private func makeSecondaryButton(title: String, accent useAccent: Bool) -> UIButton {
         var config = UIButton.Configuration.plain()
         config.title = title
-        config.baseForegroundColor = useAccent ? accent : .label
+        // Outlined, not filled: the title is accent-coloured TEXT on the action
+        // bar, so it takes the content variant.
+        config.baseForegroundColor = useAccent ? contentAccent : .label
         config.background.strokeColor = .separator
         config.background.strokeWidth = 1.5
         config.background.cornerRadius = 13

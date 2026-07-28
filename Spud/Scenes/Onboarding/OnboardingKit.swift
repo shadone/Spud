@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import UIKit
 
 // Small, reusable native primitives shared by the onboarding / login flow so
@@ -72,7 +73,7 @@ final class OnboardingGhostButton: UIButton {
         translatesAutoresizingMaskIntoConstraints = false
         configurationUpdateHandler = { button in
             var updated = button.configuration
-            updated?.baseForegroundColor = button.tintColor
+            updated?.baseForegroundColor = AccentContentColor.dynamic(from: button.tintColor)
             updated?.attributedTitle = AttributedString(
                 title,
                 attributes: AttributeContainer([

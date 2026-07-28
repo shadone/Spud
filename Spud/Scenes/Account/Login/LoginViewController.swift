@@ -636,7 +636,7 @@ class LoginViewController: UIViewController {
             string: action,
             attributes: [
                 .font: UIFont.systemFont(ofSize: 13.5, weight: .bold),
-                .foregroundColor: view.tintColor ?? .systemBlue,
+                .foregroundColor: AccentContentColor.dynamic(from: view.tintColor ?? .systemBlue),
             ]
         ))
         registerLineLabel.attributedText = string

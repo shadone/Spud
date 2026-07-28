@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import SwiftUI
 
@@ -69,7 +70,7 @@ struct CompareSheetView: View {
     private var callout: some View {
         HStack(alignment: .top, spacing: 10) {
             Image(systemName: "info.circle.fill")
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.contentAccent)
             Text("These are independent communities on different servers that happen to share the name “\(target.displayName)”. Pick the one you want to subscribe to.")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
@@ -109,7 +110,7 @@ struct VariantRow: View {
                     if rank == 0 {
                         Text("Most active")
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(accent)
+                            .foregroundStyle(Color.contentAccent)
                             .padding(.horizontal, 7)
                             .padding(.vertical, 2)
                             .background(accent.opacity(0.12), in: Capsule())

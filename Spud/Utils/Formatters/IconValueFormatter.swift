@@ -37,7 +37,9 @@ enum IconValueFormatter {
         switch voteStatus {
         case .up:
             icon = UIImage(systemName: "arrow.up")!
-            attributes[.foregroundColor] = appearance.upvoteButtonActiveColor
+            // Text, not a fill: the content variant of the accent. The capsule
+            // behind the vote BUTTON keeps `upvoteButtonActiveColor`.
+            attributes[.foregroundColor] = appearance.upvoteContentColor
 
         case .neutral:
             icon = UIImage(systemName: "arrow.up")!

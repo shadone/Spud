@@ -200,7 +200,9 @@ final class ToastView: UIView {
 
             var config = UIButton.Configuration.plain()
             config.title = actionTitle
-            config.baseForegroundColor = ThemeManager.currentAccentColor
+            // Accent-coloured text on the toast's glass surface, so the
+            // content variant rather than the fill accent.
+            config.baseForegroundColor = ThemeManager.currentContentAccentColor
             let button = UIButton(configuration: config)
             button.translatesAutoresizingMaskIntoConstraints = false
             button.setContentHuggingPriority(.required, for: .horizontal)

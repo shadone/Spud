@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import SwiftUI
 
@@ -117,7 +118,7 @@ struct InstanceCommunitiesView: View {
                 .overlay {
                     Image(systemName: "globe")
                         .font(.system(size: 24, weight: .semibold))
-                        .foregroundStyle(accent)
+                        .foregroundStyle(Color.contentAccent)
                 }
             VStack(alignment: .leading, spacing: 0) {
                 Text(host)
@@ -148,7 +149,7 @@ struct InstanceCommunitiesView: View {
                                     .font(.system(size: 9, weight: .bold))
                             }
                             .font(.caption2.weight(.bold))
-                            .foregroundStyle(accent)
+                            .foregroundStyle(Color.contentAccent)
                         }
                     }
                     .padding(.top, 8)
@@ -204,7 +205,7 @@ struct InstanceCommunitiesView: View {
         } else {
             text = profile.displayName
         }
-        return chip(icon: "shippingbox.fill", text: text, tint: accent)
+        return chip(icon: "shippingbox.fill", text: text, tint: Color.contentAccent)
     }
 
     /// The live open-registrations chip: green "Open signups" when the instance

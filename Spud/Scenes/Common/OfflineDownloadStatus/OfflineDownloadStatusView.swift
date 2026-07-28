@@ -121,7 +121,11 @@ struct OfflineDownloadProgressRing: View {
             Circle()
                 .trim(from: 0, to: clampedFraction)
                 .stroke(
-                    Color(uiColor: ThemeManager.currentAccentColor),
+                    // The arc is a meaningful indicator drawn on the pill, not a
+                    // fill, so it takes the accent's content variant - the vivid
+                    // accent measured near 2.2:1 against the light pill on the
+                    // brightest accents, under the 3:1 WCAG asks of a graphic.
+                    Color(uiColor: ThemeManager.currentContentAccentColor),
                     style: StrokeStyle(lineWidth: 3, lineCap: .round)
                 )
                 .rotationEffect(.degrees(-90))

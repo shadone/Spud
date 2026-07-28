@@ -7,6 +7,7 @@
 import Foundation
 import LemmyKit
 import SpudDataKit
+import SpudUIKit
 import SwiftUI
 import UIKit
 
@@ -205,7 +206,7 @@ struct MetaCommunityAboutRow: View {
             // signed out.
             Button(action: onNotify) {
                 Image(systemName: CommunityNotifyLabel.symbol(isNotifying: isNotifying))
-                    .foregroundStyle(isNotifying ? Color.accentColor : Color(.tertiaryLabel))
+                    .foregroundStyle(isNotifying ? Color.contentAccent : Color(.tertiaryLabel))
             }
             .buttonStyle(.borderless)
             .accessibilityLabel(
@@ -229,7 +230,7 @@ struct MetaCommunityAboutRow: View {
                             .font(.caption.weight(.semibold))
                             .lineLimit(1)
                     }
-                    .foregroundStyle(item.subscribedState.isSubscribed ? Color(.secondaryLabel) : Color.accentColor)
+                    .foregroundStyle(item.subscribedState.isSubscribed ? Color(.secondaryLabel) : Color.contentAccent)
                     .padding(.horizontal, 12)
                     .padding(.vertical, 6)
                     .background(

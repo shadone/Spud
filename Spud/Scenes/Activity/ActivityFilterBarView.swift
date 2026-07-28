@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 /// A horizontally-scrolling row of filter chip buttons, one per
@@ -151,7 +152,12 @@ class ActivityFilterBarView: UIScrollView {
         // The funnel is highlighted when the active set differs from the default
         // (all types = empty set), and resets to it on tap.
         let isModified = !activeFilters.isEmpty
-        funnelButton?.configuration?.baseForegroundColor = isModified ? .tintColor : .label
+        // A foreground glyph, so it takes the accent's content variant. (The
+        // active chips above are the opposite case: there the accent is the
+        // FILL, with white on top, and it stays vivid.)
+        funnelButton?.configuration?.baseForegroundColor = isModified
+            ? ThemeManager.currentContentAccentColor
+            : .label
         if isModified {
             funnelButton?.accessibilityTraits.insert(.selected)
         } else {

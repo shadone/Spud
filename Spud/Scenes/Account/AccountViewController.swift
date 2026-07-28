@@ -169,7 +169,9 @@ class AccountViewController: UIViewController {
         // actions (switch account, saved / your posts / your comments / drafts &
         // outbox, log out). Navigation is owned here so each row works on iPhone
         // and iPad.
-        let accent = Color(ThemeManager.currentAccentColor)
+        // Every use of this value in `AccountView` is a row glyph — foreground
+        // content — so it takes the accent's content variant, not the fill.
+        let accent = Color(ThemeManager.currentContentAccentColor)
         let accountView = AccountView(
             viewModel: viewModel,
             accent: accent,

@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import UIKit
 
 /// In-flow band above the comment list: "N new since your last visit · {time}"
@@ -71,13 +72,19 @@ final class PostDetailNewSinceBannerCell: UITableViewCell {
     /// `accent` is the resolved app accent; `count` is the number of new comments;
     /// `relativeText` is e.g. "2 hours ago" (may be nil).
     func configure(count: Int, relativeText: String?, accent: UIColor) {
+        // The dot and the row wash are surfaces, so they keep the vivid accent;
+        // the "N new" run and the Jump button are read as text, so they take
+        // its luminance-corrected content variant. Drawn in the vivid accent
+        // this banner's 17pt Jump title measured as low as 1.97:1 on the
+        // brightest accents, against the 4.5:1 AA asks of normal-size text.
+        let contentAccent = AccentContentColor.dynamic(from: accent)
         dotView.backgroundColor = accent
         contentView.backgroundColor = UIColor { _ in
             accent.withAlphaComponent(
                 UITraitCollection.current.userInterfaceStyle == .dark ? 0.16 : 0.11
             )
         }
-        jumpButton.tintColor = accent
+        jumpButton.tintColor = contentAccent
 
         let countText = String(
             format: NSLocalizedString("%lld new", comment: "Count of new comments since last visit"),
@@ -94,7 +101,10 @@ final class PostDetailNewSinceBannerCell: UITableViewCell {
         }()
         let attr = NSMutableAttributedString(
             string: countText,
-            attributes: [.font: UIFont.preferredFont(forTextStyle: .subheadline).bold(), .foregroundColor: accent]
+            attributes: [
+                .font: UIFont.preferredFont(forTextStyle: .subheadline).bold(),
+                .foregroundColor: contentAccent,
+            ]
         )
         attr.append(NSAttributedString(
             string: suffix,

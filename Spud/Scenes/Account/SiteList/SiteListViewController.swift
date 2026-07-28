@@ -7,6 +7,7 @@
 import Foundation
 import OSLog
 import SpudDataKit
+import SpudUIKit
 import UIKit
 
 private let logger = Logger.app
@@ -372,7 +373,7 @@ extension SiteListViewController: UITableViewDataSource {
         var content = UIListContentConfiguration.cell()
         content.text = NSLocalizedString("Add your own instance", comment: "SiteList add-custom-instance row")
         content.image = UIImage(systemName: "plus.circle")
-        content.imageProperties.tintColor = tableView.tintColor
+        content.imageProperties.tintColor = AccentContentColor.dynamic(from: tableView.tintColor)
         cell.contentConfiguration = content
         cell.accessoryType = .disclosureIndicator
         cell.accessibilityIdentifier = "site-list-add-custom-instance"

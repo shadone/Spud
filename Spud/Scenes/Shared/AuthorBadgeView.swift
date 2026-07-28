@@ -4,6 +4,7 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import SpudUIKit
 import SpudUtilKit
 import UIKit
 
@@ -29,6 +30,12 @@ final class BadgeLabel: UILabel {
 /// badge (OP) with the resolved `accent` and every other badge with its own
 /// `color`. A solid badge fills with the color and draws white text; a tinted
 /// badge fills with a 16%-alpha wash and draws the color as text.
+///
+/// The wash and the text are *different* accent values on purpose: the pill's
+/// background keeps the vivid accent so the badge stays recognisable at a
+/// glance, while the 11pt bold "OP" on top is drawn in the accent's
+/// luminance-corrected content variant, which is what makes it readable on the
+/// brightest accents (it measured as low as 1.9:1 before).
 @MainActor
 func makeAuthorBadgeView(_ badge: AuthorBadge, accent: UIColor) -> UIView {
     let label = BadgeLabel()
@@ -39,7 +46,8 @@ func makeAuthorBadgeView(_ badge: AuthorBadge, accent: UIColor) -> UIView {
     label.setContentCompressionResistancePriority(.required, for: .horizontal)
 
     let color = badge.usesAccent ? accent : badge.color
-    let textColor: UIColor = badge.solid ? .white : color
+    let foreground = badge.usesAccent ? AccentContentColor.dynamic(from: accent) : badge.color
+    let textColor: UIColor = badge.solid ? .white : foreground
     label.backgroundColor = badge.solid ? color : color.withAlphaComponent(0.16)
 
     let attributes: [NSAttributedString.Key: Any] = [

@@ -110,7 +110,7 @@ Spud is iOS-only. Its surfaces are the shipped targets in `project.yml`.
 | [Block / unblock](block-unblock.md) | `iphone`, `ipad` | shipped |
 | [Report](report.md) | `iphone`, `ipad` | shipped |
 | [Moderator / admin actions](moderation-actions.md) | `iphone`, `ipad` | shipped |
-| [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped — System / Light / Dark (True Black retired; a saved True Black selection migrates to Dark) + nine accent swatches |
+| [Themes and accent color](themes-and-accent.md) | `iphone`, `ipad` | shipped — System / Light / Dark (True Black retired; a saved True Black selection migrates to Dark) + nine accent swatches, each vivid as a fill and luminance-corrected as text |
 | [App chrome and materials (Liquid Glass)](app-chrome-and-materials.md) | `iphone`, `ipad` | shipped — system-drawn iOS 26 Liquid Glass bars, sheets, popovers, and floating chrome; scrolling content rests below the bar and passes beneath it; Search is the trailing system search tab; media-viewer chrome and floating buttons are glass, pinned dark over their fixed-dark stages |
 | [Display density and text size](display-density-and-text.md) | `iphone`, `ipad` | shipped |
 | [Default sort](default-sort.md) | `iphone`, `ipad` | shipped |
@@ -222,7 +222,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] Moderator / admin actions
 
 **Customization & settings**
-- [x] Themes (System / Light / Dark) + accent color — True Black retired with the move to Liquid Glass; a persisted True Black selection migrates to Dark on first launch (themes-and-accent.md)
+- [x] Themes (System / Light / Dark) + accent color — True Black retired with the move to Liquid Glass; a persisted True Black selection migrates to Dark on first launch; the accent resolves to a vivid fill value and a luminance-corrected content value (themes-and-accent.md)
 - [x] App chrome and materials — system iOS 26 Liquid Glass on bars, sheets, popovers, and floating chrome, with content resting below the bar and scrolling beneath it; Search is the system search tab at the trailing edge; the media viewer's grouped glass chrome and the Share as Image editor's bar are pinned dark so they stay legible over their fixed-dark stages; no opaque-bar option (app-chrome-and-materials.md)
 - [x] Post density + thumbnail position + text scale
 - [x] Default post / comment sort — comment sort persisted in preferences; default post sort persisted per account
@@ -236,7 +236,7 @@ Every shipped capability, grouped by area — the coverage map that replaced the
 - [x] iPad split-view handoff — Posts two-column split + feed-switcher title popover (compact: left-edge swipe), Communities two-column reading split, Activity two-column split (timeline primary + Summary detail pinned), collapse/expand with state preservation; adaptive layouts at regular width: Discover multi-column grid + width-capped directory, sheet detents (composer / new-post), capped banners (Edit Profile / Account tab)
 - [x] Empty / error / loading states
 - [x] Removed and unavailable posts — neutral feed badge (exclamationmark.octagon) + cause-specific placeholder screen when a cached post is no longer found on the server; moderators and the post's author bypass the placeholder and keep access to Restore; automatic recovery on a successful re-fetch (removed-unavailable-content.md)
-- [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion); contrast is measured, not assumed, on the surfaces where a tint or a translucent material derives the foreground — the post-detail "Next new" button and the "Low-res preview" pill
+- [x] Accessibility (Dynamic Type, VoiceOver, Reduce Motion); contrast is measured, not assumed, on the surfaces where a tint or a translucent material derives the foreground — the post-detail "Next new" button, the "Low-res preview" pill, and the accent palette itself (accent-as-text resolves to a luminance-corrected variant, accent-as-fill stays vivid)
 - [x] Home Screen widget (top posts)
 - [x] App Shortcuts, Siri & Spotlight — 7 App Intents (Open Feed / Search / New Post / Inbox / Open Community / Open Saved / Switch Account); Spotlight indexes communities + saved/history posts; an NSFW post (own flag or its community's) is never advertised to Handoff, indexed into Spotlight, or suggested by Siri, unconditionally
 - [x] "Open in Spud" — Safari banner (Web Extension) + a toolbar popup (both known-instance) + an "Open in Spud" share/action extension (handles post / comment / community / user URLs)

@@ -217,7 +217,7 @@ extension FeedSwitcherViewController: UITableViewDataSource, UITableViewDelegate
         var content = cell.defaultContentConfiguration()
         content.text = row.title
         content.image = UIImage(systemName: row.symbolName)
-        content.imageProperties.tintColor = view.tintColor
+        content.imageProperties.tintColor = AccentContentColor.dynamic(from: view.tintColor)
         cell.contentConfiguration = content
         // Cells are opaque by default (even after the view/table clear above),
         // so the popover usage needs the same explicit `.clear` override --

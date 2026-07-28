@@ -5,6 +5,7 @@
 //
 
 import SpudDataKit
+import SpudUIKit
 import SpudUtilKit
 import SwiftUI
 
@@ -140,7 +141,7 @@ struct DiscoverView: View {
                     Spacer(minLength: 0)
                 }
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.contentAccent)
                 .padding(14)
                 .background(accent.opacity(0.10), in: RoundedRectangle(cornerRadius: 12))
             }
@@ -185,7 +186,7 @@ struct DiscoverView: View {
             Button { viewModel.searchNetwork() } label: {
                 Text("Network search failed. Tap to retry.")
                     .font(.subheadline)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(Color.contentAccent)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 24)
             }
@@ -215,7 +216,7 @@ struct DiscoverView: View {
     private var signedOutNote: some View {
         HStack(spacing: 10) {
             Image(systemName: "person.crop.circle")
-                .foregroundStyle(accent)
+                .foregroundStyle(Color.contentAccent)
             Text("Browse freely — sign in to subscribe to communities and get personal picks.")
                 .font(.footnote)
                 .foregroundStyle(Color(.secondaryLabel))
@@ -249,7 +250,7 @@ struct DiscoverView: View {
                         Image(systemName: "chevron.right")
                             .font(.system(size: 11, weight: .semibold))
                     }
-                    .foregroundStyle(accent)
+                    .foregroundStyle(Color.contentAccent)
                 }
                 .buttonStyle(.plain)
                 .accessibilityLabel("See all \(title)")
@@ -507,7 +508,7 @@ struct DiscoverCommunityRow: View {
                     .font(.system(size: 8, weight: .bold))
             }
         }
-        .foregroundStyle(accent)
+        .foregroundStyle(Color.contentAccent)
         .padding(.horizontal, 8)
         .padding(.vertical, 2)
         .background(accent.opacity(0.12), in: Capsule())
@@ -549,7 +550,7 @@ struct DiscoverTrendCard: View {
                         Text("active")
                             .font(.system(size: 10, weight: .bold))
                     }
-                    .foregroundStyle(accent)
+                    .foregroundStyle(Color.contentAccent)
                     .padding(.horizontal, 7)
                     .padding(.vertical, 2)
                     .background(accent.opacity(0.12), in: Capsule())
@@ -620,7 +621,7 @@ struct InstanceCard: View {
                 Spacer(minLength: 0)
                 Image(systemName: "server.rack")
                     .font(.caption)
-                    .foregroundStyle(accent)
+                    .foregroundStyle(Color.contentAccent)
             }
             .padding(.bottom, 10)
 
@@ -680,7 +681,7 @@ struct SubscribeButton: View {
         case .inFlight:
             ProgressView()
                 .controlSize(.small)
-                .tint(accent)
+                .tint(Color.contentAccent)
                 .padding(.horizontal, 20)
                 .padding(.vertical, 6)
         case .subscribed:
@@ -695,7 +696,7 @@ struct SubscribeButton: View {
             Text(text)
                 .font(.caption.weight(.semibold))
         }
-        .foregroundStyle(filled ? Color.white : accent)
+        .foregroundStyle(filled ? Color.white : Color.contentAccent)
         .padding(.horizontal, 12)
         .padding(.vertical, 6)
         .background(filled ? accent : accent.opacity(0.14), in: Capsule())

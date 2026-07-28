@@ -187,9 +187,12 @@ final class ActivityFootprintRailView: UIView {
         return true
     }
 
+    /// Both the glyph and the "Summary" label are foreground content on the
+    /// card, so they take the accent's content variant rather than the fill.
     private func applyAccent() {
-        glyphImageView.tintColor = accentColor
-        summaryLabel.textColor = accentColor
+        let contentAccent = AccentContentColor.dynamic(from: accentColor)
+        glyphImageView.tintColor = contentAccent
+        summaryLabel.textColor = contentAccent
     }
 
     private func rebuildColumns() {
