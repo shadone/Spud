@@ -69,8 +69,12 @@ browser instead.
   screen in a gallery, and never an animated GIF. Analysis runs entirely on the device.
   While text is selected, or while a touch is on live text or on the button itself, the
   viewer yields its own gestures: the tap doesn't toggle the chrome and a downward drag
-  doesn't dismiss. Pinch, double-tap zoom, and paging are unaffected. Devices that don't
-  support image analysis simply never show the button.
+  doesn't dismiss (true whether the viewer is presented with the zoom transition or its
+  cross-dissolve fallback — both gate their dismiss gesture on Live Text the same way).
+  Pinch, double-tap zoom, and paging are unaffected. A device that doesn't support image
+  analysis never shows the button, and neither does a failed, cancelled, or empty
+  (no-text-found) analysis on a supported device — all four cases are silent, with no
+  error UI of any kind.
 - **Instant first frame.** When the originating cell or header already has the image (or a
   thumbnail) loaded, the viewer paints it immediately, then loads full resolution behind it
   — a thumbnail is shown first and replaced by the full image when it arrives.
