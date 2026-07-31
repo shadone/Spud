@@ -52,6 +52,12 @@ final class LiveTextController {
     private var isButtonHidden = true
     private var analysisTask: Task<Void, Never>?
 
+    /// - Parameters:
+    ///   - analyzer: The seam over VisionKit; defaults to the real
+    ///     `SystemImageTextAnalyzer`, so production call sites only need to pass
+    ///     `isEnabled`. Tests inject a fake.
+    ///   - isEnabled: Whether this item is eligible for analysis at all — pass
+    ///     `false` for an animated item (GIF/video), which is never analyzed.
     init(
         analyzer: any ImageTextAnalyzing = SystemImageTextAnalyzer(),
         isEnabled: Bool

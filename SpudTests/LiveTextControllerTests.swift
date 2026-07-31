@@ -30,19 +30,6 @@ struct LiveTextControllerTests {
         return controller
     }
 
-    /// Cancelling `FakeImageTextAnalyzer`'s in-flight `analyze()` resolves over
-    /// several actor hops (its `onCancel` handler spawns a `Task` that resumes a
-    /// continuation, which in turn resumes the original call), and this test
-    /// host boots the full app with its own background activity contending for
-    /// the main actor. A single `Task.yield()` is not enough to guarantee that
-    /// chain has drained; yielding a generous, fixed number of times converges
-    /// reliably without depending on wall-clock time (never `Task.sleep`).
-    private func yieldUntilCancellationPropagates() async {
-        for _ in 0..<50 {
-            await Task.yield()
-        }
-    }
-
     @Test
     func doesNotAnalyzeWhenAnalyzerIsUnsupported() async {
         let analyzer = FakeImageTextAnalyzer(isSupported: false)
@@ -119,7 +106,9 @@ struct LiveTextControllerTests {
         controller.setFinalImage(image(CGSize(width: 32, height: 32)))
         await Task.yield()
         controller.setFinalImage(image(CGSize(width: 64, height: 64)))
-        await yieldUntilCancellationPropagates()
+        await waitUntil("second analyze() call and the first call's cancellation to land") {
+            analyzer.analyzeCallCount == 2 && analyzer.cancelledCallCount == 1
+        }
 
         #expect(analyzer.analyzeCallCount == 2)
         #expect(analyzer.cancelledCallCount == 1)
@@ -138,7 +127,9 @@ struct LiveTextControllerTests {
         controller.setFinalImage(image())
         await Task.yield()
         controller.setPageCurrent(false)
-        await yieldUntilCancellationPropagates()
+        await waitUntil("the in-flight analyze() call to be cancelled") {
+            analyzer.cancelledCallCount == 1
+        }
 
         #expect(analyzer.cancelledCallCount == 1)
     }
