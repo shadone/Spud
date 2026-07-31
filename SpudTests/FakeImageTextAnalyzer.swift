@@ -25,7 +25,9 @@ final class FakeImageTextAnalyzer: ImageTextAnalyzing {
     /// so a test can observe an in-flight analysis and cancel it.
     var blocksUntilResumed = false
 
-    private var pendingContinuations: [CheckedContinuation<Void, Error>] = []
+    /// Maps each `analyze` call's unique id to its continuation, ensuring that
+    /// cancellation of one call does not affect another concurrent call.
+    private var pendingContinuations: [UUID: CheckedContinuation<Void, Error>] = [:]
 
     init(isSupported: Bool = true) {
         self.isSupported = isSupported
@@ -34,13 +36,22 @@ final class FakeImageTextAnalyzer: ImageTextAnalyzing {
     func analyze(_: UIImage) async throws -> ImageAnalysis? {
         analyzeCallCount += 1
         guard blocksUntilResumed else { return nil }
+
+        let callID = UUID()
+
         do {
             try await withTaskCancellationHandler {
                 try await withCheckedThrowingContinuation { continuation in
-                    pendingContinuations.append(continuation)
+                    // If the task is already cancelled, resume immediately with the error
+                    // instead of registering a continuation that nobody will ever resume.
+                    if Task.isCancelled {
+                        continuation.resume(throwing: CancellationError())
+                    } else {
+                        pendingContinuations[callID] = continuation
+                    }
                 }
             } onCancel: {
-                Task { @MainActor in self.failPending(with: CancellationError()) }
+                Task { @MainActor in self.failPending(callID: callID) }
             }
         } catch {
             cancelledCallCount += 1
@@ -51,18 +62,19 @@ final class FakeImageTextAnalyzer: ImageTextAnalyzing {
 
     /// Lets every suspended `analyze` call return.
     func resumePendingAnalysis() {
-        let continuations = pendingContinuations
-        pendingContinuations = []
+        let continuations = pendingContinuations.values
+        pendingContinuations = [:]
         for continuation in continuations {
             continuation.resume()
         }
     }
 
-    private func failPending(with error: Error) {
-        let continuations = pendingContinuations
-        pendingContinuations = []
-        for continuation in continuations {
-            continuation.resume(throwing: error)
+    /// Fails a specific call's continuation with the given error. If the call has
+    /// already been resumed (e.g., by `resumePendingAnalysis`), this is a no-op.
+    private func failPending(callID: UUID) {
+        guard let continuation = pendingContinuations.removeValue(forKey: callID) else {
+            return
         }
+        continuation.resume(throwing: CancellationError())
     }
 }
