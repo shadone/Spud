@@ -316,10 +316,19 @@ final class MediaViewerViewController: UIViewController {
             // fallback pan's `.began` case) and hide it up front so the bar /
             // alt pill / page dots don't visibly morph into the thumbnail
             // mid-drag; `viewDidAppear` restores it if the drag is cancelled.
+            //
+            // Live Text is mirrored here too, via `shouldBeginInteractiveDismiss`
+            // below: every production call site passes a `zoomSource`, so THIS
+            // path — not the fallback pan — is what actually runs on device.
+            // Gating only the fallback pan (as an earlier revision did) left
+            // the Live Text gate dead in production: dragging down while text
+            // is selected, or starting the drag on live text or the Live Text
+            // button, would begin the system's shrink-to-dismiss instead of
+            // extending the selection.
             let options = UIViewController.Transition.ZoomOptions()
             options.interactiveDismissShouldBegin = { [weak self] context in
                 guard let self else { return context.willBegin }
-                let canBegin = context.willBegin && currentPage?.zoomableImageView.isZoomed != true
+                let canBegin = shouldBeginInteractiveDismiss(willBegin: context.willBegin, at: context.location)
                 if canBegin {
                     barHiddenBeforePan = isBarHidden
                     setBar(hidden: true, animated: false)
@@ -669,24 +678,85 @@ final class MediaViewerViewController: UIViewController {
         currentPage?.isCurrentPage
     }
 
+    #if DEBUG
     /// Forces `hasActiveTextSelection` for gesture-arbitration tests, which
     /// cannot produce a real Live Text selection in the Simulator. Test seam.
+    /// `#if DEBUG`-gated so a release build has no override path at all for a
+    /// decision that gates a real dismiss gesture.
     var liveTextSelectionActiveOverrideForTesting: Bool?
 
     /// Forces `hasInteractiveItem(at:)` for gesture-arbitration tests. Test seam.
+    /// `#if DEBUG`-gated for the same reason as
+    /// `liveTextSelectionActiveOverrideForTesting` above.
     var liveTextInteractiveItemOverrideForTesting: Bool?
+    #endif
 
+    /// Whether the on-screen page currently has an active Live Text selection.
+    /// Consulted by both the fallback pan's `gestureRecognizerShouldBegin` gate
+    /// and the zoom transition's `shouldBeginInteractiveDismiss` gate, so
+    /// dragging to extend a selection never begins a dismiss on either
+    /// presentation path. In DEBUG, `liveTextSelectionActiveOverrideForTesting`
+    /// substitutes a fixed value for tests, which cannot produce a real Live
+    /// Text selection in the Simulator; a release build always falls through
+    /// to the live query.
     private var hasActiveLiveTextSelection: Bool {
-        liveTextSelectionActiveOverrideForTesting
-            ?? (currentPage?.zoomableImageView.hasActiveTextSelection ?? false)
+        #if DEBUG
+        if let liveTextSelectionActiveOverrideForTesting {
+            return liveTextSelectionActiveOverrideForTesting
+        }
+        #endif
+        return currentPage?.zoomableImageView.hasActiveTextSelection ?? false
     }
 
+    /// Whether `pointInView` — given in the viewer's own `view` coordinate
+    /// space — lands on live text, a data detector, or the Live Text button.
+    /// Consulted by the fallback pan/tap gates and the zoom transition's
+    /// `shouldBeginInteractiveDismiss` gate. Two-hop conversion: callers pass a
+    /// point already in `view`'s space (a gesture recognizer's
+    /// `location(in: view)`, or `UIZoomTransitionInteractionContext.location`,
+    /// which UIKit documents as being in the displayed view controller's
+    /// view's coordinate space — i.e. this same `view`), and this method
+    /// converts it into the on-screen page's `zoomableImageView` space, which
+    /// is what `hasInteractiveItem(at:)` expects. In DEBUG,
+    /// `liveTextInteractiveItemOverrideForTesting` substitutes a fixed value
+    /// for tests, which cannot produce a real interactive Live Text item in
+    /// the Simulator; a release build always falls through to the live query.
     private func hasLiveTextInteractiveItem(at pointInView: CGPoint) -> Bool {
-        if let override = liveTextInteractiveItemOverrideForTesting {
-            return override
+        #if DEBUG
+        if let liveTextInteractiveItemOverrideForTesting {
+            return liveTextInteractiveItemOverrideForTesting
         }
+        #endif
         guard let zoomable = currentPage?.zoomableImageView else { return false }
         return zoomable.hasInteractiveItem(at: view.convert(pointInView, to: zoomable))
+    }
+
+    /// Whether the system's interactive zoom-dismiss drag should be allowed to
+    /// begin. Mirrors the fallback pan's `gestureRecognizerShouldBegin` gate
+    /// exactly, so dragging to extend a Live Text selection — or starting the
+    /// drag on live text or the Live Text button — is refused on both
+    /// presentation paths. This matters because every production call site
+    /// passes a `zoomSource` (see `usesZoomTransition`), so THIS path, not the
+    /// fallback pan, is what actually runs on device.
+    ///
+    /// Extracted out of the `interactiveDismissShouldBegin` closure installed
+    /// in `init` so it has a seam a test can call directly — the closure
+    /// itself is UIKit-invoked and not reachable from a test.
+    ///
+    /// - Parameters:
+    ///   - willBegin: UIKit's own answer to "would this interaction begin by
+    ///     default" (`UIZoomTransitionInteractionContext.willBegin`, e.g.
+    ///     false for an upward or horizontal flick). ANDed in, never ignored,
+    ///     so a gesture UIKit already rejected can't be forced into a dismiss.
+    ///   - location: the touch location, in the viewer's own `view`
+    ///     coordinate space (`UIZoomTransitionInteractionContext.location` is
+    ///     documented as being in the displayed view controller's view's
+    ///     coordinate space, which for this presentation is `view` itself).
+    func shouldBeginInteractiveDismiss(willBegin: Bool, at location: CGPoint) -> Bool {
+        willBegin
+            && currentPage?.zoomableImageView.isZoomed != true
+            && !hasActiveLiveTextSelection
+            && !hasLiveTextInteractiveItem(at: location)
     }
 
     // MARK: Swipe-to-dismiss
