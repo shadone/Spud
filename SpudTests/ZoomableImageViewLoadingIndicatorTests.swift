@@ -158,8 +158,9 @@ struct ZoomableImageViewLoadingIndicatorTests {
 
 /// A deterministic `ImageServiceType` for these tests, modelled on
 /// `ScriptedImageService`. Only `fetch(_:thumbnail:)` is implemented; the
-/// protocol's default implementations cover the rest.
-private final class FakeImageService: ImageServiceType, @unchecked Sendable {
+/// protocol's default implementations cover the rest. Internal (not
+/// file-private) so `ZoomableImageViewLiveTextTests` can reuse it.
+final class FakeImageService: ImageServiceType, @unchecked Sendable {
     enum Response {
         /// Yield `.loading` then `.ready(image)`, then finish.
         case ready(UIImage)
