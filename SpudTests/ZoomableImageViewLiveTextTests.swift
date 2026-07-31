@@ -42,28 +42,48 @@ struct ZoomableImageViewLiveTextTests {
         return view
     }
 
-    /// A preloaded thumbnail is not the final image and must not be analyzed.
+    /// A thumbnail that arrives on the network-loading path — not the final
+    /// image — must not be analyzed, even while the full-resolution fetch is
+    /// still in flight.
+    ///
+    /// Drives the load with `.loadingForeverWithThumbnail` so `startLoading()`'s
+    /// `.loading` branch actually runs and puts the thumbnail on screen, then
+    /// waits for that to happen before asserting. A synchronous assertion right
+    /// after `startLoading()` would pass no matter what that branch does: the
+    /// load task is an unstructured `Task`, and a synchronous `@MainActor` test
+    /// body never yields, so the task never gets a chance to run before the
+    /// assertion executes. `.loadingForeverWithThumbnail` never finishes its
+    /// stream, so `awaitLoadForTesting()` would hang — waiting for the
+    /// thumbnail's visible effect is the only way to observe that the branch
+    /// ran without hanging.
+    ///
+    /// After the thumbnail lands, also await the analysis seam. If the
+    /// `.loading` branch were to wrongly treat the thumbnail as final, analysis
+    /// starts as its *own* unstructured `Task` (spawned from inside the load
+    /// task) — a bare `waitUntil` on `view.image` can observe the thumbnail
+    /// before that grandchild task has run even once, letting the assertion
+    /// below race ahead of it and pass regardless of the bug.
+    /// `awaitLiveTextAnalysisForTesting()` is safe to call unconditionally: on
+    /// the correct path no analysis is ever started, so it resolves immediately.
     @Test
-    func doesNotAnalyzeAPreloadedThumbnail() {
+    func doesNotAnalyzeAPreloadedThumbnail() async {
         let analyzer = FakeImageTextAnalyzer()
+        let thumbnail = solidImage(.systemIndigo)
         let view = makeView(
             item: MediaItem(
                 imageUrl: URL(filePath: "/full.png"),
-                thumbnailUrl: URL(filePath: "/thumb.png"),
-                preloadedImage: solidImage()
+                thumbnailUrl: URL(filePath: "/thumb.png")
             ),
-            imageService: FakeImageService([.loadingForever]),
+            imageService: FakeImageService([.loadingForeverWithThumbnail(thumbnail)]),
             analyzer: analyzer
         )
 
         view.setPageCurrent(true)
         view.startLoading()
 
-        // No `awaitLoadForTesting()` here: `.loadingForever` never finishes its
-        // stream, so awaiting it would hang forever. That's fine — the preloaded
-        // thumbnail was set synchronously in `init`, before `startLoading()` even
-        // runs, and it is never the final image, so it can't have triggered
-        // analysis regardless of how the full-resolution load later resolves.
+        await waitUntil("thumbnail arrives on screen") { view.image != nil }
+        await view.awaitLiveTextAnalysisForTesting()
+
         #expect(analyzer.analyzeCallCount == 0)
     }
 

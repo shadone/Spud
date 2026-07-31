@@ -168,6 +168,11 @@ final class FakeImageService: ImageServiceType, @unchecked Sendable {
         case failure
         /// Yield `.loading` and never finish — models an in-flight fetch.
         case loadingForever
+        /// Yield `.loading(thumbnail:)` carrying a real thumbnail image, then
+        /// never finish — models a thumbnail arriving over the network while
+        /// the full-resolution fetch is still in flight (mirrors
+        /// `.loadingForever`, but with a thumbnail payload instead of `nil`).
+        case loadingForeverWithThumbnail(UIImage)
     }
 
     private let responses: [Response]
@@ -191,16 +196,19 @@ final class FakeImageService: ImageServiceType, @unchecked Sendable {
         }()
 
         return AsyncStream { continuation in
-            continuation.yield(.loading(thumbnail: nil))
             switch response {
             case let .ready(image):
+                continuation.yield(.loading(thumbnail: nil))
                 continuation.yield(.ready(image))
                 continuation.finish()
             case .failure:
+                continuation.yield(.loading(thumbnail: nil))
                 continuation.yield(.failure)
                 continuation.finish()
             case .loadingForever:
-                break
+                continuation.yield(.loading(thumbnail: nil))
+            case let .loadingForeverWithThumbnail(thumbnail):
+                continuation.yield(.loading(thumbnail: thumbnail))
             }
         }
     }
