@@ -10,14 +10,6 @@ import Testing
 import UIKit
 @testable import Spud
 
-/// Minimal dependency container satisfying `MediaViewerViewController.Dependencies`
-/// (just `HasImageService`) — lighter than the app-wide `FakeDependencies` superset
-/// since this suite only ever needs to control image loading. Not private: also
-/// reused by `MediaViewerLiveTextGestureTests`.
-struct MediaViewerTestDependencies: HasImageService {
-    let imageService: ImageServiceType
-}
-
 /// Verifies the Live Text button behaves as chrome: hidden when the viewer
 /// opens clean, revealed with the top bar, hidden again with it.
 @MainActor

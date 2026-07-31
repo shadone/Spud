@@ -42,9 +42,9 @@ struct ZoomableImageViewLiveTextTests {
         return view
     }
 
-    /// A thumbnail that arrives on the network-loading path — not the final
-    /// image — must not be analyzed, even while the full-resolution fetch is
-    /// still in flight.
+    /// A thumbnail that arrives over the network on the loading path — not the
+    /// final image, and not a `preloadedImage` handed in up front — must not be
+    /// analyzed, even while the full-resolution fetch is still in flight.
     ///
     /// Drives the load with `.loadingForeverWithThumbnail` so `startLoading()`'s
     /// `.loading` branch actually runs and puts the thumbnail on screen, then
@@ -66,7 +66,7 @@ struct ZoomableImageViewLiveTextTests {
     /// `awaitLiveTextAnalysisForTesting()` is safe to call unconditionally: on
     /// the correct path no analysis is ever started, so it resolves immediately.
     @Test
-    func doesNotAnalyzeAPreloadedThumbnail() async {
+    func doesNotAnalyzeANetworkThumbnail() async {
         let analyzer = FakeImageTextAnalyzer()
         let thumbnail = solidImage(.systemIndigo)
         let view = makeView(
