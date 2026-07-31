@@ -41,7 +41,7 @@ final class FakeImageTextAnalyzer: ImageTextAnalyzing {
 
         do {
             try await withTaskCancellationHandler {
-                try await withCheckedThrowingContinuation { continuation in
+                try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
                     // If the task is already cancelled, resume immediately with the error
                     // instead of registering a continuation that nobody will ever resume.
                     if Task.isCancelled {
