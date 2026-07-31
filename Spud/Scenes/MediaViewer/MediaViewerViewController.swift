@@ -669,6 +669,26 @@ final class MediaViewerViewController: UIViewController {
         currentPage?.isCurrentPage
     }
 
+    /// Forces `hasActiveTextSelection` for gesture-arbitration tests, which
+    /// cannot produce a real Live Text selection in the Simulator. Test seam.
+    var liveTextSelectionActiveOverrideForTesting: Bool?
+
+    /// Forces `hasInteractiveItem(at:)` for gesture-arbitration tests. Test seam.
+    var liveTextInteractiveItemOverrideForTesting: Bool?
+
+    private var hasActiveLiveTextSelection: Bool {
+        liveTextSelectionActiveOverrideForTesting
+            ?? (currentPage?.zoomableImageView.hasActiveTextSelection ?? false)
+    }
+
+    private func hasLiveTextInteractiveItem(at pointInView: CGPoint) -> Bool {
+        if let override = liveTextInteractiveItemOverrideForTesting {
+            return override
+        }
+        guard let zoomable = currentPage?.zoomableImageView else { return false }
+        return zoomable.hasInteractiveItem(at: view.convert(pointInView, to: zoomable))
+    }
+
     // MARK: Swipe-to-dismiss
 
     @objc
@@ -997,14 +1017,20 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
+        guard gestureRecognizer === singleTapGesture else { return true }
+
         // A tap on the alt-text pill opens its sheet; don't also toggle the
         // chrome out from under it.
-        if gestureRecognizer === singleTapGesture,
-           let touchView = touch.view,
-           touchView.isDescendant(of: captionContainer)
-        {
+        if let touchView = touch.view, touchView.isDescendant(of: captionContainer) {
             return false
         }
+
+        // A tap on live text, a data detector, or the Live Text button belongs
+        // to VisionKit; toggling the chrome would steal it.
+        if hasLiveTextInteractiveItem(at: touch.location(in: view)) {
+            return false
+        }
+
         return true
     }
 
@@ -1013,6 +1039,11 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         // Only claim a downward, mostly-vertical drag, and only when the
         // current image isn't zoomed (so panning a zoomed image still works).
         if currentPage?.zoomableImageView.isZoomed == true {
+            return false
+        }
+        // Dragging to extend a text selection, or dragging from live text or the
+        // Live Text button, is VisionKit's gesture, not swipe-to-dismiss.
+        if hasActiveLiveTextSelection || hasLiveTextInteractiveItem(at: pan.location(in: view)) {
             return false
         }
         let velocity = pan.velocity(in: view)

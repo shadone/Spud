@@ -12,8 +12,9 @@ import UIKit
 
 /// Minimal dependency container satisfying `MediaViewerViewController.Dependencies`
 /// (just `HasImageService`) — lighter than the app-wide `FakeDependencies` superset
-/// since this suite only ever needs to control image loading.
-private struct MediaViewerTestDependencies: HasImageService {
+/// since this suite only ever needs to control image loading. Not private: also
+/// reused by `MediaViewerLiveTextGestureTests`.
+struct MediaViewerTestDependencies: HasImageService {
     let imageService: ImageServiceType
 }
 
