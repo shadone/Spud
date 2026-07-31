@@ -4,8 +4,11 @@
 // SPDX-License-Identifier: BSD-2-Clause
 //
 
+import OSLog
 import UIKit
 import VisionKit
+
+private let logger = Logger.app
 
 /// Drives iOS Live Text for one image view in the media viewer.
 ///
@@ -139,7 +142,22 @@ final class LiveTextController {
 
         analysisTask = Task { [weak self] in
             guard let self else { return }
-            let analysis = try? await analyzer.analyze(image)
+            var analysis: ImageAnalysis?
+            do {
+                analysis = try await analyzer.analyze(image)
+            } catch {
+                // Both a thrown analysis and a cancelled one land here (device
+                // unsupported is filtered out above by the `analyzer.isSupported`
+                // guard, before `analyze` is ever called). Either way the
+                // visible outcome is the same as "no text found": no Live Text
+                // button (see the type doc comment) — so this is a debug-level
+                // log, not a user-facing error, and deliberately not a
+                // DiagnosticLog event. It exists purely so on-device
+                // verification can tell "analysis threw/was cancelled" apart
+                // from "ran clean but found no text", which `try?` alone
+                // couldn't distinguish.
+                logger.debug("Live Text analysis failed: \(String(describing: error), privacy: .public)")
+            }
             guard !Task.isCancelled else { return }
             apply(analysis)
         }
@@ -150,7 +168,18 @@ final class LiveTextController {
         // Adopt whatever chrome state is current, so a button appearing while
         // the chrome is hidden does not pop into view on its own.
         interaction.setSupplementaryInterfaceHidden(isButtonHidden, animated: false)
-        onLiveTextActiveChanged?(analysis != nil)
+        // `analysis != nil` is the WRONG predicate here, even though it looks
+        // like the obvious complement to `apply(nil)` in `cancelAnalysis()`
+        // below: production's `ImageAnalyzer.analyze` always returns a
+        // non-optional `ImageAnalysis` (the optional in `ImageTextAnalyzing`
+        // exists only so test fakes without a public `ImageAnalysis`
+        // initializer can return `nil`). Keying on `!= nil` would flip this
+        // `true` for every supported device on every non-animated
+        // full-resolution image — including the common photo with no text at
+        // all — installing the invisible VoiceOver stand-in subview and
+        // hiding the image view from accessibility for no reason. Key on
+        // whether the analysis actually found text instead.
+        onLiveTextActiveChanged?(analysis?.hasResults(for: [.text]) ?? false)
     }
 
     private func cancelAnalysis() {
