@@ -316,10 +316,19 @@ final class MediaViewerViewController: UIViewController {
             // fallback pan's `.began` case) and hide it up front so the bar /
             // alt pill / page dots don't visibly morph into the thumbnail
             // mid-drag; `viewDidAppear` restores it if the drag is cancelled.
+            //
+            // Live Text is mirrored here too, via `shouldBeginInteractiveDismiss`
+            // below: every production call site passes a `zoomSource`, so THIS
+            // path — not the fallback pan — is what actually runs on device.
+            // Gating only the fallback pan (as an earlier revision did) left
+            // the Live Text gate dead in production: dragging down while text
+            // is selected, or starting the drag on live text or the Live Text
+            // button, would begin the system's shrink-to-dismiss instead of
+            // extending the selection.
             let options = UIViewController.Transition.ZoomOptions()
             options.interactiveDismissShouldBegin = { [weak self] context in
                 guard let self else { return context.willBegin }
-                let canBegin = context.willBegin && currentPage?.zoomableImageView.isZoomed != true
+                let canBegin = shouldBeginInteractiveDismiss(willBegin: context.willBegin, at: context.location)
                 if canBegin {
                     barHiddenBeforePan = isBarHidden
                     setBar(hidden: true, animated: false)
@@ -390,6 +399,7 @@ final class MediaViewerViewController: UIViewController {
 
         let firstPage = makePage(at: currentIndex)
         pageViewController.setViewControllers([firstPage], direction: .forward, animated: false)
+        firstPage.isCurrentPage = true
 
         setupTopBar()
         setupGestures()
@@ -625,18 +635,128 @@ final class MediaViewerViewController: UIViewController {
             captionContainer.alpha = alpha
             lowResPreviewPill.alpha = alpha
         }
-        guard animated, !UIAccessibility.isReduceMotionEnabled else {
+        if animated, !UIAccessibility.isReduceMotionEnabled {
+            UIView.animate(
+                withDuration: 0.3,
+                delay: 0,
+                usingSpringWithDamping: 0.9,
+                initialSpringVelocity: 0,
+                options: [.beginFromCurrentState, .allowUserInteraction],
+                animations: changes
+            )
+        } else {
             changes()
-            return
         }
-        UIView.animate(
-            withDuration: 0.3,
-            delay: 0,
-            usingSpringWithDamping: 0.9,
-            initialSpringVelocity: 0,
-            options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: changes
+        // The Live Text button is chrome: it fades with the top bar so the
+        // viewer still offers a clean, undecorated photo.
+        updateLiveTextButtonVisibility(animated: animated)
+    }
+
+    /// Applies the current chrome visibility to the on-screen page's Live Text
+    /// button. Also called on a page change, so a newly revealed page adopts the
+    /// chrome state instead of showing a stray button.
+    private func updateLiveTextButtonVisibility(animated: Bool) {
+        currentPage?.zoomableImageView.setLiveTextButtonHidden(
+            isBarHidden,
+            animated: animated && !UIAccessibility.isReduceMotionEnabled
         )
+    }
+
+    /// Toggles the chrome exactly as a single tap does. Test seam.
+    func toggleChromeForTesting() {
+        setBar(hidden: !isBarHidden, animated: false)
+    }
+
+    /// Whether the on-screen page's Live Text button is hidden. Test seam.
+    var isLiveTextButtonHiddenForTesting: Bool? {
+        currentPage?.zoomableImageView.isLiveTextButtonHiddenForTesting
+    }
+
+    /// Whether the on-screen page has been marked current, which is what gates
+    /// its Live Text analysis. Test seam.
+    var currentPageIsCurrentForTesting: Bool? {
+        currentPage?.isCurrentPage
+    }
+
+    #if DEBUG
+    /// Forces `hasActiveTextSelection` for gesture-arbitration tests, which
+    /// cannot produce a real Live Text selection in the Simulator. Test seam.
+    /// `#if DEBUG`-gated so a release build has no override path at all for a
+    /// decision that gates a real dismiss gesture.
+    var liveTextSelectionActiveOverrideForTesting: Bool?
+
+    /// Forces `hasInteractiveItem(at:)` for gesture-arbitration tests. Test seam.
+    /// `#if DEBUG`-gated for the same reason as
+    /// `liveTextSelectionActiveOverrideForTesting` above.
+    var liveTextInteractiveItemOverrideForTesting: Bool?
+    #endif
+
+    /// Whether the on-screen page currently has an active Live Text selection.
+    /// Consulted by both the fallback pan's `gestureRecognizerShouldBegin` gate
+    /// and the zoom transition's `shouldBeginInteractiveDismiss` gate, so
+    /// dragging to extend a selection never begins a dismiss on either
+    /// presentation path. In DEBUG, `liveTextSelectionActiveOverrideForTesting`
+    /// substitutes a fixed value for tests, which cannot produce a real Live
+    /// Text selection in the Simulator; a release build always falls through
+    /// to the live query.
+    private var hasActiveLiveTextSelection: Bool {
+        #if DEBUG
+        if let liveTextSelectionActiveOverrideForTesting {
+            return liveTextSelectionActiveOverrideForTesting
+        }
+        #endif
+        return currentPage?.zoomableImageView.hasActiveTextSelection ?? false
+    }
+
+    /// Whether `pointInView` — given in the viewer's own `view` coordinate
+    /// space — lands on live text, a data detector, or the Live Text button.
+    /// Consulted by the fallback pan/tap gates and the zoom transition's
+    /// `shouldBeginInteractiveDismiss` gate. Two-hop conversion: callers pass a
+    /// point already in `view`'s space (a gesture recognizer's
+    /// `location(in: view)`, or `UIZoomTransitionInteractionContext.location`,
+    /// which UIKit documents as being in the displayed view controller's
+    /// view's coordinate space — i.e. this same `view`), and this method
+    /// converts it into the on-screen page's `zoomableImageView` space, which
+    /// is what `hasInteractiveItem(at:)` expects. In DEBUG,
+    /// `liveTextInteractiveItemOverrideForTesting` substitutes a fixed value
+    /// for tests, which cannot produce a real interactive Live Text item in
+    /// the Simulator; a release build always falls through to the live query.
+    private func hasLiveTextInteractiveItem(at pointInView: CGPoint) -> Bool {
+        #if DEBUG
+        if let liveTextInteractiveItemOverrideForTesting {
+            return liveTextInteractiveItemOverrideForTesting
+        }
+        #endif
+        guard let zoomable = currentPage?.zoomableImageView else { return false }
+        return zoomable.hasInteractiveItem(at: view.convert(pointInView, to: zoomable))
+    }
+
+    /// Whether the system's interactive zoom-dismiss drag should be allowed to
+    /// begin. Mirrors the fallback pan's `gestureRecognizerShouldBegin` gate
+    /// exactly, so dragging to extend a Live Text selection — or starting the
+    /// drag on live text or the Live Text button — is refused on both
+    /// presentation paths. This matters because every production call site
+    /// passes a `zoomSource` (see `usesZoomTransition`), so THIS path, not the
+    /// fallback pan, is what actually runs on device.
+    ///
+    /// Extracted out of the `interactiveDismissShouldBegin` closure installed
+    /// in `init` so it has a seam a test can call directly — the closure
+    /// itself is UIKit-invoked and not reachable from a test.
+    ///
+    /// - Parameters:
+    ///   - willBegin: UIKit's own answer to "would this interaction begin by
+    ///     default" (`UIZoomTransitionInteractionContext.willBegin`, e.g.
+    ///     false for an upward or horizontal flick). ANDed in, never ignored,
+    ///     so a gesture UIKit already rejected can't be forced into a dismiss.
+    ///   - location: the touch location, in the viewer's own `view`
+    ///     coordinate space (`UIZoomTransitionInteractionContext.location` is
+    ///     documented as being in the displayed view controller's view's
+    ///     coordinate space, which for this presentation is `view` itself).
+    func shouldBeginInteractiveDismiss(willBegin: Bool, at location: CGPoint) -> Bool {
+        willBegin
+            && currentPage?.zoomableImageView.isZoomed != true
+            && !hasActiveLiveTextSelection
+            && !hasLiveTextInteractiveItem(at: location)
     }
 
     // MARK: Swipe-to-dismiss
@@ -946,10 +1066,17 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
         transitionCompleted completed: Bool
     ) {
         guard completed, let page = currentPage else { return }
+        for previous in previousViewControllers.compactMap({ $0 as? MediaViewerPageViewController })
+            where previous !== page
+        {
+            previous.isCurrentPage = false
+        }
+        page.isCurrentPage = true
         currentIndex = page.pageIndex
         pageControl.currentPage = currentIndex
         updateCaption()
         updateLowResPreviewPill()
+        updateLiveTextButtonVisibility(animated: false)
     }
 }
 
@@ -960,14 +1087,20 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         _ gestureRecognizer: UIGestureRecognizer,
         shouldReceive touch: UITouch
     ) -> Bool {
+        guard gestureRecognizer === singleTapGesture else { return true }
+
         // A tap on the alt-text pill opens its sheet; don't also toggle the
         // chrome out from under it.
-        if gestureRecognizer === singleTapGesture,
-           let touchView = touch.view,
-           touchView.isDescendant(of: captionContainer)
-        {
+        if let touchView = touch.view, touchView.isDescendant(of: captionContainer) {
             return false
         }
+
+        // A tap on live text, a data detector, or the Live Text button belongs
+        // to VisionKit; toggling the chrome would steal it.
+        if hasLiveTextInteractiveItem(at: touch.location(in: view)) {
+            return false
+        }
+
         return true
     }
 
@@ -976,6 +1109,11 @@ extension MediaViewerViewController: UIGestureRecognizerDelegate {
         // Only claim a downward, mostly-vertical drag, and only when the
         // current image isn't zoomed (so panning a zoomed image still works).
         if currentPage?.zoomableImageView.isZoomed == true {
+            return false
+        }
+        // Dragging to extend a text selection, or dragging from live text or the
+        // Live Text button, is VisionKit's gesture, not swipe-to-dismiss.
+        if hasActiveLiveTextSelection || hasLiveTextInteractiveItem(at: pan.location(in: view)) {
             return false
         }
         let velocity = pan.velocity(in: view)

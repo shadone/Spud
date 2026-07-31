@@ -34,6 +34,31 @@ final class ZoomableImageView: UIView {
     /// in its chrome. Fires once per load; `nil` is passed nothing.
     var onFullImageUnavailable: (() -> Void)?
 
+    // MARK: Live Text
+
+    /// Whether the user currently has text selected in the image. The container
+    /// consults this before claiming a swipe-to-dismiss drag.
+    var hasActiveTextSelection: Bool {
+        liveTextController.hasActiveTextSelection
+    }
+
+    /// Called when this page becomes (or stops being) the one on screen, which
+    /// is what gates Live Text analysis to the visible page.
+    func setPageCurrent(_ isCurrent: Bool) {
+        liveTextController.setPageCurrent(isCurrent)
+    }
+
+    /// Fades the system Live Text button in and out with the viewer's chrome.
+    func setLiveTextButtonHidden(_ hidden: Bool, animated: Bool) {
+        liveTextController.setButtonHidden(hidden, animated: animated)
+    }
+
+    /// Whether live text, a data detector, or the Live Text button occupies
+    /// `point`, given in this view's coordinate space.
+    func hasInteractiveItem(at point: CGPoint) -> Bool {
+        liveTextController.hasInteractiveItem(at: convert(point, to: imageView))
+    }
+
     // MARK: Test seams
 
     /// Whether the loading spinner is currently animating. Test seam.
@@ -50,6 +75,27 @@ final class ZoomableImageView: UIView {
     /// `.failure` state deterministically. Test seam.
     func awaitLoadForTesting() async {
         await loadTask?.value
+    }
+
+    /// Whether the image view is still the VoiceOver element. Test seam.
+    var isImageAccessibilityElementForTesting: Bool {
+        imageView.isAccessibilityElement
+    }
+
+    /// The label of the stand-in VoiceOver element used while Live Text is
+    /// active, or nil when it isn't installed. Test seam.
+    var liveTextDescriptionElementLabelForTesting: String? {
+        imageDescriptionView?.accessibilityLabel
+    }
+
+    /// Awaits the in-flight Live Text analysis. Test seam.
+    func awaitLiveTextAnalysisForTesting() async {
+        await liveTextController.awaitAnalysisForTesting()
+    }
+
+    /// Whether the Live Text button is currently hidden. Test seam.
+    var isLiveTextButtonHiddenForTesting: Bool {
+        liveTextController.isButtonHiddenForTesting
     }
 
     // MARK: UI Properties
@@ -123,7 +169,12 @@ final class ZoomableImageView: UIView {
     private let item: MediaItem
     private let imageService: ImageServiceType
     private let gracePeriod: Duration
+    private let liveTextController: LiveTextController
     private var loadTask: Task<Void, Never>?
+
+    /// An invisible stand-in that carries the image's VoiceOver description
+    /// while Live Text is active. See `setLiveTextActive(_:)`.
+    private var imageDescriptionView: UIView?
 
     /// Armed by `startLoading()`; after `gracePeriod` it asks
     /// `presentIndicatorIfStillLoading()` to show the spinner. Cancelled on
@@ -148,15 +199,26 @@ final class ZoomableImageView: UIView {
     init(
         item: MediaItem,
         imageService: ImageServiceType,
-        gracePeriod: Duration = .milliseconds(400)
+        gracePeriod: Duration = .milliseconds(400),
+        liveTextAnalyzer: any ImageTextAnalyzing = SystemImageTextAnalyzer()
     ) {
         self.item = item
         self.imageService = imageService
         self.gracePeriod = gracePeriod
+        // Animated items are never analyzed: Live Text on a moving image is a
+        // flat frame that stops matching what is on screen.
+        liveTextController = LiveTextController(
+            analyzer: liveTextAnalyzer,
+            isEnabled: !item.isAnimated
+        )
         super.init(frame: .zero)
 
         addSubview(scrollView)
         scrollView.addSubview(imageView)
+        liveTextController.attach(to: imageView)
+        liveTextController.onLiveTextActiveChanged = { [weak self] isActive in
+            self?.setLiveTextActive(isActive)
+        }
         // Z-order: scrollView < scrim + spinner < errorImageView. The error icon
         // and the spinner never display simultaneously.
         addSubview(indicatorScrim)
@@ -295,6 +357,10 @@ final class ZoomableImageView: UIView {
         let hadImage = imageView.image != nil
         imageView.image = image
 
+        if isFinal {
+            liveTextController.setFinalImage(image)
+        }
+
         // Re-fit on the first image, or when swapping a thumbnail for the
         // full-resolution asset while still at minimum zoom.
         if !hadImage || (isFinal && !isZoomed) {
@@ -306,6 +372,36 @@ final class ZoomableImageView: UIView {
                 hasLaidOutImage = false
                 setNeedsLayout()
             }
+        }
+    }
+
+    /// Moves the VoiceOver element aside while Live Text is active.
+    ///
+    /// `ImageAnalysisInteraction` adds its Live Text button as a subview of the
+    /// image view, and an accessibility element hides its own descendants from
+    /// VoiceOver — so leaving `imageView.isAccessibilityElement` true would make
+    /// the button unreachable. Instead the image view stops being an element and
+    /// an invisible stand-in, inserted below the button, carries the image's
+    /// description so it is not lost.
+    func setLiveTextActive(_ isActive: Bool) {
+        guard isActive != (imageDescriptionView != nil) else { return }
+
+        if isActive {
+            let descriptionView = UIView()
+            descriptionView.isUserInteractionEnabled = false
+            descriptionView.backgroundColor = .clear
+            descriptionView.frame = imageView.bounds
+            descriptionView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+            descriptionView.isAccessibilityElement = true
+            descriptionView.accessibilityTraits = .image
+            descriptionView.accessibilityLabel = imageView.accessibilityLabel
+            imageView.insertSubview(descriptionView, at: 0)
+            imageDescriptionView = descriptionView
+            imageView.isAccessibilityElement = false
+        } else {
+            imageDescriptionView?.removeFromSuperview()
+            imageDescriptionView = nil
+            imageView.isAccessibilityElement = true
         }
     }
 

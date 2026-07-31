@@ -1,7 +1,8 @@
 # Media viewer and inline video
 
 - **Surfaces:** `iphone`, `ipad`
-- **Status:** shipped
+- **Status:** shipped — Live Text pending on-device validation (VisionKit image analysis
+  does not run in the Simulator, so it has not yet been exercised on a real device)
 - **Related:** [Configurable swipe actions](swipe-actions.md), [NSFW content visibility and blur](nsfw-content.md), [App chrome and materials](app-chrome-and-materials.md), [DESIGN-BRIEF.md](../design/DESIGN-BRIEF.md)
 
 ## What it does
@@ -59,6 +60,21 @@ browser instead.
 - **Gallery paging.** A post with more than one image pages horizontally; page dots show
   position and current page, and are hidden for a single image.
 - **Alt text.** When a media item carries alt text, an "Image description" pill appears above the page dots; tapping it opens a sheet showing the full description. The pill fades with the chrome and is absent for items without alt text. (VoiceOver: the pill is actionable.)
+- **Live Text.** When an image contains text, iOS's Live Text button appears over the
+  photo and the text becomes selectable — with the system's Copy / Look Up / Translate /
+  Share menu — and phone numbers, addresses, and URLs baked into the image are tappable.
+  The button is part of the chrome: it fades in and out with the top bar and page dots,
+  so the viewer still opens as a clean, undecorated photo. Only the full-resolution image
+  is analyzed (never a thumbnail or a low-resolution preview), only the image currently on
+  screen in a gallery, and never an animated GIF. Analysis runs entirely on the device.
+  While text is selected, or while a touch is on live text or on the button itself, the
+  viewer yields its own gestures: the tap doesn't toggle the chrome and a downward drag
+  doesn't dismiss (true whether the viewer is presented with the zoom transition or its
+  cross-dissolve fallback — both gate their dismiss gesture on Live Text the same way).
+  Pinch, double-tap zoom, and paging are unaffected. A device that doesn't support image
+  analysis never shows the button, and neither does a failed, cancelled, or empty
+  (no-text-found) analysis on a supported device — all four cases are silent, with no
+  error UI of any kind.
 - **Instant first frame.** When the originating cell or header already has the image (or a
   thumbnail) loaded, the viewer paints it immediately, then loads full resolution behind it
   — a thumbnail is shown first and replaced by the full image when it arrives.
@@ -136,6 +152,27 @@ browser instead.
 - **Given** an image I have already seen as a thumbnail, opened full-screen while the full-resolution image can't load (e.g. offline)
 - **Then** the viewer keeps showing the thumbnail with a "Showing low-resolution preview" pill, not the broken-image icon
 - **And** the pill fades away with the rest of the chrome when I tap to hide the bar
+
+### Select text in an image
+
+- **Given** an image containing text, open in the viewer
+- **When** I tap to show the chrome and tap the Live Text button
+- **Then** the text in the image becomes selectable, with Copy, Look Up, Translate, and Share
+- **And** tapping to hide the chrome hides the Live Text button along with the top bar
+
+### A tappable link inside an image
+
+- **Given** an image containing a URL, phone number, or address
+- **When** Live Text is active and I tap it
+- **Then** iOS offers to open it
+- **And** the tap neither toggles the chrome nor dismisses the viewer
+
+### Live Text is skipped where it doesn't apply
+
+- **Given** an animated GIF, or an image whose full resolution failed to load and is showing
+  only a low-resolution preview
+- **When** I open it in the viewer
+- **Then** no Live Text button appears
 
 ### Pinch and double-tap to zoom
 
@@ -243,3 +280,9 @@ browser instead.
   is no unbounded zoom.
 - There is no slideshow, no thumbnail strip, and no swipe-up-for-info — paging is the only
   gallery navigation, shown as plain page dots.
+- Live Text covers text and data detectors only — subject lift ("lift the subject from the
+  background") and Visual Look Up are not offered.
+- Live Text is offered in the full-screen viewer only, not on feed thumbnails, post-detail
+  header images, or inline body images.
+- A URL tapped inside an image is handed to iOS directly; it does not go through Spud's URL
+  sanitizer or the in-app-browser preference, because VisionKit provides no hook for it.
