@@ -732,12 +732,18 @@ final class MediaViewerViewController: UIViewController {
     }
 
     /// Whether the system's interactive zoom-dismiss drag should be allowed to
-    /// begin. Mirrors the fallback pan's `gestureRecognizerShouldBegin` gate
-    /// exactly, so dragging to extend a Live Text selection — or starting the
-    /// drag on live text or the Live Text button — is refused on both
-    /// presentation paths. This matters because every production call site
-    /// passes a `zoomSource` (see `usesZoomTransition`), so THIS path, not the
-    /// fallback pan, is what actually runs on device.
+    /// begin. Applies the same two refusals as the fallback pan's
+    /// `gestureRecognizerShouldBegin` gate — zoomed image, and Live Text
+    /// selection or interactive item under the touch — so dragging to extend a
+    /// Live Text selection, or starting the drag on live text or the Live Text
+    /// button, is refused on both presentation paths. This matters because
+    /// every production call site passes a `zoomSource` (see
+    /// `usesZoomTransition`), so THIS path, not the fallback pan, is what
+    /// actually runs on device.
+    ///
+    /// The fallback's third check — that the drag is downward and mostly
+    /// vertical — has no counterpart here on purpose: `willBegin` is UIKit
+    /// already having answered the direction question for this gesture.
     ///
     /// Extracted out of the `interactiveDismissShouldBegin` closure installed
     /// in `init` so it has a seam a test can call directly — the closure

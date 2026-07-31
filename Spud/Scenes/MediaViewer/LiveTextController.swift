@@ -22,9 +22,11 @@ private let logger = Logger.app
 /// found — resolves to the same visible outcome: no Live Text button.
 @MainActor
 final class LiveTextController {
-    /// Invoked with `true` once an analysis has been applied and the interaction
-    /// is live, and with `false` when it is torn down. `ZoomableImageView` uses
-    /// this to move its VoiceOver element out of the way of the Live Text button.
+    /// Invoked with `true` once an analysis has been applied AND it actually
+    /// found text, and with `false` otherwise — including a successful analysis
+    /// of an image with no text in it. `ZoomableImageView` uses this to move its
+    /// VoiceOver element out of the way of the Live Text button, so it must not
+    /// fire for images that will never show one.
     var onLiveTextActiveChanged: ((Bool) -> Void)?
 
     /// Whether the user currently has text selected in the image. The container
