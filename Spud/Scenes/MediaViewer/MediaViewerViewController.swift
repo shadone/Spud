@@ -390,6 +390,7 @@ final class MediaViewerViewController: UIViewController {
 
         let firstPage = makePage(at: currentIndex)
         pageViewController.setViewControllers([firstPage], direction: .forward, animated: false)
+        firstPage.isCurrentPage = true
 
         setupTopBar()
         setupGestures()
@@ -625,18 +626,47 @@ final class MediaViewerViewController: UIViewController {
             captionContainer.alpha = alpha
             lowResPreviewPill.alpha = alpha
         }
-        guard animated, !UIAccessibility.isReduceMotionEnabled else {
+        if animated, !UIAccessibility.isReduceMotionEnabled {
+            UIView.animate(
+                withDuration: 0.3,
+                delay: 0,
+                usingSpringWithDamping: 0.9,
+                initialSpringVelocity: 0,
+                options: [.beginFromCurrentState, .allowUserInteraction],
+                animations: changes
+            )
+        } else {
             changes()
-            return
         }
-        UIView.animate(
-            withDuration: 0.3,
-            delay: 0,
-            usingSpringWithDamping: 0.9,
-            initialSpringVelocity: 0,
-            options: [.beginFromCurrentState, .allowUserInteraction],
-            animations: changes
+        // The Live Text button is chrome: it fades with the top bar so the
+        // viewer still offers a clean, undecorated photo.
+        updateLiveTextButtonVisibility(animated: animated)
+    }
+
+    /// Applies the current chrome visibility to the on-screen page's Live Text
+    /// button. Also called on a page change, so a newly revealed page adopts the
+    /// chrome state instead of showing a stray button.
+    private func updateLiveTextButtonVisibility(animated: Bool) {
+        currentPage?.zoomableImageView.setLiveTextButtonHidden(
+            isBarHidden,
+            animated: animated && !UIAccessibility.isReduceMotionEnabled
         )
+    }
+
+    /// Toggles the chrome exactly as a single tap does. Test seam.
+    func toggleChromeForTesting() {
+        setBar(hidden: !isBarHidden, animated: false)
+    }
+
+    /// Whether the on-screen page's Live Text button is hidden. Test seam.
+    var isLiveTextButtonHiddenForTesting: Bool? {
+        currentPage?.zoomableImageView.isLiveTextButtonHiddenForTesting
+    }
+
+    /// Whether the on-screen page has been marked current, which is what gates
+    /// its Live Text analysis. Test seam.
+    var currentPageIsCurrentForTesting: Bool? {
+        currentPage?.isCurrentPage
     }
 
     // MARK: Swipe-to-dismiss
@@ -946,10 +976,17 @@ extension MediaViewerViewController: UIPageViewControllerDelegate {
         transitionCompleted completed: Bool
     ) {
         guard completed, let page = currentPage else { return }
+        for previous in previousViewControllers.compactMap({ $0 as? MediaViewerPageViewController })
+            where previous !== page
+        {
+            previous.isCurrentPage = false
+        }
+        page.isCurrentPage = true
         currentIndex = page.pageIndex
         pageControl.currentPage = currentIndex
         updateCaption()
         updateLowResPreviewPill()
+        updateLiveTextButtonVisibility(animated: false)
     }
 }
 

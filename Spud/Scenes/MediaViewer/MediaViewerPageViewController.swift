@@ -21,6 +21,16 @@ final class MediaViewerPageViewController: UIViewController {
     /// reads this when the current page changes to (re)show its degraded pill.
     private(set) var isShowingLowResPreviewOnly = false
 
+    /// Whether this page is the one on screen. Live Text analysis is gated on
+    /// this so a multi-image gallery analyzes lazily, page by page, rather than
+    /// analyzing every image the page view controller preloads.
+    var isCurrentPage = false {
+        didSet {
+            guard isCurrentPage != oldValue else { return }
+            zoomableImageView.setPageCurrent(isCurrentPage)
+        }
+    }
+
     /// Invoked when this page resolves to a degraded (low-res-only) state, so the
     /// container can show its "low-resolution preview" pill if this is the
     /// current page.
