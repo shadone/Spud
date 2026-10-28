@@ -447,3 +447,7 @@ What's next:
 - **`CHANGELOG.md` / `CONTRIBUTING.md`** — only if the project goes public.
 
 See [README.md](README.md) for the user-facing overview.
+
+## Task board
+
+This project's tasks are on its Mission Control board "Spud", ID `sDFDzQ4o7kMAESzm5vlsU`. Agents read, create and update tasks there. The rules are in the `ddenis-home:overview` skill, `references/task-boards.md`; this project's summary is `references/projects/spud.md` beside it.
