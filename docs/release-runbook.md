@@ -1,6 +1,6 @@
 # Release / TestFlight runbook
 
-The full TestFlight / App Store distribution flow for Spud. The root [`../CLAUDE.md`](../CLAUDE.md) keeps only the archive command, the entitlement-gate one-liner, and a pointer here.
+The full TestFlight / App Store distribution flow for Spud. The root [`../AGENTS.md`](../AGENTS.md) keeps only the archive command, the entitlement-gate one-liner, and a pointer here.
 
 First internal build shipped 2026-06-23 — App Store Connect app "Spud for Lemmy", APP_ID 6783281123.
 

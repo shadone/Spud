@@ -22,7 +22,7 @@ import Testing
 /// field below mirrors LemmyKit's own known-decodable fixture
 /// (`Tests/LemmyKitTests/Fixtures/getCommentsResponseV3.json`) -- only the ids/paths/content
 /// differ -- so the v3 `Components.Schemas.CommentView` required-field set is satisfied by
-/// construction (see the SBT-fixture-completeness gotcha in CLAUDE.md).
+/// construction (see the SBT-fixture-completeness gotcha in AGENTS.md).
 private final class MoreCommentsTransport: ClientTransport, @unchecked Sendable {
     func send(
         _: HTTPRequest,

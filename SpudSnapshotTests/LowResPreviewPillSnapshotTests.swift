@@ -28,7 +28,7 @@ import XCTest
 ///   offscreen `layer.render(in:)` strategy does not composite
 ///   `UIVisualEffectView` material at all, so an offscreen reference of a glass
 ///   pill records the material as *absent* — indistinguishable from a broken
-///   one, and unable to ever regress. See `SpudSnapshotTests/CLAUDE.md`.
+///   one, and unable to ever regress. See `SpudSnapshotTests/AGENTS.md`.
 /// - **Both host traits, deliberately expected to match.** The pill pins
 ///   `overrideUserInterfaceStyle = .dark` because its content is fixed white
 ///   and `UIGlassEffect` tints from the inherited trait. So the light and dark

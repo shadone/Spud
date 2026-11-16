@@ -70,7 +70,7 @@ public struct PostRecord: Codable, Sendable, Equatable, Identifiable {
     /// pages, which the launch-time GC prunes): it is what the "Downloaded" feed
     /// reads from. Stored as ISO-8601 text (a `.datetime` column on a Codable
     /// record), so bind a `Date` in SQL args — never `.timeIntervalSince1970`
-    /// (see the CLAUDE.md Date-storage gotcha). Set only by
+    /// (see the AGENTS.md Date-storage gotcha). Set only by
     /// ``AppDatabase/markPostDownloaded(serverPostId:)``; never touched by a
     /// PostView import, so a later feed/`getPost` refresh preserves it.
     public var downloadedAt: Date?

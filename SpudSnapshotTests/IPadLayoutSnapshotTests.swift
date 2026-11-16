@@ -190,7 +190,7 @@ final class IPadLayoutSnapshotTests: XCTestCase {
     /// **Sensitivity:** uses `drawHierarchyInKeyWindow: true` (rendered on-screen via a
     /// real `UIWindow`) so the settled VC state is captured rather than a fresh re-render.
     /// This is device+runtime-sensitive — the pixel refs were recorded on the iPad sim
-    /// used to run SpudSnapshotTests (see the SpudSnapshots test plan in CLAUDE.md for the
+    /// used to run SpudSnapshotTests (see the SpudSnapshots test plan in AGENTS.md for the
     /// reference device). The same strategy is required for `UIVisualEffectView` blurs.
     func test_communitySplit_emptyDetail_ipad_landscape() async throws {
         let appDatabase = try AppDatabase.inMemory()

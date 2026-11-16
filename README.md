@@ -80,7 +80,7 @@ Declared in [`project.yml`](project.yml) and resolved via SPM:
 
 ## For Claude Code sessions
 
-Working notes, conventions, and the upgrade-pickup checklist live in [CLAUDE.md](CLAUDE.md).
+Working notes, conventions, and the upgrade-pickup checklist live in [AGENTS.md](AGENTS.md).
 
 ## License
 

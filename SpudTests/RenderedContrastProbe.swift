@@ -25,7 +25,7 @@ import UIKit
 /// resolve their host through `getKeyWindow()`, so a window that never becomes
 /// key cannot be picked up by a later capture. An ad hoc `makeKeyAndVisible()`
 /// here would corrupt every subsequent on-screen snapshot for the rest of the
-/// simulator boot — see `SpudSnapshotTests/CLAUDE.md`. A non-visible window is
+/// simulator boot — see `SpudSnapshotTests/AGENTS.md`. A non-visible window is
 /// not an option either: it never lays out, so there would be nothing to
 /// measure.
 @MainActor

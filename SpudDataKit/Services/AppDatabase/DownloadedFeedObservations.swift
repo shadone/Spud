@@ -30,7 +30,7 @@ public extension AppDatabase {
     ///
     /// Binds a `Date` in the record write (the `.datetime` column stores as
     /// ISO-8601 text) rather than a `timeIntervalSince1970` double — see the
-    /// CLAUDE.md Date-storage gotcha.
+    /// AGENTS.md Date-storage gotcha.
     func markPostDownloaded(serverPostId: Int64, accountId: Int64) async throws {
         try await writer.write { db in
             guard

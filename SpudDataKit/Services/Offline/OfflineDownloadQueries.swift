@@ -109,7 +109,7 @@ public extension AppDatabase {
                 return rows.map { row -> OfflineDownloadTarget in
                     let serverPostId: Int64 = row["serverPostId"]
                     // Single column subscripts only — never chain two with `??`
-                    // (the GRDB double-optional footgun; see CLAUDE.md).
+                    // (the GRDB double-optional footgun; see AGENTS.md).
                     let thumbnailString: String? = row["thumbnailUrl"]
                     let urlString: String? = row["url"]
                     let embedTitle: String? = row["urlEmbedTitle"]

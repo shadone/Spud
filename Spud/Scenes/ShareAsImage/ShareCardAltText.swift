@@ -72,7 +72,7 @@ enum ShareCardAltText {
     }
 
     private static func mediumDateString(_ date: Date) -> String {
-        // Built locally per call, never a `static let` - see CLAUDE.md's
+        // Built locally per call, never a `static let` - see AGENTS.md's
         // note on non-Sendable formatters in non-`@MainActor` types.
         let formatter = DateFormatter()
         formatter.dateStyle = .medium

@@ -1,6 +1,6 @@
 # SpudSnapshotTests — Claude Code working notes
 
-Snapshot tests use `pointfreeco/swift-snapshot-testing`. Run the suite with `make snapshot` from the repo root — it resolves the reference device/runtime and fails fast if the wrong sim is booted (see `scripts/resolve-test-destination.sh`). References were recorded on **iPhone 17 Pro, portrait, iOS 26.3.x** (migrated from iPhone 14 Pro in 2026-06); the full-screen app-level refs are font/runtime-sensitive and only match on that reference device+runtime. Root working notes: [`../CLAUDE.md`](../CLAUDE.md).
+Snapshot tests use `pointfreeco/swift-snapshot-testing`. Run the suite with `make snapshot` from the repo root — it resolves the reference device/runtime and fails fast if the wrong sim is booted (see `scripts/resolve-test-destination.sh`). References were recorded on **iPhone 17 Pro, portrait, iOS 26.3.x** (migrated from iPhone 14 Pro in 2026-06); the full-screen app-level refs are font/runtime-sensitive and only match on that reference device+runtime. Root working notes: [`../AGENTS.md`](../AGENTS.md).
 
 ## Recording & determinism
 

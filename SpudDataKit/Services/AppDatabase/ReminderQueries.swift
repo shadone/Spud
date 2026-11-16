@@ -119,7 +119,7 @@ public extension AppDatabase {
     ///
     /// `asOf` is bound as a `Date` (not an epoch double) to match
     /// `nextCheckAt`'s ISO-8601-text storage - see the GRDB date-storage
-    /// convention in the project `CLAUDE.md`; a Double-vs-text comparison would
+    /// convention in the project `AGENTS.md`; a Double-vs-text comparison would
     /// silently match nothing.
     func dueActivityRemindersSync(accountId: Int64, asOf: Date) -> [ReminderRecord] {
         do {
@@ -153,7 +153,7 @@ public extension AppDatabase {
     ///
     /// `asOf` is bound as a `Date` (not an epoch double) to match
     /// `nextCheckAt`'s ISO-8601-text storage - see the GRDB date-storage
-    /// convention in the project `CLAUDE.md`; a Double-vs-text comparison would
+    /// convention in the project `AGENTS.md`; a Double-vs-text comparison would
     /// silently match nothing.
     func dueCommunityFollowsSync(accountId: Int64, asOf: Date) -> [ReminderRecord] {
         do {
@@ -181,7 +181,7 @@ public extension AppDatabase {
 
     /// The live `PostRecord.numberOfComments` for `(account, serverPostId)` -
     /// the canonical comment count, refreshed only by a full `PostView` import
-    /// (see the project `CLAUDE.md`'s comment-count-source rule). Resolves the
+    /// (see the project `AGENTS.md`'s comment-count-source rule). Resolves the
     /// account from `keychainId` first, mirroring `lastOpenedAtSync`. Used by
     /// the activity-reminder poll's `commentCountFetcher` (built in
     /// `SchedulerService`, Task 3) after it refreshes the post via

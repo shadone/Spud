@@ -33,7 +33,7 @@ import XCTest
 /// Uses the on-screen `drawHierarchyInKeyWindow: true` capture strategy: like
 /// any `UIVisualEffectView`/`UIGlassEffect` surface, this chrome renders
 /// invisible under the default offscreen `.image(size:traits:)` path (see
-/// `SpudSnapshotTests/CLAUDE.md`).
+/// `SpudSnapshotTests/AGENTS.md`).
 @MainActor
 final class MediaViewerChromeSnapshotTests: XCTestCase {
     override func setUp() {

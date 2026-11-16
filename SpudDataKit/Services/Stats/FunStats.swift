@@ -12,7 +12,7 @@ import Foundation
 ///
 /// Deliberately NOT the `Has*Service` DI pattern: threading `HasStatsService`
 /// through a dozen scene `Dependencies` typealiases would cascade into every
-/// manually-spelled `NestedDependencies` and every test double (see CLAUDE.md
+/// manually-spelled `NestedDependencies` and every test double (see AGENTS.md
 /// on Dependencies cascades) for hooks that have no behavioral coupling to
 /// their host screens. Structural consumers (DependencyContainer,
 /// SceneDelegate, the Fun Stats screen) still receive `StatsServicing` via DI.

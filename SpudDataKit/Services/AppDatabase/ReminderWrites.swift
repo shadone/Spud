@@ -108,7 +108,7 @@ public extension AppDatabase {
     ///
     /// "Overdue" means `fireAt <= asOf`; `asOf` is bound as a `Date` (not an
     /// epoch double) to match the `fireAt` column's ISO-8601-text storage - see
-    /// the GRDB date-storage convention in the project `CLAUDE.md`. A future
+    /// the GRDB date-storage convention in the project `AGENTS.md`. A future
     /// `fireAt`, a non-`time` kind, or a non-`scheduled` status is left
     /// untouched.
     @discardableResult
